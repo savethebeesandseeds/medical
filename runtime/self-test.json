@@ -1,0 +1,7 @@
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}

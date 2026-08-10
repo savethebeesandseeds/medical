@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>MoBL-ARMS muscle effort explorer</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <main class="app-shell">
+        <header class="page-header">
+            <div>
+                <p class="eyebrow">OpenSim C++ · MoBL-ARMS</p>
+                <h1>Upper-extremity muscle effort explorer</h1>
+                <p class="intro">Play the authors’ Reach8 movement and compare activation across all 50 modeled muscle compartments.</p>
+            </div>
+            <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span>Connecting</span>
+            </div>
+        </header>
+
+        <section class="safety-note" aria-label="Medical limitation">
+            <strong>Research visualization—not a diagnosis.</strong>
+            This generic model is not patient-specific. It cannot identify injured tissue, explain pain, or recommend treatment.
+        </section>
+
+        <section id="mode-explanation" class="mode-explanation" aria-live="polite">
+            <strong>Loading Reach8 effort data:</strong> the workspace will keep the model, muscle paths, and angle controls together.
+        </section>
+
+        <section class="summary-strip" aria-label="Model inventory">
+            <div><strong id="count-bodies">—</strong><span>bodies</span></div>
+            <div><strong id="count-muscles">—</strong><span>muscles</span></div>
+            <div><strong id="count-ligaments">—</strong><span>ligaments</span></div>
+            <div><strong id="count-meshes">—</strong><span>authored meshes</span></div>
+            <p id="runtime-note">Loading model inventory…</p>
+        </section>
+
+        <div id="error" class="error hidden" role="alert"></div>
+
+        <section class="workspace">
+            <section class="viewer-panel panel" aria-labelledby="viewer-title">
+                <header class="panel-header viewer-header">
+                    <div>
+                        <h2 id="viewer-title">Right upper extremity</h2>
+                        <p id="viewer-subtitle">Official surface geometry and OpenSim muscle centerlines. Drag to rotate; scroll to zoom.</p>
+                    </div>
+                    <div class="viewer-actions">
+                        <div class="path-view-switch" role="group" aria-label="Muscle path view">
+                            <button id="view-all-muscles" class="active" type="button" aria-pressed="true">All muscles</button>
+                            <button id="view-one-muscle" type="button" aria-pressed="false">One muscle</button>
+                        </div>
+                        <button id="reset-view" class="quiet-button" type="button">Reset view</button>
+                    </div>
+                </header>
+
+                <div class="viewer-stage">
+                    <div class="scene-wrap">
+                        <div id="scene"></div>
+                        <div id="geometry-legend" class="scene-legend" aria-label="Viewer legend">
+                            <span><i class="bone-key"></i>Authored surface geometry</span>
+                            <span><i class="path-key"></i>OpenSim muscle centerlines</span>
+                            <span id="selected-path-legend" class="hidden"><i class="selected-key"></i>Selected muscle</span>
+                        </div>
+                        <div id="activation-legend" class="activation-legend hidden" aria-label="Muscle effort color scale">
+                            <div class="legend-heading">
+                                <strong>Activation · effort proxy</strong>
+                                <span>0–1</span>
+                            </div>
+                            <div class="activation-ramp" aria-hidden="true"></div>
+                            <div class="activation-labels"><span>0 · inactive</span><span>0.5</span><span>1 · highly active</span></div>
+                            <small>A smooth nonlinear curve places yellow near 0.18 and red near 0.34; numeric activation remains 0–1. White points mark the selected path.</small>
+                        </div>
+                        <div class="thickness-note">Tube width is display thickness only—not anatomical muscle volume.</div>
+                        <div id="loading" class="loading" role="status" aria-live="polite">
+                            <span class="spinner" aria-hidden="true"></span>
+                            <span id="loading-text">Loading the official model…</span>
+                        </div>
+                    </div>
+
+                    <aside id="pose-panel" class="pose-dock" aria-labelledby="pose-title">
+                        <header class="pose-dock-header">
+                            <div>
+                                <p class="eyebrow">Position</p>
+                                <h2 id="pose-title">Arm angles</h2>
+                            </div>
+                            <button id="reset-pose" class="text-button" type="button">Reset</button>
+                        </header>
+                        <div id="position-status" class="position-status effort" role="status" aria-live="polite">
+                            <strong>Reach8 effort is available</strong>
+                            <span>Moving an angle keeps it exact and rematches the activation colors.</span>
+                        </div>
+                        <section class="preset-section" aria-labelledby="preset-title">
+                            <div class="preset-heading">
+                                <h3 id="preset-title">Examination postures</h3>
+                                <span>Sets the angle sliders together</span>
+                            </div>
+                            <div id="pose-presets" class="pose-presets">
+                                <button type="button" data-preset="arm-side">Arm by side</button>
+                                <button type="button" data-preset="flexion-90">Forward flexion 90°</button>
+                                <button type="button" data-preset="abduction-90">Abduction 90°</button>
+                                <button type="button" data-preset="scaption-90">Scaption 90°</button>
+                                <button type="button" data-preset="scaption-ir">Scaption + internal rotation</button>
+                                <button type="button" data-preset="external-side">External rotation at side</button>
+                                <button type="button" data-preset="rotation-90-90">90/90 rotation posture</button>
+                                <button type="button" data-preset="elbow-supinated">Elbow 90° · supinated</button>
+                            </div>
+                        </section>
+                        <div id="coordinate-controls" class="coordinate-controls compact"></div>
+                        <p class="fine-print"><strong>Angles are exact:</strong> sliders and posture shortcuts set the geometry directly. Activation colors use the closest authored Reach8 frame; the mismatch is reported above.</p>
+                    </aside>
+                </div>
+
+                <div id="benchmark-transport" class="benchmark-transport">
+                    <button id="toggle-benchmark" class="primary-button play-button" type="button" aria-pressed="false">Play</button>
+                    <div class="timeline-block">
+                        <div class="timeline-meta">
+                            <strong>Reach8 timeline</strong>
+                            <output id="benchmark-time" for="benchmark-timeline">0.620 s</output>
+                        </div>
+                        <input id="benchmark-timeline" type="range" min="0.62" max="4.34" step="0.001" value="0.62" aria-label="Reach8 benchmark time">
+                        <div class="timeline-limits"><span id="benchmark-start">0.620 s</span><span id="benchmark-end">4.340 s</span></div>
+                    </div>
+                    <span class="source-chip">Author-supplied CMC states</span>
+                </div>
+            </section>
+
+            <aside class="control-column">
+                <section id="activation-panel" class="panel activation-panel" aria-labelledby="effort-panel-title">
+                    <header class="section-header">
+                        <div>
+                            <p id="effort-source-label" class="eyebrow">Current Reach8 frame</p>
+                            <h2 id="effort-panel-title">All 50 muscle activations</h2>
+                            <p id="effort-panel-subtitle">Every modeled compartment, ranked by its value at the current frame.</p>
+                        </div>
+                    </header>
+                    <div id="activation-empty" class="effort-empty hidden">
+                        <strong>Matching activation colors.</strong>
+                        <span>Finding the authored Reach8 frame closest to the requested angles.</span>
+                    </div>
+                    <div id="activation-ranking" class="activation-ranking"></div>
+                    <p id="activation-note" class="fine-print"><strong>Effort proxy—not patient data.</strong> Activation is a model state between 0 and 1. It is not muscle force, pain, damage, fatigue, or diagnostic confidence.</p>
+                </section>
+
+                <section id="muscle-panel" class="panel muscle-panel hidden" aria-labelledby="muscle-title">
+                    <header class="section-header">
+                        <div>
+                            <h2 id="muscle-title">Selected muscle</h2>
+                            <p>Select one of the model’s 50 muscle paths.</p>
+                        </div>
+                    </header>
+                    <label class="field-label" for="muscle-select">Muscle name</label>
+                    <select id="muscle-select"></select>
+                    <dl class="key-readings">
+                        <div>
+                            <dt>Musculotendon path length</dt>
+                            <dd><strong id="muscle-length">—</strong> <span>cm</span></dd>
+                        </div>
+                        <div>
+                            <dt>Path points at this pose</dt>
+                            <dd><strong id="path-points">—</strong></dd>
+                        </div>
+                        <div id="activation-reading" class="activation-reading hidden">
+                            <dt>Activation · effort proxy</dt>
+                            <dd><strong id="muscle-activation">—</strong> <span>0–1</span></dd>
+                        </div>
+                    </dl>
+                    <h3>Moment arms at this pose</h3>
+                    <div id="moment-arms" class="moment-arms"></div>
+                    <p id="muscle-fine-print" class="fine-print">These are model-derived geometric quantities. No activation, force, injury, or pain inference is calculated.</p>
+                </section>
+            </aside>
+        </section>
+
+        <section class="provenance panel" aria-labelledby="provenance-title">
+            <div>
+                <p class="eyebrow">Source and limits</p>
+                <h2 id="provenance-title">The model—not this webpage—is the anatomy authority</h2>
+            </div>
+            <div class="provenance-copy">
+                <p><strong>Model:</strong> <a href="https://simtk.org/projects/upexdyn" target="_blank" rel="noreferrer">MoBL-ARMS Dynamic Upper Limb</a>, the supplied OpenSim 4.1 free-torso model with Millard–Schutte-matched curves. The webpage does not create or relocate anatomy.</p>
+                <p><strong>Activation example:</strong> the optional Reach8 view reads coordinate and activation states from the authors’ <code>CMC_results_states.sto</code>. It does not estimate activation from the sliders.</p>
+                <p><strong>Compatibility:</strong> package inventory, benchmark structure, and geometry paths are checked with OpenSim 4.6 at startup. The authors’ complete 4.1 benchmark has not been independently re-run here.</p>
+                <p><strong>Use terms:</strong> non-commercial research, academic, evaluation, and personal use only. Commercial use requires a separate license; attribution is retained in the project files.</p>
+                <p><strong>Clinical boundary:</strong> clinical research would require patient-specific data, a validated inference method, uncertainty reporting, clinical ground truth, clinician oversight, and ethics/regulatory review.</p>
+            </div>
+        </section>
+
+        <footer>
+            <span id="model-hash">Model integrity: checking…</span>
+            <span id="benchmark-hash">Benchmark integrity: checking…</span>
+            <span id="gpu-note">GPU access: checking…</span>
+        </footer>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+</body>
+</html>

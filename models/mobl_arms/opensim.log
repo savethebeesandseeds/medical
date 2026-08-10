@@ -1,0 +1,84 @@
+[2026-08-10 10:49:13.509] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 10:49:13.535] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 10:49:13.593] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 10:49:13.594] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 10:49:15.338] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 10:49:15.339] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 10:49:16.122] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 10:49:16.152] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 10:49:16.181] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 10:49:16.181] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 10:49:16.861] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 10:49:16.861] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 10:49:34.507] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 10:49:34.540] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 10:49:34.619] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 10:49:34.619] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 10:49:35.188] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 10:49:35.189] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:27:18.559] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 11:27:18.637] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 11:27:18.702] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:27:18.704] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:27:20.145] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:27:20.148] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:28:35.734] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 11:28:35.773] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 11:28:35.816] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:28:35.817] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:28:36.811] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:28:36.812] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:29:46.856] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 11:29:46.874] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 11:29:46.912] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:29:46.912] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:29:47.633] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:29:47.634] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:29:51.128] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 11:29:51.159] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 11:29:51.198] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:29:51.198] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:29:52.057] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:29:52.058] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:31:02.371] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 11:31:02.445] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 11:31:02.496] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:31:02.497] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 11:31:03.608] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 11:31:03.610] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 20:45:37.348] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 20:45:37.369] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 20:45:37.474] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 20:45:37.474] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 20:45:39.677] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 20:45:39.678] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 20:45:46.198] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 20:45:46.245] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 20:45:46.266] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 20:45:46.267] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 20:45:47.065] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 20:45:47.065] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 20:48:51.741] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 20:48:51.783] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 20:48:51.820] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 20:48:51.821] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 20:48:52.633] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 20:48:52.634] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 21:22:57.334] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 21:22:57.384] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 21:22:57.418] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 21:22:57.419] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 21:22:58.195] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 21:22:58.195] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 21:23:00.410] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 21:23:00.453] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 21:23:00.480] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 21:23:00.481] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 21:23:01.279] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 21:23:01.280] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 21:27:00.887] [info] Updating Model file from 40000 to latest format...
+[2026-08-10 21:27:00.918] [info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[2026-08-10 21:27:00.945] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 21:27:00.946] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[2026-08-10 21:27:01.810] [warning] Body 'thorax' is massless but nonzero inertia provided.
+[2026-08-10 21:27:01.810] [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
