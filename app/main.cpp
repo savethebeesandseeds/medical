@@ -4,6 +4,7 @@
 #include <array>
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <csignal>
 #include <cstdlib>
@@ -48,6 +49,22 @@ constexpr const char* kBenchmarkName = "Author-supplied CMC Reach8 example";
 constexpr const char* kBenchmarkSha256 =
     "58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004";
 
+// Static holding uses coordinate actuators only as bounded feasibility slacks.
+// Parameterize each reserve as 0.5 Nm*z, z in [-1,1], but weight z by 625 so
+// its quadratic cost remains exactly equivalent to a 0.02 Nm/control reserve.
+// The physical capacity remains +/-0.5 Nm; usability is gated much earlier.
+constexpr double kStaticReserveOptimalForceNm = 0.5;
+constexpr double kStaticReserveControlLimit = 1.0;
+constexpr double kStaticReserveObjectiveWeight = 625.0;
+constexpr double kStaticReserveTorqueLimitNm = 0.05;
+constexpr double kStaticCapacityLimitedReserveThresholdNm = 0.01;
+constexpr double kStaticMuscleCapacityThreshold = 0.995;
+constexpr double kStaticEquilibriumResidualLimit = 1.0e-4;
+constexpr double kStaticAssemblyToleranceDegrees = 1.0e-3;
+constexpr double kStaticInputRangeToleranceDegrees = 1.0e-6;
+constexpr int kStaticMaximumIterations = 100;
+constexpr double kStaticMaximumCpuSeconds = 5.0;
+
 std::atomic<bool> g_running{true};
 
 struct CoordinateSpec {
@@ -77,6 +94,85 @@ struct BenchmarkFrame {
     double time{0.0};
     std::array<double, kPoseCoordinates.size()> coordinateRadians{};
     std::vector<double> activations;
+};
+
+struct StaticHoldingResult {
+    bool optimizerConverged{false};
+    bool usable{false};
+    std::string status{"not_run"};
+    std::string reason{"Static holding optimization was not run"};
+    std::string solverDetail;
+    double durationMilliseconds{0.0};
+    double objective{std::numeric_limits<double>::quiet_NaN()};
+    double maximumAssemblyErrorDegrees{std::numeric_limits<double>::quiet_NaN()};
+    double maximumAccelerationResidual{std::numeric_limits<double>::quiet_NaN()};
+    double rmsAccelerationResidual{std::numeric_limits<double>::quiet_NaN()};
+    double maximumOptimizerConstraintResidual{
+        std::numeric_limits<double>::quiet_NaN()};
+    double rmsOptimizerConstraintResidual{
+        std::numeric_limits<double>::quiet_NaN()};
+    double maximumReserveTorqueNm{std::numeric_limits<double>::quiet_NaN()};
+    double rmsReserveTorqueNm{std::numeric_limits<double>::quiet_NaN()};
+    int musclesAtLowerControlLimit{0};
+    int musclesAtUpperControlLimit{0};
+    int musclesAtOrAboveCapacityThreshold{0};
+    int physicalLinearizations{0};
+    int constraintMultipliers{0};
+    std::vector<double> activations;
+    std::array<double, kPoseCoordinates.size()> reserveTorquesNm{};
+    std::array<double, kPoseCoordinates.size()> accelerationResiduals{};
+};
+
+class BoundedStaticEquilibriumTarget final : public SimTK::OptimizerSystem {
+public:
+    BoundedStaticEquilibriumTarget(
+            SimTK::Matrix accelerationMatrix,
+            SimTK::Vector restingAcceleration,
+            SimTK::Vector objectiveWeights)
+        : accelerationMatrix_(std::move(accelerationMatrix)),
+          restingAcceleration_(std::move(restingAcceleration)),
+          objectiveWeights_(std::move(objectiveWeights)) {
+        setNumParameters(accelerationMatrix_.ncol());
+        setNumEqualityConstraints(accelerationMatrix_.nrow());
+        setNumLinearEqualityConstraints(accelerationMatrix_.nrow());
+    }
+
+    int objectiveFunc(const SimTK::Vector& parameters, bool,
+                      SimTK::Real& objective) const override {
+        objective = 0.0;
+        for (int index = 0; index < parameters.size(); ++index) {
+            objective += objectiveWeights_[index] * parameters[index] *
+                parameters[index];
+        }
+        return 0;
+    }
+
+    int gradientFunc(const SimTK::Vector& parameters, bool,
+                     SimTK::Vector& gradient) const override {
+        for (int index = 0; index < parameters.size(); ++index) {
+            gradient[index] = 2.0 * objectiveWeights_[index] *
+                parameters[index];
+        }
+        return 0;
+    }
+
+    int constraintFunc(const SimTK::Vector& parameters, bool,
+                       SimTK::Vector& constraints) const override {
+        constraints = accelerationMatrix_ * parameters +
+            restingAcceleration_;
+        return 0;
+    }
+
+    int constraintJacobian(const SimTK::Vector&, bool,
+                           SimTK::Matrix& jacobian) const override {
+        jacobian = accelerationMatrix_;
+        return 0;
+    }
+
+private:
+    SimTK::Matrix accelerationMatrix_;
+    SimTK::Vector restingAcceleration_;
+    SimTK::Vector objectiveWeights_;
 };
 
 struct HttpResponse {
@@ -246,6 +342,7 @@ public:
         defaultState_ = model_->initSystem();
         state_ = defaultState_;
         loadBenchmark();
+        initializeStaticHoldingModel();
         validatePackage();
     }
 
@@ -295,6 +392,13 @@ public:
         output << "\"benchmark\":{\"id\":\"" << kBenchmarkId
                << "\",\"ready\":true,\"frames\":" << benchmarkFrames_.size()
                << ",\"sha256\":\"" << kBenchmarkSha256 << "\"},";
+        output << "\"staticHolding\":{\"ready\":true,"
+               << "\"endpoint\":\"/api/static-hold\","
+               << "\"poseCoordinates\":" << kPoseCoordinates.size()
+               << ",\"lockedBaseCoordinates\":6,"
+               << "\"reserveTorqueLimitNm\":";
+        appendNumber(output, kStaticReserveTorqueLimitNm);
+        output << "},";
         output << "\"clinicalUse\":false,"
                << "\"validation\":\"Package integrity, benchmark structure, and default-pose geometry/path checks passed. Stored benchmark states were authored for OpenSim 4.1 and have not been independently revalidated on this runtime.\"}";
         return output.str();
@@ -368,6 +472,119 @@ public:
                          std::nullopt, std::nullopt);
     }
 
+    std::string staticHoldingJson(
+            const std::map<std::string, std::string>& query) {
+        const auto requestedDegrees = requireExactStaticPose(query);
+        applyPose(query);
+        const StaticHoldingResult result = solveStaticHolding(requestedDegrees);
+        const char* interpretation = result.usable
+            ? "Generic-model minimum-squared-control active-muscle estimate for this exact static posture under the model's gravity and modeled arm-segment weights, with no external load. Passive muscle-fiber force is not included by this StaticOptimization formulation. Not measured patient data, force, pain, injury, fatigue, or a diagnosis."
+            : "Exact pose geometry only. Static-holding activations were withheld because the on-demand optimization did not pass its convergence, constrained generalized-force equilibrium, and reserve-torque quality gates.";
+        std::string response = stateJson(
+            selectedMuscle(query), "static",
+            result.usable ? &result.activations : nullptr,
+            std::nullopt, std::nullopt,
+            "on-demand OpenSim 4.6 static optimization", interpretation);
+
+        std::ostringstream details;
+        details << ",\"staticHolding\":{\"method\":\"OpenSim inverse-dynamics torque balance with bounded SimTK static optimization\",";
+        details << "\"requestedCoordinatesDegrees\":{";
+        for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
+            if (index > 0) details << ',';
+            details << '"' << kPoseCoordinates[index].name << "\":";
+            appendNumber(details, requestedDegrees[index]);
+        }
+        details << "},";
+        details << "\"assumptions\":{\"velocity\":\"zero\","
+                << "\"acceleration\":\"zero\",\"externalLoad\":\"none\","
+                << "\"gravityMPerS2\":[0,-9.80665,0],"
+                << "\"segmentWeights\":\"model-defined\","
+                << "\"passiveMuscleFiberForce\":\"not included by this StaticOptimization active-actuation formulation\","
+                << "\"equilibrium\":\"full inverse-dynamics mobility residual balanced by actuator controls and authored constraint reactions\","
+                << "\"base\":\"six free thorax coordinates locked at model defaults\","
+                << "\"coupledCoordinates\":\"authored scapula, clavicle, shoulder and wrist constraints preserved\"},";
+        details << "\"solver\":{\"algorithm\":\"SimTK InteriorPoint\","
+                << "\"activationExponent\":2,\"musclePhysiology\":true,"
+                << "\"maximumIterations\":" << kStaticMaximumIterations << ','
+                << "\"maximumCpuSeconds\":";
+        appendNumber(details, kStaticMaximumCpuSeconds);
+        details << ','
+                << "\"physicalMatrixBuilds\":"
+                << result.physicalLinearizations << ','
+                << "\"constraintMultipliers\":"
+                << result.constraintMultipliers << ','
+                << "\"converged\":"
+                << (result.optimizerConverged ? "true" : "false")
+                << ",\"durationMs\":";
+        appendNumber(details, result.durationMilliseconds);
+        details << ",\"objective\":";
+        appendNumber(details, result.objective);
+        if (!result.solverDetail.empty()) {
+            details << ",\"detail\":\""
+                    << jsonEscape(result.solverDetail) << '"';
+        }
+        details << "},\"quality\":{\"usable\":"
+                << (result.usable ? "true" : "false")
+                << ",\"status\":\"" << jsonEscape(result.status)
+                << "\",\"reason\":\"" << jsonEscape(result.reason) << "\",";
+        details << "\"activationCount\":"
+                << (result.usable ? result.activations.size() : 0)
+                << ",\"maxAssemblyErrorDegrees\":";
+        appendNumber(details, result.maximumAssemblyErrorDegrees);
+        details << ",\"assemblyToleranceDegrees\":";
+        appendNumber(details, kStaticAssemblyToleranceDegrees);
+        details << ",\"maxForwardAccelerationDiagnosticRadPerS2\":";
+        appendNumber(details, result.maximumAccelerationResidual);
+        details << ",\"rmsForwardAccelerationDiagnosticRadPerS2\":";
+        appendNumber(details, result.rmsAccelerationResidual);
+        details << ",\"maxGeneralizedForceEquilibriumResidual\":";
+        appendNumber(details, result.maximumOptimizerConstraintResidual);
+        details << ",\"rmsGeneralizedForceEquilibriumResidual\":";
+        appendNumber(details, result.rmsOptimizerConstraintResidual);
+        details << ",\"equilibriumResidualLimit\":";
+        appendNumber(details, kStaticEquilibriumResidualLimit);
+        details << ",\"equilibriumResidualUnits\":\"N or N m, according to mobility\"";
+        details << ",\"forwardAccelerationDiagnosticGatesUsability\":false";
+        details << ",\"forwardAccelerationDiagnosticInterpretation\":\"Non-gating numerical diagnostic. This generic model has massless and tightly constrained bodies that make forward acceleration ill-conditioned; usability is determined from independently replayed constrained generalized-force equilibrium.\"";
+        details << ",\"maxReserveTorqueNm\":";
+        appendNumber(details, result.maximumReserveTorqueNm);
+        details << ",\"rmsReserveTorqueNm\":";
+        appendNumber(details, result.rmsReserveTorqueNm);
+        details << ",\"reserveTorqueLimitNm\":";
+        appendNumber(details, kStaticReserveTorqueLimitNm);
+        details << ",\"reserveCapacityNm\":";
+        appendNumber(details,
+                     kStaticReserveOptimalForceNm * kStaticReserveControlLimit);
+        details << ",\"reserveParameterization\":\"0.5 Nm times a bounded variable in [-1,1]; quadratic weight 625 preserves the cost of a 0.02 Nm/control reserve\"";
+        details << ",\"capacityLimitedReserveThresholdNm\":";
+        appendNumber(details, kStaticCapacityLimitedReserveThresholdNm);
+        details << ",\"muscleCapacityThreshold\":";
+        appendNumber(details, kStaticMuscleCapacityThreshold);
+        details << ",\"muscleControlLimits\":[";
+        appendNumber(details, staticMuscleControlMinimum_);
+        details << ',';
+        appendNumber(details, staticMuscleControlMaximum_);
+        details << "],\"musclesAtLowerControlLimit\":"
+                << result.musclesAtLowerControlLimit
+                << ",\"musclesAtUpperControlLimit\":"
+                << result.musclesAtUpperControlLimit
+                << ",\"musclesAtOrAboveCapacityThreshold\":"
+                << result.musclesAtOrAboveCapacityThreshold;
+        details << "},\"reserves\":[";
+        for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
+            if (index > 0) details << ',';
+            details << "{\"coordinate\":\"" << kPoseCoordinates[index].name
+                    << "\",\"torqueNm\":";
+            appendNumber(details, result.reserveTorquesNm[index]);
+            details << ",\"forwardAccelerationDiagnosticRadPerS2\":";
+            appendNumber(details, result.accelerationResiduals[index]);
+            details << '}';
+        }
+        details << "],\"notice\":\"Research estimate from a generic model; not validated for clinical diagnosis.\"}";
+        response.insert(response.size() - 1, details.str());
+        return response;
+    }
+
     std::string benchmarkJson() const {
         std::ostringstream output;
         output << "{\"id\":\"" << kBenchmarkId << "\",\"name\":\""
@@ -390,6 +607,33 @@ public:
         output << "],\"muscleCount\":" << muscleCount() << ',';
         output << "\"interpretation\":\"Model-estimated activation from the authors' supplied CMC example. It is not force, pain, fatigue, or patient data.\",";
         output << "\"validation\":\"The stored OpenSim 4.1 states file is structurally validated and displayed with this OpenSim runtime; the authors' benchmark has not been independently re-run here.\"}";
+        return output.str();
+    }
+
+    std::string benchmarkPosesJson() const {
+        std::ostringstream output;
+        output << "{\"id\":\"" << kBenchmarkId << "\",\"coordinateNames\":[";
+        for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
+            if (index > 0) output << ',';
+            output << '\"' << kPoseCoordinates[index].name << '\"';
+        }
+        output << "],\"poses\":[";
+        for (std::size_t frameIndex = 0;
+             frameIndex < benchmarkFrames_.size(); ++frameIndex) {
+            if (frameIndex > 0) output << ',';
+            const auto& frame = benchmarkFrames_[frameIndex];
+            output << "{\"frame\":" << frameIndex << ",\"time\":";
+            appendNumber(output, frame.time);
+            output << ",\"values\":[";
+            for (std::size_t coordinateIndex = 0;
+                 coordinateIndex < kPoseCoordinates.size(); ++coordinateIndex) {
+                if (coordinateIndex > 0) output << ',';
+                appendNumber(output, SimTK::convertRadiansToDegrees(
+                    frame.coordinateRadians[coordinateIndex]));
+            }
+            output << "]}";
+        }
+        output << "],\"interpretation\":\"Every entry is an exact authored Reach8 frame with 50 stored CMC activation states.\"}";
         return output.str();
     }
 
@@ -427,8 +671,18 @@ public:
         struct RequestedCoordinate {
             std::size_t index;
             double degrees;
-            double radians;
-            double rangeRadians;
+        };
+
+        struct SegmentMatch {
+            std::size_t lowerIndex{0};
+            std::size_t upperIndex{1};
+            double fraction{0.0};
+            double time{0.0};
+            double poseMeanSquaredDegrees{0.0};
+            double maximumErrorDegrees{0.0};
+            double continuityPenaltyDegreesSquared{0.0};
+            double objective{0.0};
+            std::array<double, kPoseCoordinates.size()> actualDegrees{};
         };
 
         std::vector<RequestedCoordinate> requested;
@@ -444,9 +698,7 @@ public:
                 SimTK::convertDegreesToRadians(*value), minimum, maximum);
             requested.push_back({
                 index,
-                SimTK::convertRadiansToDegrees(radians),
-                radians,
-                std::max(maximum - minimum, 1e-9)
+                SimTK::convertRadiansToDegrees(radians)
             });
         }
         if (requested.empty()) {
@@ -458,38 +710,164 @@ public:
             queryNumber(query, "t").value_or(benchmarkFrames_.front().time),
             benchmarkFrames_.front().time,
             benchmarkFrames_.back().time);
-        const double duration = benchmarkFrames_.back().time -
-            benchmarkFrames_.front().time;
-
-        std::size_t bestIndex = 0;
-        double bestScore = std::numeric_limits<double>::infinity();
-        for (std::size_t frameIndex = 0;
-             frameIndex < benchmarkFrames_.size(); ++frameIndex) {
-            const auto& frame = benchmarkFrames_[frameIndex];
-            double score = 0.0;
+        // A pose that falls between two stored frames should not jump to one
+        // endpoint. Project it onto every adjacent Reach8 segment instead and
+        // interpolate the stored activations along the selected segment. The
+        // small, capped time term only resolves nearly tied trajectory phases;
+        // it cannot make a poor pose match pass the coverage checks below.
+        std::vector<SegmentMatch> matches;
+        matches.reserve(benchmarkFrames_.size() - 1);
+        for (std::size_t lowerIndex = 0;
+             lowerIndex + 1 < benchmarkFrames_.size(); ++lowerIndex) {
+            const auto& lower = benchmarkFrames_[lowerIndex];
+            const auto& upper = benchmarkFrames_[lowerIndex + 1];
+            double numerator = 0.0;
+            double denominator = 0.0;
             for (const auto& target : requested) {
-                const double normalizedError =
-                    (frame.coordinateRadians[target.index] - target.radians) /
-                    target.rangeRadians;
-                score += normalizedError * normalizedError;
+                const double lowerDegrees = SimTK::convertRadiansToDegrees(
+                    lower.coordinateRadians[target.index]);
+                const double upperDegrees = SimTK::convertRadiansToDegrees(
+                    upper.coordinateRadians[target.index]);
+                const double direction = upperDegrees - lowerDegrees;
+                numerator += (target.degrees - lowerDegrees) * direction;
+                denominator += direction * direction;
             }
-            score /= static_cast<double>(requested.size());
-            const double normalizedTime = (frame.time - anchorTime) / duration;
-            score += normalizedTime * normalizedTime * 1e-8;
-            if (score < bestScore) {
-                bestScore = score;
-                bestIndex = frameIndex;
+            const double fraction = denominator > 1e-12
+                ? std::clamp(numerator / denominator, 0.0, 1.0)
+                : 0.0;
+
+            SegmentMatch match;
+            match.lowerIndex = lowerIndex;
+            match.upperIndex = lowerIndex + 1;
+            match.fraction = fraction;
+            match.time = lower.time + fraction * (upper.time - lower.time);
+            double squaredErrorDegrees = 0.0;
+            for (const auto& target : requested) {
+                const double actualRadians =
+                    lower.coordinateRadians[target.index] + fraction *
+                    (upper.coordinateRadians[target.index] -
+                     lower.coordinateRadians[target.index]);
+                const double actualDegrees = SimTK::convertRadiansToDegrees(
+                    actualRadians);
+                match.actualDegrees[target.index] = actualDegrees;
+                const double errorDegrees = actualDegrees - target.degrees;
+                squaredErrorDegrees += errorDegrees * errorDegrees;
+                match.maximumErrorDegrees = std::max(
+                    match.maximumErrorDegrees, std::abs(errorDegrees));
+            }
+            match.poseMeanSquaredDegrees = squaredErrorDegrees /
+                static_cast<double>(requested.size());
+            const double normalizedTimeDifference =
+                (match.time - anchorTime) / 0.25;
+            match.continuityPenaltyDegreesSquared = 4.0 * std::min(
+                normalizedTimeDifference * normalizedTimeDifference, 1.0);
+            match.objective = match.poseMeanSquaredDegrees +
+                match.continuityPenaltyDegreesSquared;
+            matches.push_back(match);
+        }
+
+        const auto chosenIterator = std::min_element(
+            matches.begin(), matches.end(),
+            [](const SegmentMatch& left, const SegmentMatch& right) {
+                return left.objective < right.objective;
+            });
+        const SegmentMatch& chosen = *chosenIterator;
+
+        const auto interpolateActivations = [&](const SegmentMatch& match) {
+            const auto& lower = benchmarkFrames_[match.lowerIndex].activations;
+            const auto& upper = benchmarkFrames_[match.upperIndex].activations;
+            std::vector<double> values(lower.size(), 0.0);
+            for (std::size_t index = 0; index < values.size(); ++index) {
+                values[index] = lower[index] + match.fraction *
+                    (upper[index] - lower[index]);
+            }
+            return values;
+        };
+        std::vector<double> interpolatedActivations =
+            interpolateActivations(chosen);
+
+        const SegmentMatch* alternative = nullptr;
+        for (const auto& candidate : matches) {
+            if (std::abs(candidate.time - chosen.time) < 0.20) continue;
+            if (alternative == nullptr || candidate.poseMeanSquaredDegrees <
+                    alternative->poseMeanSquaredDegrees) {
+                alternative = &candidate;
             }
         }
 
-        const auto& frame = benchmarkFrames_[bestIndex];
-        applyBenchmarkFrame(frame);
+        double alternativeActivationRmsDifference = 0.0;
+        double alternativeActivationMaximumDifference = 0.0;
+        double alternativePoseRmsGapDegrees = 0.0;
+        bool ambiguous = false;
+        if (alternative != nullptr) {
+            const auto alternativeActivations =
+                interpolateActivations(*alternative);
+            double squaredActivationDifference = 0.0;
+            for (std::size_t index = 0;
+                 index < interpolatedActivations.size(); ++index) {
+                const double difference = std::abs(
+                    interpolatedActivations[index] -
+                    alternativeActivations[index]);
+                squaredActivationDifference += difference * difference;
+                alternativeActivationMaximumDifference = std::max(
+                    alternativeActivationMaximumDifference, difference);
+            }
+            alternativeActivationRmsDifference = std::sqrt(
+                squaredActivationDifference /
+                static_cast<double>(interpolatedActivations.size()));
+            alternativePoseRmsGapDegrees = std::sqrt(
+                alternative->poseMeanSquaredDegrees) -
+                std::sqrt(chosen.poseMeanSquaredDegrees);
+            ambiguous = alternativePoseRmsGapDegrees <= 1.0 &&
+                (alternativeActivationRmsDifference > 0.03 ||
+                 alternativeActivationMaximumDifference > 0.10);
+        }
+
+        const double rmsErrorDegrees = std::sqrt(
+            chosen.poseMeanSquaredDegrees);
+        const bool completePose = requested.size() == kPoseCoordinates.size();
+        const bool highCoverage = completePose && rmsErrorDegrees <= 2.0 &&
+            chosen.maximumErrorDegrees <= 5.0;
+        const bool approximateCoverage = completePose &&
+            rmsErrorDegrees <= 5.0 && chosen.maximumErrorDegrees <= 10.0;
+
+        std::string coverageStatus;
+        std::string coverageReason;
+        bool usable = false;
+        if (!completePose) {
+            coverageStatus = "incomplete";
+            coverageReason = "all seven pose angles are required";
+        } else if (!approximateCoverage) {
+            coverageStatus = "outside";
+            coverageReason = "pose is outside the supported Reach8 neighborhood";
+        } else if (ambiguous) {
+            coverageStatus = "ambiguous";
+            coverageReason = "similar Reach8 phases have materially different activations";
+        } else if (highCoverage) {
+            coverageStatus = "high";
+            coverageReason = "pose is close to the authored Reach8 trajectory";
+            usable = true;
+        } else {
+            coverageStatus = "approximate";
+            coverageReason = "pose is near, but not on, the authored Reach8 trajectory";
+            usable = true;
+        }
+
+        // Return the exact requested geometry. Activation values are attached
+        // only when the engineering coverage gate accepts the projection.
+        applyPose(query);
+        const std::size_t representativeIndex = chosen.fraction < 0.5
+            ? chosen.lowerIndex : chosen.upperIndex;
         std::string result = stateJson(
-            selectedMuscle(query), "benchmark", &frame.activations,
-            frame.time, bestIndex);
+            selectedMuscle(query), usable ? "matched" : "pose",
+            usable ? &interpolatedActivations : nullptr,
+            chosen.time, representativeIndex,
+            usable
+                ? "linearly interpolated stored OpenSim 4.1 CMC states"
+                : "activation unavailable for this requested pose");
 
         std::ostringstream match;
-        match << ",\"match\":{\"method\":\"nearest authored Reach8 frame\",";
+        match << ",\"match\":{\"method\":\"continuous Reach8 trajectory projection\",";
         match << "\"requested\":{";
         for (std::size_t index = 0; index < requested.size(); ++index) {
             if (index > 0) match << ',';
@@ -498,28 +876,56 @@ public:
             appendNumber(match, target.degrees);
         }
         match << "},\"actual\":{";
-        double squaredErrorDegrees = 0.0;
-        double maximumErrorDegrees = 0.0;
         for (std::size_t index = 0; index < requested.size(); ++index) {
             if (index > 0) match << ',';
             const auto& target = requested[index];
-            const double actualDegrees = SimTK::convertRadiansToDegrees(
-                frame.coordinateRadians[target.index]);
-            const double errorDegrees = actualDegrees - target.degrees;
-            squaredErrorDegrees += errorDegrees * errorDegrees;
-            maximumErrorDegrees = std::max(
-                maximumErrorDegrees, std::abs(errorDegrees));
             match << '\"' << kPoseCoordinates[target.index].name << "\":";
-            appendNumber(match, actualDegrees);
+            appendNumber(match, chosen.actualDegrees[target.index]);
+        }
+        match << "},\"errorsDegrees\":{";
+        for (std::size_t index = 0; index < requested.size(); ++index) {
+            if (index > 0) match << ',';
+            const auto& target = requested[index];
+            match << '\"' << kPoseCoordinates[target.index].name << "\":";
+            appendNumber(
+                match, chosen.actualDegrees[target.index] - target.degrees);
         }
         match << "},\"coordinateCount\":" << requested.size();
         match << ",\"rmsErrorDegrees\":";
-        appendNumber(match, std::sqrt(
-            squaredErrorDegrees / static_cast<double>(requested.size())));
+        appendNumber(match, rmsErrorDegrees);
         match << ",\"maxErrorDegrees\":";
-        appendNumber(match, maximumErrorDegrees);
+        appendNumber(match, chosen.maximumErrorDegrees);
         match << ",\"time\":";
-        appendNumber(match, frame.time);
+        appendNumber(match, chosen.time);
+        match << ",\"coverage\":{\"status\":\"" << coverageStatus
+              << "\",\"usable\":" << (usable ? "true" : "false")
+              << ",\"reason\":\"" << jsonEscape(coverageReason) << "\"}";
+        match << ",\"interpolation\":{\"lowerFrame\":"
+              << chosen.lowerIndex << ",\"upperFrame\":"
+              << chosen.upperIndex << ",\"fraction\":";
+        appendNumber(match, chosen.fraction);
+        match << '}';
+        match << ",\"continuity\":{\"anchorTime\":";
+        appendNumber(match, anchorTime);
+        match << ",\"deltaTime\":";
+        appendNumber(match, chosen.time - anchorTime);
+        match << ",\"penaltyDegreesSquared\":";
+        appendNumber(match, chosen.continuityPenaltyDegreesSquared);
+        match << '}';
+        match << ",\"ambiguity\":{\"ambiguous\":"
+              << (ambiguous ? "true" : "false");
+        if (alternative != nullptr) {
+            match << ",\"alternativeTime\":";
+            appendNumber(match, alternative->time);
+            match << ",\"poseRmsGapDegrees\":";
+            appendNumber(match, alternativePoseRmsGapDegrees);
+            match << ",\"activationRmsDifference\":";
+            appendNumber(match, alternativeActivationRmsDifference);
+            match << ",\"activationMaxDifference\":";
+            appendNumber(match, alternativeActivationMaximumDifference);
+        }
+        match << '}';
+        match << ",\"activationInterpolation\":\"linear between adjacent stored CMC states\"";
         match << '}';
 
         result.insert(result.size() - 1, match.str());
@@ -570,6 +976,562 @@ public:
     }
 
 private:
+    std::optional<std::size_t> poseCoordinateIndex(
+            const std::string& name) const {
+        for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
+            if (name == kPoseCoordinates[index].name) return index;
+        }
+        return std::nullopt;
+    }
+
+    std::array<double, kPoseCoordinates.size()> requireExactStaticPose(
+            const std::map<std::string, std::string>& query) const {
+        std::array<double, kPoseCoordinates.size()> requestedDegrees{};
+        for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
+            const auto& spec = kPoseCoordinates[index];
+            const auto value = queryNumber(query, spec.name);
+            if (!value.has_value()) {
+                throw std::invalid_argument(
+                    "Static holding requires all seven angles; missing " +
+                    std::string(spec.name));
+            }
+            const auto& coordinate = model_->getCoordinateSet().get(spec.name);
+            const double minimumDegrees = SimTK::convertRadiansToDegrees(
+                coordinate.getRangeMin());
+            const double maximumDegrees = SimTK::convertRadiansToDegrees(
+                coordinate.getRangeMax());
+            if (*value < minimumDegrees - kStaticInputRangeToleranceDegrees ||
+                    *value > maximumDegrees +
+                        kStaticInputRangeToleranceDegrees) {
+                std::ostringstream message;
+                message << spec.name << " must be between "
+                        << minimumDegrees << " and " << maximumDegrees
+                        << " degrees";
+                throw std::invalid_argument(message.str());
+            }
+            // Permit round-tripping the API's eight-decimal model limits while
+            // retaining the exact authored bound internally.
+            requestedDegrees[index] = std::clamp(
+                *value, minimumDegrees, maximumDegrees);
+        }
+        return requestedDegrees;
+    }
+
+    std::string staticReserveName(const std::string& coordinateName) const {
+        return "static_reserve_" + coordinateName;
+    }
+
+    void initializeStaticHoldingModel() {
+        staticModel_.reset(model_->clone());
+
+        // The authored model has six independent thorax free-joint coordinates
+        // in addition to the seven requested arm coordinates. Lock only those
+        // independent non-pose coordinates. Dependent scapula, clavicle,
+        // shoulder and wrist coordinates remain governed by their authored
+        // CoordinateCouplerConstraints.
+        int lockedBaseCoordinates = 0;
+        auto& staticCoordinates = staticModel_->updCoordinateSet();
+        for (int index = 0; index < staticCoordinates.getSize(); ++index) {
+            auto& coordinate = staticCoordinates.get(index);
+            const auto& sourceCoordinate = model_->getCoordinateSet().get(
+                coordinate.getName());
+            if (!poseCoordinateIndex(coordinate.getName()).has_value() &&
+                    !sourceCoordinate.isDependent(defaultState_)) {
+                coordinate.setDefaultValue(
+                    sourceCoordinate.getValue(defaultState_));
+                coordinate.setDefaultLocked(true);
+                ++lockedBaseCoordinates;
+            }
+        }
+        if (lockedBaseCoordinates != 6) {
+            throw std::runtime_error(
+                "Static model expected exactly six independent base coordinates");
+        }
+
+        for (const auto& spec : kPoseCoordinates) {
+            auto* reserve = new OpenSim::CoordinateActuator();
+            reserve->setName(staticReserveName(spec.name));
+            reserve->setCoordinate(
+                &staticModel_->updCoordinateSet().get(spec.name));
+            reserve->setOptimalForce(kStaticReserveOptimalForceNm);
+            reserve->setMinControl(-kStaticReserveControlLimit);
+            reserve->setMaxControl(kStaticReserveControlLimit);
+            staticModel_->addForce(reserve);
+        }
+
+        staticModel_->finalizeConnections();
+        staticDefaultState_ = staticModel_->initSystem();
+        staticModel_->setAllControllersEnabled(false);
+        staticMuscleControlMinimum_ = std::numeric_limits<double>::infinity();
+        staticMuscleControlMaximum_ = -std::numeric_limits<double>::infinity();
+        const auto& staticMuscles = staticModel_->getMuscles();
+        for (int index = 0; index < staticMuscles.getSize(); ++index) {
+            staticMuscleControlMinimum_ = std::min(
+                staticMuscleControlMinimum_,
+                staticMuscles.get(index).getMinControl());
+            staticMuscleControlMaximum_ = std::max(
+                staticMuscleControlMaximum_,
+                staticMuscles.get(index).getMaxControl());
+        }
+        const auto& actuators = staticModel_->getActuators();
+        for (int index = 0; index < actuators.getSize(); ++index) {
+            const auto* scalar = dynamic_cast<const OpenSim::ScalarActuator*>(
+                &actuators.get(index));
+            if (scalar == nullptr) {
+                throw std::runtime_error(
+                    "Static holding supports scalar actuators only");
+            }
+            scalar->overrideActuation(staticDefaultState_, true);
+        }
+
+        staticAccelerationCoordinateNames_.clear();
+        const auto coordinates =
+            staticModel_->getCoordinatesInMultibodyTreeOrder();
+        for (std::size_t index = 0; index < coordinates.size(); ++index) {
+            const auto& coordinate = coordinates[index];
+            if (!coordinate->isConstrained(staticDefaultState_)) {
+                staticAccelerationCoordinateNames_.push_back(
+                    coordinate->getName());
+            }
+        }
+        if (staticAccelerationCoordinateNames_.size() !=
+                kPoseCoordinates.size()) {
+            throw std::runtime_error(
+                "Static model must have exactly seven unconstrained arm coordinates");
+        }
+        for (const auto& name : staticAccelerationCoordinateNames_) {
+            if (!poseCoordinateIndex(name).has_value()) {
+                throw std::runtime_error(
+                    "Unexpected unconstrained coordinate in static model: " + name);
+            }
+        }
+    }
+
+    StaticHoldingResult solveStaticHolding(
+            const std::array<double, kPoseCoordinates.size()>&
+                requestedDegrees) {
+        StaticHoldingResult result;
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        result.reserveTorquesNm.fill(nan);
+        result.accelerationResiduals.fill(nan);
+        const auto started = std::chrono::steady_clock::now();
+
+        try {
+            SimTK::State solverState = staticDefaultState_;
+            solverState.setTime(0.0);
+            for (std::size_t index = 0;
+                 index < kPoseCoordinates.size(); ++index) {
+                auto& coordinate = staticModel_->updCoordinateSet().get(
+                    kPoseCoordinates[index].name);
+                coordinate.setValue(
+                    solverState,
+                    SimTK::convertDegreesToRadians(requestedDegrees[index]),
+                    false);
+            }
+            staticModel_->assemble(solverState);
+            solverState.updU() = 0;
+            staticModel_->getMultibodySystem().realize(
+                solverState, SimTK::Stage::Velocity);
+
+            result.maximumAssemblyErrorDegrees = 0.0;
+            for (std::size_t index = 0;
+                 index < kPoseCoordinates.size(); ++index) {
+                const auto& coordinate = staticModel_->getCoordinateSet().get(
+                    kPoseCoordinates[index].name);
+                const double actualDegrees = SimTK::convertRadiansToDegrees(
+                    coordinate.getValue(solverState));
+                const double assemblyErrorDegrees = std::abs(
+                    actualDegrees - requestedDegrees[index]);
+                result.maximumAssemblyErrorDegrees = std::max(
+                    result.maximumAssemblyErrorDegrees, assemblyErrorDegrees);
+                if (assemblyErrorDegrees >
+                        kStaticAssemblyToleranceDegrees) {
+                    std::ostringstream message;
+                    message << "Model assembly changed requested coordinate "
+                            << kPoseCoordinates[index].name << " from "
+                            << requestedDegrees[index] << " to "
+                            << actualDegrees << " degrees (delta "
+                            << (actualDegrees - requestedDegrees[index]) << ')';
+                    throw std::runtime_error(message.str());
+                }
+            }
+
+            staticModel_->equilibrateMuscles(solverState);
+
+            const int actuatorCount = staticModel_->getActuators().getSize();
+            const int accelerationCount = static_cast<int>(
+                staticAccelerationCoordinateNames_.size());
+            SimTK::Vector parameters(actuatorCount, 0.0);
+            SimTK::Vector lowerBounds(actuatorCount);
+            SimTK::Vector upperBounds(actuatorCount);
+            SimTK::Vector optimalForces(actuatorCount);
+            std::map<std::string, double> lowerControlByName;
+            std::map<std::string, double> upperControlByName;
+            std::vector<OpenSim::ScalarActuator*> scalarActuators;
+            scalarActuators.reserve(static_cast<std::size_t>(actuatorCount));
+            int scalarIndex = 0;
+            auto& forceSet = staticModel_->updForceSet();
+            for (int index = 0; index < forceSet.getSize(); ++index) {
+                auto* actuator =
+                    dynamic_cast<OpenSim::ScalarActuator*>(
+                        &forceSet.get(index));
+                if (actuator == nullptr) continue;
+                if (scalarIndex >= actuatorCount) {
+                    throw std::runtime_error(
+                        "Static actuator inventory exceeds optimizer parameters");
+                }
+                lowerBounds[scalarIndex] = actuator->getMinControl();
+                upperBounds[scalarIndex] = actuator->getMaxControl();
+                lowerControlByName[actuator->getName()] =
+                    actuator->getMinControl();
+                upperControlByName[actuator->getName()] =
+                    actuator->getMaxControl();
+                scalarActuators.push_back(actuator);
+                if (auto* muscle = dynamic_cast<OpenSim::Muscle*>(actuator)) {
+                    staticModel_->setAllControllersEnabled(true);
+                    optimalForces[scalarIndex] =
+                        muscle->calcInextensibleTendonActiveFiberForce(
+                            solverState, 1.0);
+                    staticModel_->setAllControllersEnabled(false);
+                } else {
+                    optimalForces[scalarIndex] = actuator->getOptimalForce();
+                }
+                if (!std::isfinite(optimalForces[scalarIndex])) {
+                    throw std::runtime_error(
+                        "Static actuator produced a non-finite optimal force: " +
+                        actuator->getName());
+                }
+                parameters[scalarIndex] = std::clamp(
+                    0.0, lowerBounds[scalarIndex], upperBounds[scalarIndex]);
+                ++scalarIndex;
+            }
+            if (scalarIndex != actuatorCount) {
+                throw std::runtime_error(
+                    "Static actuator inventory does not match optimizer parameters");
+            }
+            const auto makeControlledState = [&](
+                    const SimTK::Vector& controls) {
+                SimTK::State evaluationState = staticDefaultState_;
+                staticModel_->initStateWithoutRecreatingSystem(evaluationState);
+                evaluationState.setTime(0.0);
+                evaluationState.updQ() = solverState.getQ();
+                evaluationState.updU() = 0;
+                for (int index = 0; index < actuatorCount; ++index) {
+                    auto* actuator = scalarActuators[
+                        static_cast<std::size_t>(index)];
+                    actuator->overrideActuation(evaluationState, true);
+                    actuator->setOverrideActuation(
+                        evaluationState,
+                        controls[index] * optimalForces[index]);
+                }
+                return evaluationState;
+            };
+
+            const auto realizeAccelerations = [&](const SimTK::Vector& controls,
+                                                  SimTK::State* realizedState) {
+                SimTK::State evaluationState = makeControlledState(controls);
+                staticModel_->getMultibodySystem().realize(
+                    evaluationState, SimTK::Stage::Acceleration);
+                SimTK::Vector accelerations(accelerationCount);
+                for (int index = 0; index < accelerationCount; ++index) {
+                    // Coordinate tree position is not a reliable global UDot
+                    // index for this CustomJoint-heavy model. Ask each
+                    // Coordinate for its authoritative mapped acceleration.
+                    accelerations[index] = staticModel_->getCoordinateSet()
+                        .get(staticAccelerationCoordinateNames_.at(
+                            static_cast<std::size_t>(index)))
+                        .getAccelerationValue(evaluationState);
+                }
+                if (realizedState != nullptr) {
+                    *realizedState = evaluationState;
+                }
+                return accelerations;
+            };
+
+            const int mobilityCount = staticModel_->getNumSpeeds();
+            const SimTK::Vector zeroGeneralizedAccelerations(
+                mobilityCount, 0.0);
+            SimTK::Vector constraints(mobilityCount);
+            SimTK::Vector realizedAccelerations(accelerationCount);
+            SimTK::State constraintState = makeControlledState(parameters);
+            staticModel_->getMultibodySystem().realize(
+                constraintState, SimTK::Stage::Velocity);
+            SimTK::Matrix constraintTranspose;
+            staticModel_->getMatterSubsystem().calcGTranspose(
+                constraintState, constraintTranspose);
+            if (constraintTranspose.nrow() != mobilityCount) {
+                throw std::runtime_error(
+                    "Constraint transpose row count does not match mobilities");
+            }
+            const int multiplierCount = constraintTranspose.ncol();
+            result.constraintMultipliers = multiplierCount;
+            const SimTK::Vector zeroConstraintMultipliers(
+                multiplierCount, 0.0);
+            const auto residualMobilityForces = [
+                    &, zeroGeneralizedAccelerations](
+                    const SimTK::Vector& controls,
+                    const SimTK::Vector& constraintMultipliers) {
+                SimTK::State evaluationState = makeControlledState(controls);
+                const auto& system = staticModel_->getMultibodySystem();
+                system.realize(evaluationState, SimTK::Stage::Dynamics);
+                const auto& appliedMobilityForces = system.getMobilityForces(
+                    evaluationState, SimTK::Stage::Dynamics);
+                const auto& appliedBodyForces = system.getRigidBodyForces(
+                    evaluationState, SimTK::Stage::Dynamics);
+                SimTK::Vector residual;
+                staticModel_->getMatterSubsystem().calcResidualForce(
+                    evaluationState,
+                    appliedMobilityForces,
+                    appliedBodyForces,
+                    zeroGeneralizedAccelerations,
+                    constraintMultipliers,
+                    residual);
+                return residual;
+            };
+
+            ++result.physicalLinearizations;
+            const SimTK::Vector baselineResidual = residualMobilityForces(
+                parameters, zeroConstraintMultipliers);
+
+            SimTK::Matrix controlResidualMatrix(
+                mobilityCount, actuatorCount);
+            SimTK::Vector perturbedControls = parameters;
+            constexpr double controlStep = 1.0e-2;
+            for (int actuatorIndex = 0;
+                 actuatorIndex < actuatorCount; ++actuatorIndex) {
+                perturbedControls[actuatorIndex] += controlStep;
+                const SimTK::Vector perturbedResidual =
+                    residualMobilityForces(
+                        perturbedControls, zeroConstraintMultipliers);
+                perturbedControls[actuatorIndex] -= controlStep;
+                for (int mobility = 0; mobility < mobilityCount; ++mobility) {
+                    controlResidualMatrix(mobility, actuatorIndex) =
+                        (perturbedResidual[mobility] -
+                         baselineResidual[mobility]) / controlStep;
+                }
+            }
+
+            const int optimizationParameterCount =
+                actuatorCount + multiplierCount;
+            SimTK::Matrix equilibriumMatrix(
+                mobilityCount, optimizationParameterCount, 0.0);
+            for (int row = 0; row < mobilityCount; ++row) {
+                for (int column = 0; column < actuatorCount; ++column) {
+                    equilibriumMatrix(row, column) =
+                        controlResidualMatrix(row, column);
+                }
+                for (int column = 0; column < multiplierCount; ++column) {
+                    equilibriumMatrix(row, actuatorCount + column) =
+                        constraintTranspose(row, column);
+                }
+            }
+            const SimTK::Vector equilibriumOffset =
+                baselineResidual - controlResidualMatrix * parameters;
+            SimTK::Vector objectiveWeights(
+                optimizationParameterCount, 1.0e-12);
+            SimTK::Vector optimizationParameters(
+                optimizationParameterCount, 0.0);
+            SimTK::Vector optimizationLowerBounds(
+                optimizationParameterCount, -1.0e6);
+            SimTK::Vector optimizationUpperBounds(
+                optimizationParameterCount, 1.0e6);
+            for (int index = 0; index < actuatorCount; ++index) {
+                objectiveWeights[index] =
+                    scalarActuators[static_cast<std::size_t>(index)]
+                            ->getName().rfind("static_reserve_", 0) == 0
+                    ? kStaticReserveObjectiveWeight : 1.0;
+                optimizationParameters[index] = parameters[index];
+                optimizationLowerBounds[index] = lowerBounds[index];
+                optimizationUpperBounds[index] = upperBounds[index];
+            }
+
+            BoundedStaticEquilibriumTarget target(
+                equilibriumMatrix, equilibriumOffset, objectiveWeights);
+            target.setParameterLimits(
+                optimizationLowerBounds, optimizationUpperBounds);
+
+            SimTK::Optimizer optimizer(target, SimTK::InteriorPoint);
+            optimizer.setDiagnosticsLevel(0);
+            optimizer.setConvergenceTolerance(1.0e-5);
+            optimizer.setConstraintTolerance(1.0e-6);
+            optimizer.setMaxIterations(kStaticMaximumIterations);
+            optimizer.useNumericalGradient(false);
+            optimizer.useNumericalJacobian(false);
+            optimizer.setLimitedMemoryHistory(200);
+            optimizer.setAdvancedBoolOption("warm_start", false);
+            // The HTTP service is intentionally single-threaded. Bound IPOPT
+            // CPU time so one difficult posture cannot monopolize it.
+            optimizer.setAdvancedRealOption(
+                "max_cpu_time", kStaticMaximumCpuSeconds);
+
+            result.objective = optimizer.optimize(optimizationParameters);
+            result.optimizerConverged = true;
+            for (int index = 0; index < actuatorCount; ++index) {
+                parameters[index] = optimizationParameters[index];
+            }
+            SimTK::Vector multipliers(multiplierCount);
+            for (int index = 0; index < multiplierCount; ++index) {
+                multipliers[index] =
+                    optimizationParameters[actuatorCount + index];
+            }
+            // Replay the final physical controls and constraint reactions on
+            // a fresh state. This is independent of the optimizer's affine
+            // equality evaluation and is the authoritative usability gate.
+            constraints = residualMobilityForces(parameters, multipliers);
+            realizedAccelerations = realizeAccelerations(parameters, nullptr);
+            SimTK::Vector actuations(actuatorCount);
+            for (int index = 0; index < actuatorCount; ++index) {
+                actuations[index] = parameters[index] * optimalForces[index];
+            }
+
+            std::map<std::string, double> controlsByName;
+            std::map<std::string, double> actuationsByName;
+            scalarIndex = 0;
+            for (int index = 0; index < forceSet.getSize(); ++index) {
+                const auto* actuator =
+                    dynamic_cast<const OpenSim::ScalarActuator*>(
+                        &forceSet.get(index));
+                if (actuator == nullptr) continue;
+                controlsByName[actuator->getName()] = parameters[scalarIndex];
+                actuationsByName[actuator->getName()] = actuations[scalarIndex];
+                ++scalarIndex;
+            }
+
+            bool validActivations = true;
+            result.activations.reserve(static_cast<std::size_t>(muscleCount()));
+            const auto& muscles = model_->getMuscles();
+            for (int index = 0; index < muscles.getSize(); ++index) {
+                const auto found = controlsByName.find(
+                    muscles.get(index).getName());
+                const auto lowerFound = lowerControlByName.find(
+                    muscles.get(index).getName());
+                const auto upperFound = upperControlByName.find(
+                    muscles.get(index).getName());
+                if (found == controlsByName.end() ||
+                        lowerFound == lowerControlByName.end() ||
+                        upperFound == upperControlByName.end() ||
+                        !std::isfinite(found->second) ||
+                        found->second < lowerFound->second - 1.0e-6 ||
+                        found->second > upperFound->second + 1.0e-6) {
+                    validActivations = false;
+                    result.activations.push_back(nan);
+                } else {
+                    const double activation = std::clamp(
+                        found->second, lowerFound->second, upperFound->second);
+                    result.activations.push_back(activation);
+                    if (activation <= lowerFound->second + 1.0e-5) {
+                        ++result.musclesAtLowerControlLimit;
+                    }
+                    if (activation >= upperFound->second - 1.0e-5) {
+                        ++result.musclesAtUpperControlLimit;
+                    }
+                    if (activation >= kStaticMuscleCapacityThreshold) {
+                        ++result.musclesAtOrAboveCapacityThreshold;
+                    }
+                }
+            }
+
+            double squaredReserveTorque = 0.0;
+            result.maximumReserveTorqueNm = 0.0;
+            for (std::size_t index = 0;
+                 index < kPoseCoordinates.size(); ++index) {
+                const auto found = actuationsByName.find(
+                    staticReserveName(kPoseCoordinates[index].name));
+                const double torque = found == actuationsByName.end()
+                    ? nan : found->second;
+                result.reserveTorquesNm[index] = torque;
+                if (!std::isfinite(torque)) {
+                    validActivations = false;
+                    continue;
+                }
+                result.maximumReserveTorqueNm = std::max(
+                    result.maximumReserveTorqueNm, std::abs(torque));
+                squaredReserveTorque += torque * torque;
+            }
+            result.rmsReserveTorqueNm = std::sqrt(
+                squaredReserveTorque /
+                static_cast<double>(kPoseCoordinates.size()));
+
+            double squaredOptimizerConstraintResidual = 0.0;
+            result.maximumOptimizerConstraintResidual = 0.0;
+            for (int index = 0; index < mobilityCount; ++index) {
+                const double residual = constraints[index];
+                if (!std::isfinite(residual)) {
+                    validActivations = false;
+                    continue;
+                }
+                result.maximumOptimizerConstraintResidual = std::max(
+                    result.maximumOptimizerConstraintResidual,
+                    std::abs(residual));
+                squaredOptimizerConstraintResidual += residual * residual;
+            }
+            result.rmsOptimizerConstraintResidual = std::sqrt(
+                squaredOptimizerConstraintResidual /
+                static_cast<double>(mobilityCount));
+
+            double squaredAccelerationResidual = 0.0;
+            result.maximumAccelerationResidual = 0.0;
+            for (int index = 0; index < accelerationCount; ++index) {
+                const double residual = realizedAccelerations[index];
+                const auto poseIndex = poseCoordinateIndex(
+                    staticAccelerationCoordinateNames_[
+                        static_cast<std::size_t>(index)]);
+                if (!poseIndex.has_value() || !std::isfinite(residual)) {
+                    validActivations = false;
+                    continue;
+                }
+                result.accelerationResiduals[*poseIndex] = residual;
+                result.maximumAccelerationResidual = std::max(
+                    result.maximumAccelerationResidual, std::abs(residual));
+                squaredAccelerationResidual += residual * residual;
+            }
+            result.rmsAccelerationResidual = std::sqrt(
+                squaredAccelerationResidual /
+                static_cast<double>(accelerationCount));
+
+            if (!validActivations || !std::isfinite(result.objective)) {
+                result.status = "invalid_result";
+                result.reason =
+                    "The optimizer returned non-finite or out-of-range values";
+            } else if (result.maximumOptimizerConstraintResidual >
+                    kStaticEquilibriumResidualLimit) {
+                result.status = "equilibrium_residual_too_high";
+                result.reason =
+                    "The independently recomputed generalized-force equilibrium residual exceeds the quality limit";
+            } else if (result.maximumReserveTorqueNm >
+                    kStaticReserveTorqueLimitNm) {
+                result.status = "reserve_too_high";
+                result.reason =
+                    "The posture requires more reserve torque than the quality limit permits";
+            } else if (result.musclesAtOrAboveCapacityThreshold > 0 &&
+                    result.maximumReserveTorqueNm >=
+                        kStaticCapacityLimitedReserveThresholdNm) {
+                result.status = "capacity_limited";
+                result.reason =
+                    "At least one muscle reached the conservative capacity threshold while nontrivial reserve torque was still required";
+            } else {
+                result.usable = true;
+                result.status = "usable";
+                result.reason =
+                    "Converged with independently replayed constrained generalized-force equilibrium and small reserve torques";
+            }
+        } catch (const SimTK::Exception::Base& error) {
+            result.status = "solver_failed";
+            result.reason = "The static optimization solver did not converge";
+            result.solverDetail = error.getMessage();
+        } catch (const std::exception& error) {
+            result.status = "solver_failed";
+            result.reason = "The static optimization calculation failed";
+            result.solverDetail = error.what();
+        }
+
+        result.durationMilliseconds =
+            std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - started).count();
+        if (!result.usable) result.activations.clear();
+        return result;
+    }
+
     std::string selectedMuscle(
             const std::map<std::string, std::string>& query) const {
         std::string name = "BIClong";
@@ -587,7 +1549,10 @@ private:
             const char* mode,
             const std::vector<double>* activations,
             std::optional<double> benchmarkTime,
-            std::optional<std::size_t> benchmarkIndex) {
+            std::optional<std::size_t> benchmarkIndex,
+            const char* activationSource =
+                "stored OpenSim 4.1 CMC state",
+            const char* interpretation = nullptr) {
         std::ostringstream output;
         output << "{\"model\":\"" << kModelId << "\",\"mode\":\""
                << mode << "\",\"selectedMuscle\":\""
@@ -597,7 +1562,8 @@ private:
                    << "\",\"time\":";
             appendNumber(output, *benchmarkTime);
             output << ",\"frame\":" << *benchmarkIndex
-                   << ",\"activationSource\":\"stored OpenSim 4.1 CMC state\"}";
+                   << ",\"activationSource\":\""
+                   << jsonEscape(activationSource) << "\"}";
         }
         output << ",\"coordinates\":{";
         for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
@@ -656,7 +1622,10 @@ private:
             }
             output << '}';
         }
-        if (activations == nullptr) {
+        if (interpretation != nullptr) {
+            output << "],\"interpretation\":\""
+                   << jsonEscape(interpretation) << "\"}";
+        } else if (activations == nullptr) {
             output << "],\"interpretation\":\"Pose geometry only. No activation, force, injury, or pain inference is calculated.\"}";
         } else {
             output << "],\"interpretation\":\"Stored model-estimated activation from the authors' CMC Reach8 example. Not force, pain, fatigue, or patient data.\"}";
@@ -852,6 +1821,11 @@ private:
     std::unique_ptr<OpenSim::Model> model_;
     SimTK::State defaultState_;
     SimTK::State state_;
+    std::unique_ptr<OpenSim::Model> staticModel_;
+    SimTK::State staticDefaultState_;
+    std::vector<std::string> staticAccelerationCoordinateNames_;
+    double staticMuscleControlMinimum_{0.0};
+    double staticMuscleControlMaximum_{1.0};
     std::vector<BenchmarkFrame> benchmarkFrames_;
     double benchmarkActivationMin_{0.0};
     double benchmarkActivationMax_{0.0};
@@ -895,9 +1869,17 @@ HttpResponse routeRequest(const std::string& method, const std::string& target,
             return {200, "OK", "application/json; charset=utf-8",
                     explorer.poseJson(parseQuery(queryText))};
         }
+        if (path == "/api/static-hold") {
+            return {200, "OK", "application/json; charset=utf-8",
+                    explorer.staticHoldingJson(parseQuery(queryText))};
+        }
         if (path == "/api/benchmark") {
             return {200, "OK", "application/json; charset=utf-8",
                     explorer.benchmarkJson()};
+        }
+        if (path == "/api/benchmark/poses") {
+            return {200, "OK", "application/json; charset=utf-8",
+                    explorer.benchmarkPosesJson()};
         }
         if (path == "/api/benchmark/frame") {
             return {200, "OK", "application/json; charset=utf-8",
@@ -926,6 +1908,10 @@ HttpResponse routeRequest(const std::string& method, const std::string& target,
                     "{\"error\":\"Not found\"}"};
         }
         return {200, "OK", mimeType(resolved), readFile(resolved)};
+    } catch (const std::invalid_argument& error) {
+        return {400, "Bad Request", "application/json; charset=utf-8",
+                "{\"error\":\"Invalid request\",\"detail\":\"" +
+                    jsonEscape(error.what()) + "\"}"};
     } catch (const std::exception& error) {
         return {500, "Internal Server Error", "application/json; charset=utf-8",
                 "{\"error\":\"Request failed\",\"detail\":\"" +
@@ -937,7 +1923,7 @@ void sendAll(int socketFd, const std::string& data) {
     std::size_t sent = 0;
     while (sent < data.size()) {
         const ssize_t count = ::send(
-            socketFd, data.data() + sent, data.size() - sent, 0);
+            socketFd, data.data() + sent, data.size() - sent, MSG_NOSIGNAL);
         if (count <= 0) return;
         sent += static_cast<std::size_t>(count);
     }
@@ -1018,7 +2004,7 @@ int runServer(int port, const std::filesystem::path& webRoot,
             break;
         }
         timeval clientTimeout{};
-        clientTimeout.tv_sec = 5;
+        clientTimeout.tv_sec = 1;
         ::setsockopt(clientFd, SOL_SOCKET, SO_RCVTIMEO,
                      &clientTimeout, sizeof(clientTimeout));
         ::setsockopt(clientFd, SOL_SOCKET, SO_SNDTIMEO,
@@ -1075,6 +2061,7 @@ int main(int argc, char** argv) {
         }
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTERM, signalHandler);
+        std::signal(SIGPIPE, SIG_IGN);
         return runServer(port, webRoot, explorer);
     } catch (const std::exception& error) {
         std::cerr << "Fatal: " << error.what() << std::endl;

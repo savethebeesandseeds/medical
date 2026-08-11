@@ -6,16 +6,24 @@ const app = {
     health: null,
     model: null,
     benchmark: null,
+    supportedPoses: null,
+    supportedPoseCoordinateIndex: new Map(),
+    supportedPoseRanges: new Map(),
     state: null,
-    mode: 'pose',
+    staticCoordinates: null,
+    mode: 'static',
     pathView: 'all',
     meshObjects: new Map(),
     pathCables: new Map(),
     activationRows: new Map(),
+    muscleDetailRequest: 0,
     selectedSegments: [],
     selectedMarkers: [],
     poseTimer: null,
     poseRequest: 0,
+    staticTimer: null,
+    staticRequest: 0,
+    staticCalculating: false,
     sweepPlaying: false,
     sweepStartedAt: 0,
     sweepStart: 0,
@@ -29,7 +37,6 @@ const app = {
     benchmarkRequestInFlight: false,
     queuedBenchmarkTime: null,
     benchmarkGeneration: 0,
-    nearestTimer: null,
     cameraFitted: false
 };
 
@@ -170,6 +177,23 @@ function activationColor(value, target = new THREE.Color()) {
     );
     const lightness = THREE.MathUtils.lerp(0.49, 0.24, darkening);
     return target.setHSL((1 - hueProgress) * (2 / 3), 0.78, lightness);
+}
+
+function hasCompleteActivationData(state) {
+    if (!state) return false;
+    const acceptedSource = state.mode === 'benchmark' ||
+        (state.mode === 'static' &&
+            state.staticHolding?.solver?.converged === true &&
+            state.staticHolding?.quality?.usable === true);
+    if (!acceptedSource) return false;
+    if (!Array.isArray(state.muscles) ||
+            state.muscles.length !== app.model?.muscles?.length) {
+        return false;
+    }
+    const values = new Map(
+        state.muscles.map((muscle) => [muscle.name, muscle.activation])
+    );
+    return app.model.muscles.every((name) => Number.isFinite(values.get(name)));
 }
 
 function updateCamera() {
@@ -437,7 +461,7 @@ function renderSelectedGlyph(muscle, activationAvailable) {
 function renderMusclePaths(state) {
     const selectedName = state.selectedMuscle;
     const showAll = app.pathView === 'all';
-    const activationAvailable = state.mode === 'benchmark' || state.mode === 'matched';
+    const activationAvailable = hasCompleteActivationData(state);
     let selected = null;
     for (const muscle of state.muscles) {
         updatePathCable(muscle, selectedName, showAll, activationAvailable);
@@ -474,12 +498,12 @@ function updateViewerSubtitle() {
                 ? 'All 50 OpenSim muscle paths, colored by activation at the current Reach8 frame.'
                 : 'One selected OpenSim muscle path, colored by its activation at the current Reach8 frame.'
         );
-    } else if (app.state?.mode === 'matched') {
+    } else if (app.state?.mode === 'static' && hasCompleteActivationData(app.state)) {
         setText(
             '#viewer-subtitle',
             app.pathView === 'all'
-                ? 'Exact pose geometry with all 50 paths colored by the closest Reach8 activation frame.'
-                : 'Exact pose geometry with the selected path colored by the closest Reach8 activation frame.'
+                ? 'Exact static posture with all 50 paths colored by the validated holding estimate.'
+                : 'Exact static posture with the selected path colored by the validated holding estimate.'
         );
     } else {
         setText(
@@ -506,24 +530,51 @@ function setPathView(view, refresh = true) {
 
 function selectMuscle(name) {
     const select = $('#muscle-select');
-    const changed = select.value !== name;
     select.value = name;
     setPathView('one', false);
-    if (!changed) {
-        if (app.state) applyState(app.state);
-        return;
+    if (app.state) {
+        app.state.selectedMuscle = name;
+        applyState(app.state);
+        const requestId = app.muscleDetailRequest + 1;
+        app.muscleDetailRequest = requestId;
+        requestSelectedMuscleDetails(name, requestId);
     }
-    if (app.mode === 'benchmark') {
-        app.queuedBenchmarkTime = app.benchmarkTime;
-        requestBenchmarkFrame(app.benchmarkTime);
-    } else {
-        stopSweep();
-        schedulePose(0);
+}
+
+async function requestSelectedMuscleDetails(name, requestId) {
+    const sourceMode = app.mode;
+    let url;
+    if (sourceMode === 'benchmark') {
+        const parameters = new URLSearchParams({
+            t: String(app.state?.benchmark?.time ?? app.benchmarkTime),
+            muscle: name
+        });
+        url = `/api/benchmark/frame?${parameters.toString()}`;
+    } else url = capturePoseRequest().exactUrl;
+
+    try {
+        const detailsState = await fetchJson(url);
+        if (requestId !== app.muscleDetailRequest || app.mode !== sourceMode ||
+                $('#muscle-select').value !== name || !app.state) return;
+        const details = detailsState.muscles.find((muscle) => muscle.name === name);
+        const current = app.state.muscles.find((muscle) => muscle.name === name);
+        if (!details || !current) return;
+        current.lengthM = details.lengthM;
+        current.momentArms = details.momentArms;
+        setText('#muscle-length', (current.lengthM * 100).toFixed(2));
+        setText('#path-points', String(current.points.length));
+        updateMomentArms(current);
+    } catch (error) {
+        if (requestId === app.muscleDetailRequest &&
+                $('#muscle-select').value === name) {
+            showError(`The selected muscle details could not be loaded: ${error.message}`);
+        }
     }
 }
 
 function updateActivationRanking(muscles) {
     const host = $('#activation-ranking');
+    host.replaceChildren();
     const ranked = [...muscles]
         .filter((muscle) => Number.isFinite(muscle.activation))
         .sort((left, right) => right.activation - left.activation);
@@ -567,15 +618,122 @@ function updateCoordinateReadings(state, force = false) {
     for (const [name, value] of Object.entries(state.coordinates)) {
         const input = document.getElementById(`coordinate-${name}`);
         const output = document.getElementById(`coordinate-output-${name}`);
-        if (input && (force || document.activeElement !== input) && !app.sweepPlaying) {
+        if (input && (force || document.activeElement !== input)) {
             input.value = String(value);
         }
-        if (output) output.textContent = formatDegrees(Number(input?.value ?? value));
+        if (output) output.textContent = formatDegrees(Number(value));
     }
+}
+
+function setPositionStatus(className, heading, detail) {
+    const status = $('#position-status');
+    status.className = `position-status ${className}`;
+    status.replaceChildren();
+    const strong = document.createElement('strong');
+    strong.textContent = heading;
+    const span = document.createElement('span');
+    span.textContent = detail;
+    status.append(strong, span);
+}
+
+function neutralizeDisplayedActivation() {
+    if (app.state && hasCompleteActivationData(app.state)) {
+        const neutralState = {
+            ...app.state,
+            mode: 'pose',
+            staticHolding: null,
+            muscles: app.state.muscles.map((muscle) => {
+                const copy = { ...muscle };
+                delete copy.activation;
+                return copy;
+            })
+        };
+        app.state = neutralState;
+        renderMusclePaths(neutralState);
+    }
+    $('#activation-reading').classList.add('hidden');
+    $('#geometry-legend').classList.remove('hidden');
+    $('#activation-legend').classList.add('hidden');
+    $('#activation-ranking').classList.add('hidden');
+    $('#activation-ranking').replaceChildren();
+    $('#activation-empty').classList.remove('hidden');
+    updateViewerSubtitle();
+}
+
+function setStaticButtonState(busy, retry = false) {
+    const button = $('#calculate-static');
+    if (!button) return;
+    button.disabled = busy;
+    button.setAttribute('aria-busy', String(busy));
+    button.textContent = busy
+        ? 'Calculating…'
+        : (retry ? 'Retry static calculation' : 'Calculate now');
+}
+
+function showStaticPending(phase = 'waiting') {
+    neutralizeDisplayedActivation();
+    const solving = phase === 'solving';
+    $('#mode-explanation').className = 'mode-explanation static';
+    $('#mode-explanation').innerHTML = solving
+        ? '<strong>Calculating the exact static posture.</strong> Old colors stay hidden until the solver returns a result that passes its quality checks.'
+        : '<strong>Static posture estimate.</strong> Geometry follows the exact slider values; activation is recalculated after the controls settle.';
+    setText('#muscle-fine-print', 'Geometry, path length, and moment arms use the exact requested pose. Static activation is shown only after a validated solve.');
+    setText('#effort-source-label', solving ? 'Static solve in progress' : 'Exact static posture');
+    setText('#effort-panel-title', solving ? 'Calculating activation' : 'Activation pending');
+    setText('#effort-panel-subtitle', 'No activation colors from an earlier posture are retained.');
+    setText('#activation-empty strong', solving ? 'Calculating the holding estimate.' : 'Waiting for the exact posture.');
+    setText(
+        '#activation-empty span',
+        solving
+            ? 'OpenSim is solving all 50 muscle activations under gravity with no external hand load.'
+            : 'The static solve starts automatically after the sliders stop moving.'
+    );
+    setPositionStatus(
+        solving ? 'static' : 'manual',
+        solving ? 'Calculating exact static activation' : 'Exact angles changed',
+        solving
+            ? 'The displayed paths remain neutral until this posture is validated.'
+            : 'Geometry updates now; activation will recalculate after a short pause.'
+    );
+    setStaticButtonState(solving);
+}
+
+function showStaticFailure(message, analysis = null) {
+    neutralizeDisplayedActivation();
+    const reason = analysis?.quality?.reason || analysis?.solver?.detail ||
+        analysis?.message || analysis?.reason || message ||
+        'The solver did not return a validated result for this posture.';
+    $('#mode-explanation').className = 'mode-explanation unavailable';
+    $('#mode-explanation').innerHTML = '<strong>Static activation was not accepted.</strong> The exact geometry remains visible, but no effort colors are shown.';
+    setText('#muscle-fine-print', 'The exact posture geometry remains available. No activation is shown because the static solve failed or did not pass its quality checks.');
+    setText('#effort-source-label', 'Static result withheld');
+    setText('#effort-panel-title', 'Activation not shown');
+    setText('#effort-panel-subtitle', reason);
+    setText('#activation-empty strong', 'No activation colors shown.');
+    setText('#activation-empty span', `${reason} Adjust the posture or retry the calculation.`);
+    setPositionStatus(
+        'unavailable',
+        'Static activation withheld',
+        reason
+    );
+    setStaticButtonState(false, true);
+    updateViewerSubtitle();
+}
+
+function describeStaticQuality(analysis) {
+    const details = [];
+    const elapsed = Number(analysis?.solver?.durationMs);
+    const reserve = Number(analysis?.quality?.maxReserveTorqueNm);
+    if (Number.isFinite(elapsed)) details.push(`Solved in ${elapsed.toFixed(0)} ms`);
+    if (Number.isFinite(reserve)) details.push(`maximum reserve ${reserve.toFixed(3)} N·m`);
+    return details.length ? `${details.join(' · ')}.` : 'Backend convergence and quality checks passed.';
 }
 
 function applyState(state) {
     app.state = state;
+    if (app.mode === 'static' && state.coordinates) {
+        app.staticCoordinates = { ...state.coordinates };
+    }
     applyMeshTransforms(state);
     const selected = renderMusclePaths(state);
     if (!selected) throw new Error(`OpenSim returned no path for ${state.selectedMuscle}.`);
@@ -584,10 +742,13 @@ function applyState(state) {
     setText('#path-points', String(selected.points.length));
     updateMomentArms(selected);
 
-    const activationAvailable = state.mode === 'benchmark' || state.mode === 'matched';
+    const activationAvailable = hasCompleteActivationData(state);
     if (activationAvailable) {
-        app.benchmarkTime = state.benchmark.time;
-        updateBenchmarkTimeline(state.benchmark.time);
+        if (state.mode === 'benchmark' &&
+                !(app.mode === 'benchmark' && app.benchmarkPlaying)) {
+            app.benchmarkTime = state.benchmark.time;
+            updateBenchmarkTimeline(state.benchmark.time);
+        }
         updateCoordinateReadings(state, false);
         setText('#muscle-activation', selected.activation.toFixed(3));
         $('#activation-reading').classList.remove('hidden');
@@ -598,83 +759,141 @@ function applyState(state) {
         $('#activation-ranking').classList.remove('hidden');
         $('#activation-empty').classList.add('hidden');
         updateActivationRanking(state.muscles);
-        if (state.mode === 'matched') {
-            $('#mode-explanation').classList.add('benchmark');
-            $('#mode-explanation').innerHTML = '<strong>Exact angles with a closest-Reach8 activation proxy.</strong> Geometry uses the requested angles; colors use the nearest authored Reach8 frame and never move the sliders.';
-            setText('#muscle-fine-print', 'Activation color is copied from the closest Reach8 frame. Geometry, path length, and moment arms use the exact requested pose.');
-            setText('#effort-source-label', 'Closest Reach8 frame');
-            setText('#effort-panel-title', 'All 50 activation proxies');
-            setText('#effort-panel-subtitle', 'Ranked values from the authored Reach8 frame closest to the exact pose above.');
-            $('#toggle-benchmark').textContent = 'Open Reach8 movement';
-            if (state.match) updateReach8MatchStatus(state.match);
+        if (state.mode === 'benchmark') {
+            setText(
+                '#effort-panel-subtitle',
+                `Every modeled compartment at authored frame ${state.benchmark.frame + 1} of ${app.supportedPoses.poses.length}, ${formatTime(state.benchmark.time)}.`
+            );
+            setPositionStatus(
+                'effort',
+                'Recorded Reach8 activation',
+                `Authored frame ${state.benchmark.frame + 1} of ${app.supportedPoses.poses.length} at ${formatTime(state.benchmark.time)}.`
+            );
+        } else if (state.mode === 'static') {
+            const quality = describeStaticQuality(state.staticHolding);
+            $('#mode-explanation').className = 'mode-explanation static';
+            $('#mode-explanation').innerHTML = '<strong>Validated static posture estimate.</strong> Colors show the generic model’s minimum-effort solution for holding these exact angles under gravity, with no external hand load.';
+            setText('#muscle-fine-print', 'Static activation is a generic optimized model estimate under gravity, not measured patient effort, force, pain, injury, or diagnostic confidence.');
+            setText('#effort-source-label', 'Validated static solve');
+            setText('#effort-panel-title', 'All 50 static activation estimates');
+            setText('#effort-panel-subtitle', quality);
+            setText('#activation-note', 'Effort proxy—not patient data. This is a generic minimum-effort holding solution; real co-contraction and patient-specific recruitment may differ.');
+            setPositionStatus('static', 'Static holding estimate ready', quality);
+            setStaticButtonState(false);
         }
         updateViewerSubtitle();
     } else {
         updateCoordinateReadings(state);
-        $('#activation-reading').classList.add('hidden');
+        if (app.mode === 'static' && !app.staticCalculating) showStaticPending('waiting');
     }
 }
 
-function poseUrl() {
+function capturePoseRequest() {
     const parameters = new URLSearchParams();
     for (const coordinate of app.model.coordinates) {
         const input = document.getElementById(`coordinate-${coordinate.name}`);
         parameters.set(coordinate.name, input.value);
     }
     parameters.set('muscle', $('#muscle-select').value);
-    return `/api/pose?${parameters.toString()}`;
-}
-
-function nearestBenchmarkUrl() {
-    const parameters = new URLSearchParams({
-        t: String(app.benchmarkTime),
+    return {
+        exactUrl: `/api/pose?${parameters.toString()}`,
+        staticUrl: `/api/static-hold?${parameters.toString()}`,
         muscle: $('#muscle-select').value
-    });
-    for (const coordinate of app.model.coordinates) {
-        const input = document.getElementById(`coordinate-${coordinate.name}`);
-        parameters.set(coordinate.name, input.value);
-    }
-    return `/api/benchmark/nearest?${parameters.toString()}`;
+    };
 }
 
-async function requestPose() {
-    const requestId = app.poseRequest + 1;
-    app.poseRequest = requestId;
+async function requestPose(snapshot = capturePoseRequest(), requestId = null) {
+    if (requestId === null) {
+        requestId = ++app.poseRequest;
+    }
     try {
-        const state = await fetchJson(poseUrl());
-        const nearest = await fetchJson(nearestBenchmarkUrl());
-        if (requestId !== app.poseRequest || app.mode !== 'pose') return;
-        const activations = new Map(
-            nearest.muscles.map((muscle) => [muscle.name, muscle.activation])
-        );
-        for (const muscle of state.muscles) {
-            muscle.activation = activations.get(muscle.name);
-        }
-        state.mode = 'matched';
-        state.benchmark = nearest.benchmark;
-        state.match = nearest.match;
+        const state = await fetchJson(snapshot.exactUrl);
+        if (requestId !== app.poseRequest || app.mode !== 'static') return;
+        state.mode = 'pose';
+        for (const muscle of state.muscles) delete muscle.activation;
         applyState(state);
         clearError();
     } catch (error) {
-        if (requestId === app.poseRequest && app.mode === 'pose') {
-            showError(`The exact pose or closest Reach8 activation frame could not be calculated: ${error.message}`);
-        }
+        if (requestId !== app.poseRequest || app.mode !== 'static') return;
+        showError(`The exact pose geometry could not be updated: ${error.message}`);
     }
 }
 
 function schedulePose(delay = 65) {
     window.clearTimeout(app.poseTimer);
-    app.poseTimer = window.setTimeout(requestPose, delay);
+    const snapshot = capturePoseRequest();
+    const requestId = ++app.poseRequest;
+    app.poseTimer = window.setTimeout(
+        () => requestPose(snapshot, requestId),
+        delay
+    );
 }
 
-function commitAngleChange(delay = 65) {
-    stopSweep();
-    if (app.mode === 'benchmark') setMode('pose');
-    else {
-        $('#position-status').className = 'position-status effort matching';
-        $('#position-status').innerHTML = '<strong>Exact pose · updating activation colors</strong><span>Your angles remain unchanged while the closest Reach8 frame is found.</span>';
-        schedulePose(delay);
+function scheduleStaticSolve(delay = 550) {
+    window.clearTimeout(app.staticTimer);
+    const requestId = ++app.staticRequest;
+    app.staticTimer = window.setTimeout(() => {
+        if (requestId === app.staticRequest && app.mode === 'static') {
+            calculateStaticActivation();
+        }
+    }, delay);
+}
+
+async function calculateStaticActivation() {
+    if (app.mode !== 'static') return;
+    window.clearTimeout(app.staticTimer);
+    const snapshot = capturePoseRequest();
+    const requestId = ++app.staticRequest;
+    app.staticCalculating = true;
+    showStaticPending('solving');
+    clearError();
+    try {
+        const state = await fetchJson(snapshot.staticUrl);
+        if (requestId !== app.staticRequest || app.mode !== 'static') return;
+        if (state.mode !== 'static') {
+            throw new Error('The server did not identify this as a static analysis result.');
+        }
+        if (state.staticHolding?.solver?.converged !== true ||
+                state.staticHolding?.quality?.usable !== true) {
+            const reason = state.staticHolding?.quality?.reason ||
+                state.staticHolding?.solver?.detail ||
+                'The solver did not accept this posture.';
+            window.clearTimeout(app.poseTimer);
+            app.poseRequest += 1;
+            const analysis = state.staticHolding;
+            state.mode = 'pose';
+            for (const muscle of state.muscles ?? []) delete muscle.activation;
+            applyState(state);
+            showStaticFailure(reason, analysis);
+            clearError();
+            return;
+        }
+        if (!hasCompleteActivationData(state)) {
+            throw new Error('The validated static result did not include all 50 finite activation values.');
+        }
+        window.clearTimeout(app.poseTimer);
+        app.poseRequest += 1;
+        applyState(state);
+    } catch (error) {
+        if (requestId !== app.staticRequest || app.mode !== 'static') return;
+        showStaticFailure(error.message);
+        showError(`Static activation could not be calculated: ${error.message}`);
+    } finally {
+        if (requestId === app.staticRequest && app.mode === 'static') {
+            app.staticCalculating = false;
+            if (hasCompleteActivationData(app.state)) setStaticButtonState(false);
+        }
     }
+}
+
+function commitAngleChange(geometryDelay = 55, solveDelay = 550) {
+    stopSweep();
+    if (app.mode !== 'static') setMode('static');
+    app.staticCalculating = false;
+    app.staticRequest += 1;
+    showStaticPending('waiting');
+    schedulePose(geometryDelay);
+    scheduleStaticSolve(solveDelay);
 }
 
 async function requestBenchmarkFrame(time) {
@@ -698,7 +917,8 @@ async function requestBenchmarkFrame(time) {
             clearError();
         }
     } catch (error) {
-        if (app.mode === 'benchmark') {
+        if (app.mode === 'benchmark' && generation === app.benchmarkGeneration &&
+                $('#muscle-select').value === requestedMuscle) {
             stopBenchmark();
             showError(`The CMC benchmark frame could not be loaded: ${error.message}`);
         }
@@ -714,55 +934,18 @@ async function requestBenchmarkFrame(time) {
 
 function updateReach8MatchStatus(match) {
     const names = Object.keys(match.requested ?? {});
-    $('#position-status').className = 'position-status effort match';
-    if (names.length === 1) {
-        const name = names[0];
-        const coordinate = app.model.coordinates.find((item) => item.name === name);
-        const requested = Number(match.requested[name]);
-        const actual = Number(match.actual[name]);
-        const difference = actual - requested;
-        const sign = difference > 0.05 ? '+' : '';
-        $('#position-status').innerHTML = `<strong>Exact pose · colors from Reach8 ${formatTime(match.time)}</strong><span>Your angle stays at ${formatDegrees(requested)}. The color source used ${formatDegrees(actual)} for ${coordinate?.label ?? name} (${sign}${difference.toFixed(1)}° difference).</span>`;
-    } else {
-        $('#position-status').innerHTML = `<strong>Exact pose · colors from Reach8 ${formatTime(match.time)}</strong><span>Your angles are unchanged. Closest recorded posture: maximum difference ${Number(match.maxErrorDegrees).toFixed(1)}°, RMS difference ${Number(match.rmsErrorDegrees).toFixed(1)}° across ${names.length} angles.</span>`;
-    }
-}
-
-async function requestNearestBenchmark(values, generation) {
-    if (app.mode !== 'benchmark' || generation !== app.benchmarkGeneration) return;
-    const requestedMuscle = $('#muscle-select').value;
-    const parameters = new URLSearchParams({
-        t: String(app.benchmarkTime),
-        muscle: requestedMuscle
-    });
-    for (const [name, value] of Object.entries(values)) {
-        parameters.set(name, String(value));
-    }
-    try {
-        const state = await fetchJson(`/api/benchmark/nearest?${parameters.toString()}`);
-        if (app.mode === 'benchmark' && generation === app.benchmarkGeneration &&
-                $('#muscle-select').value === requestedMuscle) {
-            applyState(state);
-            clearError();
-        }
-    } catch (error) {
-        if (app.mode === 'benchmark' && generation === app.benchmarkGeneration) {
-            showError(`The closest Reach8 effort frame could not be calculated: ${error.message}`);
-        }
-    }
-}
-
-function scheduleNearestBenchmark(values, delay = 80) {
-    stopBenchmark();
-    window.clearTimeout(app.nearestTimer);
-    app.queuedBenchmarkTime = null;
-    const generation = app.benchmarkGeneration + 1;
-    app.benchmarkGeneration = generation;
-    $('#position-status').className = 'position-status effort matching';
-    $('#position-status').innerHTML = '<strong>Finding the closest Reach8 frame…</strong><span>Activation colors remain tied to an authored simulation frame.</span>';
-    app.nearestTimer = window.setTimeout(
-        () => requestNearestBenchmark(values, generation),
-        delay
+    const coverage = match.coverage?.status === 'high'
+        ? 'high-coverage projection'
+        : 'approximate projection';
+    const detail = `Angles remain exact. Nearest point on Reach8: maximum difference ${Number(match.maxErrorDegrees).toFixed(1)} degrees, RMS ${Number(match.rmsErrorDegrees).toFixed(1)} degrees across ${names.length} angles.`;
+    setPositionStatus(
+        'effort match',
+        `Exact pose - ${coverage} at ${formatTime(match.time)}`,
+        detail
+    );
+    setText(
+        '#effort-panel-subtitle',
+        `Linear interpolation along Reach8 near ${formatTime(match.time)}. ${detail}`
     );
 }
 
@@ -772,7 +955,9 @@ function stopSweep() {
 
 function stopBenchmark() {
     app.benchmarkPlaying = false;
-    $('#toggle-benchmark').textContent = 'Play';
+    $('#toggle-benchmark').textContent = app.mode === 'benchmark'
+        ? 'Play'
+        : 'Open Reach8 movement';
     $('#toggle-benchmark').setAttribute('aria-pressed', 'false');
 }
 
@@ -783,42 +968,47 @@ function buildCoordinateControls() {
     for (const coordinate of app.model.coordinates) {
         const wrapper = document.createElement('div');
         wrapper.className = 'coordinate-control';
-        const label = document.createElement('label');
+        const label = document.createElement('div');
         label.className = 'coordinate-label';
-        label.htmlFor = `coordinate-${coordinate.name}`;
         const labelText = document.createElement('span');
         labelText.textContent = coordinate.label;
         const output = document.createElement('output');
         output.id = `coordinate-output-${coordinate.name}`;
+        output.htmlFor = `coordinate-${coordinate.name}`;
         output.textContent = formatDegrees(coordinate.default);
         label.append(labelText, output);
 
         const input = document.createElement('input');
         input.type = 'range';
         input.id = `coordinate-${coordinate.name}`;
-        input.min = coordinate.min;
-        input.max = coordinate.max;
+        const minimumValue = Math.round(Number(coordinate.min) * 10) / 10;
+        const maximumValue = Math.round(Number(coordinate.max) * 10) / 10;
+        input.min = String(minimumValue);
+        input.max = String(maximumValue);
         input.step = '0.5';
-        input.value = coordinate.default;
-        input.dataset.default = coordinate.default;
+        input.value = String(coordinate.default);
+        input.dataset.default = String(coordinate.default);
+        input.setAttribute('aria-label', coordinate.label);
         input.addEventListener('input', () => {
             output.textContent = formatDegrees(Number(input.value));
+            app.staticCoordinates[coordinate.name] = Number(input.value);
             for (const button of document.querySelectorAll('[data-preset]')) {
                 button.classList.remove('active');
+                button.setAttribute('aria-pressed', 'false');
             }
             commitAngleChange();
         });
+        input.addEventListener('change', () => scheduleStaticSolve(100));
 
         const limits = document.createElement('div');
         limits.className = 'range-limits';
         const minimum = document.createElement('span');
-        minimum.textContent = formatDegrees(coordinate.min);
+        minimum.textContent = formatDegrees(minimumValue);
         const maximum = document.createElement('span');
-        maximum.textContent = formatDegrees(coordinate.max);
+        maximum.textContent = formatDegrees(maximumValue);
         limits.append(minimum, maximum);
         wrapper.append(label, input, limits);
         controls.append(wrapper);
-
     }
 }
 
@@ -837,32 +1027,45 @@ function buildMuscleSelect() {
 function resetPose() {
     stopSweep();
     stopBenchmark();
-    for (const coordinate of app.model.coordinates) {
-        const input = document.getElementById(`coordinate-${coordinate.name}`);
-        input.value = String(coordinate.default);
-        setText(`#coordinate-output-${coordinate.name}`, formatDegrees(coordinate.default));
+    if (app.mode === 'benchmark') {
+        app.benchmarkTime = app.benchmark.timeStart;
+        updateBenchmarkTimeline(app.benchmarkTime);
+        app.benchmarkGeneration += 1;
+        requestBenchmarkFrame(app.benchmarkTime);
+        return;
     }
     for (const button of document.querySelectorAll('[data-preset]')) {
         button.classList.remove('active');
+        button.setAttribute('aria-pressed', 'false');
     }
-    if (app.mode === 'benchmark') setMode('pose');
-    else schedulePose(0);
+    for (const coordinate of app.model.coordinates) {
+        const value = Number(coordinate.default);
+        app.staticCoordinates[coordinate.name] = value;
+        const input = document.getElementById(`coordinate-${coordinate.name}`);
+        input.value = String(value);
+        setText(`#coordinate-output-${coordinate.name}`, formatDegrees(value));
+    }
+    commitAngleChange(0, 100);
 }
 
 function applyPosePreset(name) {
     const values = POSE_PRESETS[name];
     if (!values) return;
+    if (app.mode !== 'static') setMode('static');
     stopBenchmark();
     for (const coordinate of app.model.coordinates) {
         const value = values[coordinate.name] ?? coordinate.default;
+        app.staticCoordinates[coordinate.name] = Number(value);
         const input = document.getElementById(`coordinate-${coordinate.name}`);
         input.value = String(value);
         setText(`#coordinate-output-${coordinate.name}`, formatDegrees(value));
     }
     for (const button of document.querySelectorAll('[data-preset]')) {
-        button.classList.toggle('active', button.dataset.preset === name);
+        const active = button.dataset.preset === name;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
     }
-    commitAngleChange(0);
+    commitAngleChange(0, 100);
 }
 
 function updateInventory() {
@@ -909,51 +1112,72 @@ function updateBenchmarkTimeline(time) {
     setText('#benchmark-time', formatTime(value));
 }
 
-function setMode(mode) {
-    if (mode === app.mode && app.state) return;
-    app.mode = mode;
+function setMode(mode, force = false) {
+    const nextMode = mode === 'benchmark' ? 'benchmark' : 'static';
+    if (!force && nextMode === app.mode && app.state) return;
+    app.mode = nextMode;
     stopSweep();
     stopBenchmark();
-    window.clearTimeout(app.nearestTimer);
     app.benchmarkGeneration += 1;
     app.queuedBenchmarkTime = null;
     window.clearTimeout(app.poseTimer);
+    window.clearTimeout(app.staticTimer);
     app.poseRequest += 1;
+    app.staticRequest += 1;
+    app.staticCalculating = false;
+    clearError();
 
-    const benchmarkMode = mode === 'benchmark';
-    $('#geometry-legend').classList.toggle('hidden', benchmarkMode);
-    $('#activation-legend').classList.toggle('hidden', !benchmarkMode);
-    $('#activation-reading').classList.toggle('hidden', !benchmarkMode);
-    $('#activation-ranking').classList.toggle('hidden', !benchmarkMode);
-    $('#activation-empty').classList.toggle('hidden', benchmarkMode);
-    updateViewerSubtitle();
+    const benchmarkMode = nextMode === 'benchmark';
+    $('#mode-static').classList.toggle('active', !benchmarkMode);
+    $('#mode-benchmark').classList.toggle('active', benchmarkMode);
+    $('#mode-static').setAttribute('aria-pressed', String(!benchmarkMode));
+    $('#mode-benchmark').setAttribute('aria-pressed', String(benchmarkMode));
+    $('#benchmark-transport').classList.toggle('hidden', !benchmarkMode);
+    $('#static-presets').classList.toggle('hidden', benchmarkMode);
+    $('#static-actions').classList.toggle('hidden', benchmarkMode);
+    $('#activation-panel').classList.toggle('static-source', !benchmarkMode);
+    $('#reset-pose').textContent = benchmarkMode ? 'Restart movement' : 'Reset posture';
+    for (const coordinate of app.model.coordinates) {
+        const input = document.getElementById(`coordinate-${coordinate.name}`);
+        input.disabled = benchmarkMode;
+    }
 
     if (benchmarkMode) {
+        neutralizeDisplayedActivation();
         for (const button of document.querySelectorAll('[data-preset]')) {
             button.classList.remove('active');
+            button.setAttribute('aria-pressed', 'false');
         }
         $('#mode-explanation').classList.add('benchmark');
-        $('#mode-explanation').innerHTML = '<strong>Reach8 effort data is active.</strong> Muscle colors and rankings come from the authors\' recorded CMC simulation. Move the timeline or press Play to inspect it.';
-        setText('#muscle-fine-print', 'Activation is the selected effort proxy. It is a stored CMC model state—not measured patient effort, force, pain, or tissue damage.');
+        $('#mode-explanation').classList.remove('unavailable');
+        $('#mode-explanation').innerHTML = '<strong>Reach8 authored movement reference.</strong> Colors and angles come directly from the authors\' stored CMC simulation. These values are not mixed with the static-posture solver.';
+        setText('#muscle-fine-print', 'Activation is a stored OpenSim CMC model state - not measured patient effort, force, pain, or tissue damage.');
         setText('#effort-source-label', 'Current Reach8 frame');
         setText('#effort-panel-title', 'All 50 muscle activations');
         setText('#effort-panel-subtitle', 'Every modeled compartment, ranked by its value at the current frame.');
+        setText('#activation-note', 'Effort proxy—not patient data. Reach8 activation is an authored CMC model state, not muscle force, pain, damage, fatigue, or diagnostic confidence.');
+        setText('#angle-control-note', 'Reach8 angles are read-only here and follow the authored movement timeline. Return to Static posture estimate to choose exact angles.');
         $('#toggle-benchmark').textContent = 'Play';
-        $('#position-status').className = 'position-status effort';
-        $('#position-status').innerHTML = '<strong>Reach8 effort is available</strong><span>The sliders show this recorded frame. Moving one keeps the new angle exact and rematches the activation colors.</span>';
+        setPositionStatus(
+            'effort',
+            'Recorded Reach8 activation',
+            'The disabled sliders report the current authored frame; use the timeline below to move through the recording.'
+        );
         requestBenchmarkFrame(app.benchmarkTime);
     } else {
-        $('#mode-explanation').classList.remove('benchmark');
-        $('#mode-explanation').innerHTML = '<strong>Updating the exact pose.</strong> Finding the closest authored Reach8 frame for activation color coding.';
-        setText('#muscle-fine-print', 'Geometry uses the exact requested pose. Activation color will use the closest authored Reach8 frame.');
-        setText('#effort-source-label', 'Matching Reach8');
-        setText('#effort-panel-title', 'Updating activation proxies');
-        setText('#effort-panel-subtitle', 'Comparing the requested angles with the authored Reach8 movement.');
-        $('#toggle-benchmark').textContent = 'Open Reach8 movement';
-        $('#position-status').className = 'position-status effort matching';
-        $('#position-status').innerHTML = '<strong>Exact pose · matching activation colors</strong><span>Your angles will remain unchanged.</span>';
-        requestPose();
+        for (const coordinate of app.model.coordinates) {
+            const value = Number(app.staticCoordinates?.[coordinate.name] ?? coordinate.default);
+            const input = document.getElementById(`coordinate-${coordinate.name}`);
+            input.value = String(value);
+            setText(`#coordinate-output-${coordinate.name}`, formatDegrees(value));
+        }
+        setText('#angle-control-note', 'Exact static angles: geometry follows the sliders. Changing a value clears the previous colors and automatically solves this exact posture after a short pause; Reach8 is not used.');
+        setText('#activation-note', 'Effort proxy—not patient data. Static activation is a generic minimum-effort holding estimate, not muscle force, pain, damage, fatigue, or diagnostic confidence.');
+        showStaticPending('waiting');
+        schedulePose(0);
+        scheduleStaticSolve(180);
     }
+    updateViewerSubtitle();
 }
 
 function toggleBenchmark() {
@@ -965,7 +1189,6 @@ function toggleBenchmark() {
         stopBenchmark();
         return;
     }
-    window.clearTimeout(app.nearestTimer);
     app.benchmarkGeneration += 1;
     app.queuedBenchmarkTime = null;
     app.benchmarkPlaying = true;
@@ -974,8 +1197,11 @@ function toggleBenchmark() {
     app.lastBenchmarkRequest = 0;
     $('#toggle-benchmark').textContent = 'Pause';
     $('#toggle-benchmark').setAttribute('aria-pressed', 'true');
-    $('#position-status').className = 'position-status effort';
-    $('#position-status').innerHTML = '<strong>Effort linked to Reach8</strong><span>Sliders follow the current authored frame.</span>';
+    setPositionStatus(
+        'effort',
+        'Recorded Reach8 activation',
+        'The angle controls follow the current authored frame.'
+    );
 }
 
 function updateBenchmarkPlayback(timestamp) {
@@ -1061,14 +1287,18 @@ async function initialize() {
     requestAnimationFrame(animate);
     try {
         setLoading('Reading the official model and benchmark inventory…');
-        [app.health, app.model, app.benchmark] = await Promise.all([
+        [app.health, app.model, app.benchmark, app.supportedPoses] = await Promise.all([
             fetchJson('/api/health'),
             fetchJson('/api/model'),
-            fetchJson('/api/benchmark')
+            fetchJson('/api/benchmark'),
+            fetchJson('/api/benchmark/poses')
         ]);
         $('#server-status').className = 'server-status online';
         $('#server-status span:last-child').textContent = 'OpenSim connected';
         updateInventory();
+        app.staticCoordinates = Object.fromEntries(
+            app.model.coordinates.map((coordinate) => [coordinate.name, Number(coordinate.default)])
+        );
         buildCoordinateControls();
         buildMuscleSelect();
         setPathView('all', false);
@@ -1079,7 +1309,7 @@ async function initialize() {
         await loadMeshes(app.model.meshes);
         fitCameraToModel();
         setLoading('', false);
-        setMode('benchmark');
+        setMode('static', true);
     } catch (error) {
         $('#server-status').className = 'server-status offline';
         $('#server-status span:last-child').textContent = 'Unavailable';
@@ -1090,6 +1320,9 @@ async function initialize() {
 
 $('#reset-view').addEventListener('click', resetView);
 $('#reset-pose').addEventListener('click', resetPose);
+$('#mode-static').addEventListener('click', () => setMode('static'));
+$('#mode-benchmark').addEventListener('click', () => setMode('benchmark'));
+$('#calculate-static').addEventListener('click', calculateStaticActivation);
 $('#toggle-benchmark').addEventListener('click', toggleBenchmark);
 $('#benchmark-timeline').addEventListener('input', (event) => {
     stopBenchmark();
@@ -1099,22 +1332,17 @@ $('#benchmark-timeline').addEventListener('input', (event) => {
         setMode('benchmark');
         return;
     }
-    window.clearTimeout(app.nearestTimer);
     app.benchmarkGeneration += 1;
     app.queuedBenchmarkTime = null;
-    $('#position-status').className = 'position-status effort';
-    $('#position-status').innerHTML = '<strong>Effort linked to Reach8</strong><span>Timeline and angles show an authored movement frame.</span>';
+    setPositionStatus(
+        'effort',
+        'Recorded Reach8 activation',
+        'Timeline and angles show an authored movement frame.'
+    );
     requestBenchmarkFrame(app.benchmarkTime);
 });
 $('#muscle-select').addEventListener('change', () => {
-    if (app.mode === 'benchmark') {
-        window.clearTimeout(app.nearestTimer);
-        app.benchmarkGeneration += 1;
-        requestBenchmarkFrame(app.benchmarkTime);
-    } else {
-        stopSweep();
-        schedulePose(0);
-    }
+    selectMuscle($('#muscle-select').value);
 });
 $('#view-all-muscles').addEventListener('click', () => setPathView('all'));
 $('#view-one-muscle').addEventListener('click', () => setPathView('one'));

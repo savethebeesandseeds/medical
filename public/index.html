@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>MoBL-ARMS muscle effort explorer</title>
+    <title>MoBL-ARMS muscle activation explorer</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -12,8 +12,8 @@
         <header class="page-header">
             <div>
                 <p class="eyebrow">OpenSim C++ · MoBL-ARMS</p>
-                <h1>Upper-extremity muscle effort explorer</h1>
-                <p class="intro">Play the authors’ Reach8 movement and compare activation across all 50 modeled muscle compartments.</p>
+                <h1>Upper-extremity muscle activation explorer</h1>
+                <p class="intro">Estimate the generic muscle activation needed to hold an exact static posture, or inspect the authors’ Reach8 CMC movement as a separate reference.</p>
             </div>
             <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
                 <span class="status-dot" aria-hidden="true"></span>
@@ -26,8 +26,25 @@
             This generic model is not patient-specific. It cannot identify injured tissue, explain pain, or recommend treatment.
         </section>
 
-        <section id="mode-explanation" class="mode-explanation" aria-live="polite">
-            <strong>Loading Reach8 effort data:</strong> the workspace will keep the model, muscle paths, and angle controls together.
+        <section class="mode-panel panel" aria-labelledby="analysis-source-title">
+            <div>
+                <p class="eyebrow">Analysis source</p>
+                <h2 id="analysis-source-title">Choose what the colors mean</h2>
+            </div>
+            <div class="mode-switch" role="group" aria-label="Activation analysis source">
+                <button id="mode-static" class="mode-button active" type="button" aria-pressed="true">
+                    <strong>Static posture estimate</strong>
+                    <span>Exact angles · holding against gravity</span>
+                </button>
+                <button id="mode-benchmark" class="mode-button" type="button" aria-pressed="false">
+                    <strong>Reach8 reference</strong>
+                    <span>Authors’ recorded CMC movement</span>
+                </button>
+            </div>
+        </section>
+
+        <section id="mode-explanation" class="mode-explanation static" aria-live="polite">
+            <strong>Static posture estimate:</strong> set exact angles; after the controls settle, the app calculates a generic minimum-effort holding solution under gravity with no external hand load.
         </section>
 
         <section class="summary-strip" aria-label="Model inventory">
@@ -88,32 +105,36 @@
                             </div>
                             <button id="reset-pose" class="text-button" type="button">Reset</button>
                         </header>
-                        <div id="position-status" class="position-status effort" role="status" aria-live="polite">
-                            <strong>Reach8 effort is available</strong>
-                            <span>Moving an angle keeps it exact and rematches the activation colors.</span>
+                        <div id="position-status" class="position-status manual" role="status" aria-live="polite">
+                            <strong>Choose an exact static posture</strong>
+                            <span>Move any slider, then calculate the holding estimate.</span>
                         </div>
-                        <section class="preset-section" aria-labelledby="preset-title">
+                        <section id="static-presets" class="preset-section" aria-labelledby="preset-title">
                             <div class="preset-heading">
-                                <h3 id="preset-title">Examination postures</h3>
-                                <span>Sets the angle sliders together</span>
+                                <h3 id="preset-title">Example posture shortcuts</h3>
+                                <span>Geometry presets, not validated tests</span>
                             </div>
                             <div id="pose-presets" class="pose-presets">
-                                <button type="button" data-preset="arm-side">Arm by side</button>
-                                <button type="button" data-preset="flexion-90">Forward flexion 90°</button>
-                                <button type="button" data-preset="abduction-90">Abduction 90°</button>
-                                <button type="button" data-preset="scaption-90">Scaption 90°</button>
-                                <button type="button" data-preset="scaption-ir">Scaption + internal rotation</button>
-                                <button type="button" data-preset="external-side">External rotation at side</button>
-                                <button type="button" data-preset="rotation-90-90">90/90 rotation posture</button>
-                                <button type="button" data-preset="elbow-supinated">Elbow 90° · supinated</button>
+                                <button type="button" data-preset="arm-side" aria-pressed="false">Arm by side</button>
+                                <button type="button" data-preset="flexion-90" aria-pressed="false">Forward flexion 90°</button>
+                                <button type="button" data-preset="abduction-90" aria-pressed="false">Abduction 90°</button>
+                                <button type="button" data-preset="scaption-90" aria-pressed="false">Scaption 90°</button>
+                                <button type="button" data-preset="scaption-ir" aria-pressed="false">Scaption + internal rotation</button>
+                                <button type="button" data-preset="external-side" aria-pressed="false">External rotation at side</button>
+                                <button type="button" data-preset="rotation-90-90" aria-pressed="false">90/90 rotation posture</button>
+                                <button type="button" data-preset="elbow-supinated" aria-pressed="false">Elbow 90° · supinated</button>
                             </div>
                         </section>
                         <div id="coordinate-controls" class="coordinate-controls compact"></div>
-                        <p class="fine-print"><strong>Angles are exact:</strong> sliders and posture shortcuts set the geometry directly. Activation colors use the closest authored Reach8 frame; the mismatch is reported above.</p>
+                        <div id="static-actions" class="static-actions">
+                            <button id="calculate-static" class="primary-button" type="button">Calculate now</button>
+                            <span id="static-action-note">Recalculates automatically after the sliders settle; use this button to run immediately or retry.</span>
+                        </div>
+                        <p id="angle-control-note" class="fine-print"><strong>Exact static angles:</strong> geometry follows the sliders. Changing a value clears the previous colors and automatically solves this exact posture without using Reach8 interpolation.</p>
                     </aside>
                 </div>
 
-                <div id="benchmark-transport" class="benchmark-transport">
+                <div id="benchmark-transport" class="benchmark-transport hidden">
                     <button id="toggle-benchmark" class="primary-button play-button" type="button" aria-pressed="false">Play</button>
                     <div class="timeline-block">
                         <div class="timeline-meta">
@@ -181,7 +202,7 @@
             </div>
             <div class="provenance-copy">
                 <p><strong>Model:</strong> <a href="https://simtk.org/projects/upexdyn" target="_blank" rel="noreferrer">MoBL-ARMS Dynamic Upper Limb</a>, the supplied OpenSim 4.1 free-torso model with Millard–Schutte-matched curves. The webpage does not create or relocate anatomy.</p>
-                <p><strong>Activation example:</strong> the optional Reach8 view reads coordinate and activation states from the authors’ <code>CMC_results_states.sto</code>. It does not estimate activation from the sliders.</p>
+                <p><strong>Activation sources:</strong> static-posture estimates are solved on request for the exact displayed angles under gravity and no external hand load, and are shown only after the backend accepts its quality checks. Reach8 is kept separate and reads the authors’ <code>CMC_results_states.sto</code> directly.</p>
                 <p><strong>Compatibility:</strong> package inventory, benchmark structure, and geometry paths are checked with OpenSim 4.6 at startup. The authors’ complete 4.1 benchmark has not been independently re-run here.</p>
                 <p><strong>Use terms:</strong> non-commercial research, academic, evaluation, and personal use only. Commercial use requires a separate license; attribution is retained in the project files.</p>
                 <p><strong>Clinical boundary:</strong> clinical research would require patient-specific data, a validated inference method, uncertainty reporting, clinical ground truth, clinician oversight, and ethics/regulatory review.</p>

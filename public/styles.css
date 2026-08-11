@@ -181,6 +181,12 @@ h3 {
     box-shadow: inset 3px 0 0 var(--accent);
 }
 
+#mode-benchmark.active {
+    border-color: #315ed3;
+    background: #f1f5ff;
+    box-shadow: inset 3px 0 0 #315ed3;
+}
+
 .mode-explanation {
     margin-top: 8px;
     padding: 9px 13px;
@@ -195,6 +201,18 @@ h3 {
     border-left-color: #315ed3;
     background: #f4f7ff;
     color: #364357;
+}
+
+.mode-explanation.static {
+    border-left-color: var(--accent);
+    background: #f1f8f6;
+    color: #2d5148;
+}
+
+.mode-explanation.unavailable {
+    border-left-color: var(--warning-border);
+    background: var(--warning-bg);
+    color: #604b22;
 }
 
 .summary-strip {
@@ -355,13 +373,15 @@ h3 {
     padding: 9px 10px;
     border: 1px solid;
     border-left-width: 4px;
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.4;
 }
 
-.position-status strong { font-size: 11px; }
+.position-status strong { font-size: 12px; }
 .position-status.effort { border-color: #9fb2e2; background: #f2f6ff; color: #33456f; }
+.position-status.static { border-color: #8cbcaf; background: #edf8f5; color: #28574b; }
 .position-status.manual { border-color: #c4cbc8; background: #f1f3f2; color: #4e5a56; }
+.position-status.unavailable { border-color: var(--warning-border); background: var(--warning-bg); color: #604b22; }
 
 .preset-section {
     margin-bottom: 14px;
@@ -371,7 +391,7 @@ h3 {
 
 .preset-heading { align-items: baseline; margin-bottom: 8px; }
 .preset-heading h3 { margin: 0; }
-.preset-heading span { color: var(--muted); font-size: 8px; text-align: right; }
+.preset-heading span { color: var(--muted); font-size: 9px; text-align: right; }
 
 .pose-presets {
     display: grid;
@@ -386,7 +406,7 @@ h3 {
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1.25;
     text-align: left;
 }
@@ -401,6 +421,18 @@ h3 {
 
 .coordinate-controls.compact .coordinate-label { margin-bottom: 4px; font-size: 10px; }
 .coordinate-controls.compact .coordinate-label output { min-width: 58px; font-size: 10px; }
+
+.static-actions {
+    display: grid;
+    gap: 7px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+}
+
+.static-actions .primary-button { width: 100%; }
+.static-actions .primary-button:disabled { cursor: wait; opacity: 0.68; }
+.static-actions span { color: var(--muted); font-size: 9px; line-height: 1.4; }
 
 #scene { position: absolute; inset: 0; }
 
@@ -575,6 +607,8 @@ select {
 
 .activation-panel { border-top: 3px solid #315ed3; }
 .activation-panel .eyebrow { margin-bottom: 4px; color: #315293; }
+.activation-panel.static-source { border-top-color: var(--accent); }
+.activation-panel.static-source .eyebrow { color: var(--accent-dark); }
 
 .effort-empty {
     display: grid;
@@ -612,6 +646,7 @@ select {
 }
 
 input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
+input[type="range"]:disabled { cursor: default; opacity: 0.5; }
 
 .range-limits {
     display: flex;
@@ -716,7 +751,7 @@ input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
 .fine-print {
     margin: 14px 0 0;
     color: var(--muted);
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1.5;
 }
 
@@ -783,6 +818,7 @@ footer span { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 1120px) {
     .workspace { grid-template-columns: 1fr; }
     .control-column { grid-template-columns: 1fr 1fr; }
+    .activation-panel,
     .muscle-panel { grid-column: 1 / -1; }
     .scene-wrap { min-height: 610px; }
     .pose-dock { max-height: 610px; }
@@ -809,7 +845,7 @@ footer span { min-width: 0; overflow-wrap: anywhere; }
     .provenance,
     .provenance-copy { grid-template-columns: 1fr; }
     .muscle-panel { grid-column: auto; }
-    .scene-wrap { min-height: 470px; }
+    .scene-wrap { min-height: 470px; touch-action: pan-y; }
     .viewer-stage { grid-template-columns: 1fr; }
     .pose-dock { max-height: none; border-top: 1px solid var(--line); border-left: 0; }
     .pose-dock .coordinate-controls { grid-template-columns: 1fr; gap: 0; }

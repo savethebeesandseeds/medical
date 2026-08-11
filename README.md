@@ -29,7 +29,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verify.ps1
 The check verifies the linked OpenSim runtime, GPU visibility, official model
 inventory, model and benchmark hashes, all 33 referenced meshes, all 50 default
 muscle paths, the HTTP API, a biceps path/moment-arm sample, and a 50-muscle CMC
-activation frame.
+activation frame. It also checks an exact on-demand static posture, all 50
+finite activation estimates, independently replayed force equilibrium, reserve
+use, deterministic repeatability, invalid-input rejection, and the separate
+Reach8 coverage gates.
 
 ## What the page shows
 
@@ -38,19 +41,34 @@ activation frame.
 - Body transforms calculated by OpenSim for the assembled state.
 - Wrapping-aware paths for all 50 muscles calculated by OpenSim.
 - Model-derived musculotendon length and moment arms for the selected muscle.
-- Seven independent upper-limb coordinate controls and a clearly labeled
-  visualization-only coordinate sweep.
-- An optional playback view of the authors' supplied Reach8 CMC states. All 50
+- Seven independent upper-limb coordinate controls and example posture
+  shortcuts that always set exact OpenSim geometry.
+- On-demand static-posture optimization for those exact angles, using the
+  model's segment weights and gravity with zero motion and no external hand
+  load. All 50 paths are colored only after convergence, constrained
+  generalized-force equilibrium, assembly, control-bound, and reserve checks
+  pass.
+- Playback of the authors' supplied Reach8 CMC states. All 50
   muscle centerlines are colored by their stored model-estimated activation,
   with an explicit 0-1 legend and a current-frame ranking.
 
-The manual pose controls do not calculate muscle activation. The CMC view reads
-activation and coordinate states directly from the supplied
-`CMC_results_states.sto`; it does not recompute them or treat them as patient
-measurements. The page does not calculate muscle force, injury, pain source,
-fatigue, or a diagnosis. It does not combine MoBL-ARMS with a separate full-body
-model. Rendered muscle tubes are centerline display glyphs, not volumetric
-muscle anatomy.
+The two activation sources are deliberately not mixed. In **Static posture
+estimate**, the service minimizes squared muscle controls while balancing the
+full inverse-dynamics mobility residual with the model's authored constraint
+reactions. Seven weak coordinate reserves are feasibility slacks; a result is
+withheld if any reserve exceeds 0.05 N m. It is also withheld as
+capacity-limited when a muscle reaches 0.995 while nontrivial reserve torque is
+still needed. MoBL-ARMS gives every muscle an authored minimum control of 0.01,
+and this active-actuation formulation does not include passive muscle-fiber
+force. It is therefore a generic recruitment estimate, not measured effort or
+a unique physiological answer. In **Reach8 reference**, angles and activation
+states are read directly from the supplied `CMC_results_states.sto` and are
+never used to fill a static pose.
+
+The page does not calculate muscle force, injury, pain source, fatigue, or a
+diagnosis. It does not combine MoBL-ARMS with a separate full-body model.
+Rendered muscle tubes are centerline display glyphs, not volumetric muscle
+anatomy.
 
 ## Model provenance and license
 

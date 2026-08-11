@@ -5081,3 +5081,1357 @@ ninja: no work to do.
 [warning] Body 'thorax' is massless but nonzero inertia provided.
 [warning]  Inertia reset to zero. Otherwise provide nonzero mass.
 MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
+1/7 Reusing installed Debian build dependencies
+cmake version 3.23.3
+2/7 Fetching OpenSim 4.6 source
+HEAD is now at 52094cc Backport  post beta fixes to Opensim 46 (#4341)
+3-4/7 Reusing cached OpenSim 4.6 installation
+5/7 Configuring OpenSim shared libraries
+6/7 Validating MoBL-ARMS assets and building the C++ service
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /workspace/build
+ninja: no work to do.
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","engine":"OpenSim C++ 4.6","model":"MOBL_ARMS_41","modelSha256":"8BF1C3F0DB841DEFAACA2B906DED154A2B1700531B96B491AAB3DBC9A7343289","bodies":12,"coordinates":26,"muscles":50,"ligaments":4,"meshes":33,"checkedMusclePaths":50,"benchmark":{"id":"CMC_REACH8_STATES","sha256":"58AD4A51E10BE4956207799106E63B3CEC689D39D7702A2318C3AE0E50089004","frames":3997,"timeStart":0.62000000,"timeEnd":4.34000000,"muscleActivationsPerFrame":50}}
+7/7 READY - MoBL-ARMS explorer at http://0.0.0.0:8080
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+MoBL-ARMS upper-extremity explorer listening on 0.0.0.0:8080
