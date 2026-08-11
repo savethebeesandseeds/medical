@@ -70,7 +70,13 @@ diagnosis. It does not combine MoBL-ARMS with a separate full-body model.
 Rendered muscle tubes are centerline display glyphs, not volumetric muscle
 anatomy.
 
-## Model provenance and license
+## Licensing
+
+The original application code, scripts, styles, and documentation are licensed
+under the MIT License; see `LICENSE`. This does not relicense any third-party
+material. See `THIRD_PARTY_NOTICES.md` for the dependency and asset boundaries.
+
+### Model provenance and license
 
 See `models/mobl_arms/SOURCE.md` and `models/mobl_arms/LICENSE.txt`. MoBL-ARMS is
 licensed for non-commercial research, academic, evaluation, and personal use;

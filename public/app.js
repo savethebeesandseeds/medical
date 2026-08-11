@@ -6,13 +6,14 @@ const app = {
     health: null,
     model: null,
     benchmark: null,
-    supportedPoses: null,
-    supportedPoseCoordinateIndex: new Map(),
-    supportedPoseRanges: new Map(),
     state: null,
     staticCoordinates: null,
     mode: 'static',
     pathView: 'all',
+    presetLibraryVisible: false,
+    activationPanelVisible: true,
+    musclePanelVisible: true,
+    mirrored: false,
     meshObjects: new Map(),
     pathCables: new Map(),
     activationRows: new Map(),
@@ -24,11 +25,6 @@ const app = {
     staticTimer: null,
     staticRequest: 0,
     staticCalculating: false,
-    sweepPlaying: false,
-    sweepStartedAt: 0,
-    sweepStart: 0,
-    sweepEnd: 0,
-    lastSweepRequest: 0,
     benchmarkTime: 0.62,
     benchmarkPlaying: false,
     benchmarkAnchorTime: 0.62,
@@ -57,6 +53,23 @@ scene.add(modelRoot);
 
 const camera = new THREE.PerspectiveCamera(34, 1, 0.005, 50);
 const cameraTarget = new THREE.Vector3(0, 0, 0);
+const cameraAimOffset = new THREE.Vector3();
+const cameraLookTarget = new THREE.Vector3();
+const orbitCameraOffset = new THREE.Vector3();
+const orbitXAxis = new THREE.Vector3(1, 0, 0);
+const orbitYAxis = new THREE.Vector3(0, 1, 0);
+const orbitOrientation = new THREE.Quaternion();
+const orbitPitchRotation = new THREE.Quaternion();
+const zoomRaycaster = new THREE.Raycaster();
+const zoomPointer = new THREE.Vector2();
+const zoomPlane = new THREE.Plane();
+const zoomPlaneNormal = new THREE.Vector3();
+const zoomAnchor = new THREE.Vector3();
+const zoomCameraPosition = new THREE.Vector3();
+const zoomNextLookTarget = new THREE.Vector3();
+const zoomFromPivot = new THREE.Vector3();
+const mirrorCameraPosition = new THREE.Vector3();
+const mirrorLookTarget = new THREE.Vector3();
 let orbitYaw = 0.72;
 let orbitPitch = 0.12;
 let orbitRadius = 1.4;
@@ -107,6 +120,26 @@ const POSE_PRESETS = {
         elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
         elbow_flexion: 0, pro_sup: 0, deviation: 0, flexion: 0
     },
+    'forward-reach': {
+        elv_angle: 90, shoulder_elv: 45, shoulder_rot: 0,
+        elbow_flexion: 30, pro_sup: 0, deviation: 0, flexion: 0
+    },
+    'hand-to-mouth': {
+        elv_angle: 90, shoulder_elv: 35, shoulder_rot: 0,
+        elbow_flexion: 120, pro_sup: -45, deviation: 0, flexion: 0
+    },
+    'cross-body-reach': {
+        elv_angle: 130, shoulder_elv: 90, shoulder_rot: 0,
+        elbow_flexion: 30, pro_sup: 0, deviation: 0, flexion: 0
+    },
+    'hand-behind-head': {
+        elv_angle: 30, shoulder_elv: 120, shoulder_rot: -45,
+        elbow_flexion: 120, pro_sup: 0, deviation: 0, flexion: 0
+    },
+    'high-forward-reach': {
+        elv_angle: 90, shoulder_elv: 110, shoulder_rot: 0,
+        elbow_flexion: 0, pro_sup: 0, deviation: 0, flexion: 0
+    },
     'flexion-90': {
         elv_angle: 90, shoulder_elv: 90, shoulder_rot: 0,
         elbow_flexion: 0, pro_sup: 0, deviation: 0, flexion: 0
@@ -121,19 +154,51 @@ const POSE_PRESETS = {
     },
     'scaption-ir': {
         elv_angle: 30, shoulder_elv: 90, shoulder_rot: 45,
-        elbow_flexion: 0, pro_sup: 90, deviation: 0, flexion: 0
+        elbow_flexion: 0, pro_sup: 0, deviation: 0, flexion: 0
     },
     'external-side': {
         elv_angle: 0, shoulder_elv: 0, shoulder_rot: -45,
+        elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 0
+    },
+    'internal-side': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 45,
         elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 0
     },
     'rotation-90-90': {
         elv_angle: 0, shoulder_elv: 90, shoulder_rot: -45,
         elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 0
     },
+    'elbow-90': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
+        elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 0
+    },
     'elbow-supinated': {
         elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
-        elbow_flexion: 90, pro_sup: -90, deviation: 0, flexion: 0
+        elbow_flexion: 90, pro_sup: -60, deviation: 0, flexion: 0
+    },
+    'elbow-120': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
+        elbow_flexion: 120, pro_sup: 0, deviation: 0, flexion: 0
+    },
+    'forearm-pronated': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
+        elbow_flexion: 90, pro_sup: 60, deviation: 0, flexion: 0
+    },
+    'wrist-extension-30': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
+        elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: -30
+    },
+    'wrist-flexion-30': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
+        elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 30
+    },
+    'wrist-deviation-positive': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
+        elbow_flexion: 90, pro_sup: 0, deviation: 20, flexion: 0
+    },
+    'wrist-deviation-negative': {
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
+        elbow_flexion: 90, pro_sup: 0, deviation: -10, flexion: 0
     }
 };
 
@@ -196,21 +261,82 @@ function hasCompleteActivationData(state) {
     return app.model.muscles.every((name) => Number.isFinite(values.get(name)));
 }
 
+function setOrbitOrientation() {
+    orbitOrientation.setFromAxisAngle(orbitYAxis, orbitYaw);
+    orbitPitchRotation.setFromAxisAngle(orbitXAxis, -orbitPitch);
+    orbitOrientation.multiply(orbitPitchRotation);
+}
+
 function updateCamera() {
-    const cosPitch = Math.cos(orbitPitch);
-    camera.position.set(
-        cameraTarget.x + orbitRadius * Math.sin(orbitYaw) * cosPitch,
-        cameraTarget.y + orbitRadius * Math.sin(orbitPitch),
-        cameraTarget.z + orbitRadius * Math.cos(orbitYaw) * cosPitch
-    );
-    camera.lookAt(cameraTarget);
+    setOrbitOrientation();
+    orbitCameraOffset.set(0, 0, orbitRadius).applyQuaternion(orbitOrientation);
+    camera.position.copy(cameraTarget).add(orbitCameraOffset);
+    cameraLookTarget.copy(cameraAimOffset)
+        .applyQuaternion(orbitOrientation)
+        .add(cameraTarget);
+    camera.lookAt(cameraLookTarget);
 }
 
 function resetView() {
     orbitYaw = 0.72;
     orbitPitch = 0.12;
+    cameraAimOffset.set(0, 0, 0);
     if (app.meshObjects.size) fitCameraToModel();
     updateCamera();
+}
+
+function setMirroredView(mirrored) {
+    const nextMirrored = Boolean(mirrored);
+    if (nextMirrored === app.mirrored) return;
+    if (app.cameraFitted) {
+        setOrbitOrientation();
+        cameraLookTarget.copy(cameraAimOffset)
+            .applyQuaternion(orbitOrientation)
+            .add(cameraTarget);
+        mirrorCameraPosition.copy(camera.position);
+        mirrorLookTarget.copy(cameraLookTarget);
+    }
+
+    app.mirrored = nextMirrored;
+    modelRoot.scale.set(1, 1, app.mirrored ? -1 : 1);
+    modelRoot.updateMatrixWorld(true);
+    if (app.cameraFitted) {
+        cameraTarget.z *= -1;
+        mirrorCameraPosition.z *= -1;
+        mirrorLookTarget.z *= -1;
+        zoomFromPivot.copy(mirrorCameraPosition).sub(cameraTarget);
+        orbitRadius = zoomFromPivot.length();
+        zoomFromPivot.multiplyScalar(1 / orbitRadius);
+        orbitPitch = Math.asin(THREE.MathUtils.clamp(zoomFromPivot.y, -1, 1));
+        orbitYaw = Math.atan2(zoomFromPivot.x, zoomFromPivot.z);
+        setOrbitOrientation();
+        cameraAimOffset.copy(mirrorLookTarget)
+            .sub(cameraTarget)
+            .applyQuaternion(orbitOrientation.invert());
+    }
+    updateCamera();
+
+    const button = $('#mirror-view');
+    button.classList.toggle('active', app.mirrored);
+    button.setAttribute('aria-pressed', String(app.mirrored));
+    button.textContent = app.mirrored ? 'Show right' : 'Mirror left';
+    setText('#viewer-title', app.mirrored ? 'Left upper limb (mirrored)' : 'Right upper limb');
+    setText(
+        '#viewer-instructions',
+        app.mirrored
+            ? 'Visual mirror of the right-arm model · drag to rotate · scroll to zoom'
+            : 'Drag to rotate · scroll to zoom'
+    );
+    renderer.domElement.setAttribute(
+        'aria-label',
+        app.mirrored
+            ? 'Mirrored left-side visualization of the official MoBL-ARMS right upper-extremity model'
+            : 'Interactive rendering of the official MoBL-ARMS right upper-extremity model'
+    );
+}
+
+function toggleMirroredView() {
+    setMirroredView(!app.mirrored);
 }
 
 function fitCameraToModel() {
@@ -219,6 +345,7 @@ function fitCameraToModel() {
     if (bounds.isEmpty()) return;
     const size = bounds.getSize(new THREE.Vector3());
     bounds.getCenter(cameraTarget);
+    cameraAimOffset.set(0, 0, 0);
     orbitRadius = Math.max(size.length() * 1.05, 0.65);
     camera.near = Math.max(orbitRadius / 500, 0.001);
     camera.far = Math.max(orbitRadius * 20, 10);
@@ -336,6 +463,106 @@ async function loadMeshes(meshes) {
     await Promise.all(workers);
 }
 
+function bodyMeshMatrix(transform, scale) {
+    const r = transform.rotation;
+    const p = transform.position;
+    const matrix = new THREE.Matrix4();
+    matrix.set(
+        r[0], r[1], r[2], p[0],
+        r[3], r[4], r[5], p[1],
+        r[6], r[7], r[8], p[2],
+        0, 0, 0, 1
+    );
+    matrix.scale(new THREE.Vector3(...scale));
+    return matrix;
+}
+
+function presetPoseUrl(values) {
+    const parameters = new URLSearchParams();
+    for (const coordinate of app.model.coordinates) {
+        parameters.set(
+            coordinate.name,
+            String(values[coordinate.name] ?? coordinate.default)
+        );
+    }
+    parameters.set('muscle', 'BIClong');
+    return `/api/pose?${parameters.toString()}`;
+}
+
+async function renderPresetThumbnails() {
+    const thumbnailRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        preserveDrawingBuffer: true
+    });
+    thumbnailRenderer.setPixelRatio(2);
+    thumbnailRenderer.setSize(52, 52, false);
+    thumbnailRenderer.setClearColor(0x000000, 0);
+    thumbnailRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const thumbnailScene = new THREE.Scene();
+    const thumbnailRoot = new THREE.Group();
+    thumbnailScene.add(thumbnailRoot);
+    const blackMaterial = new THREE.MeshBasicMaterial({
+        color: 0x111514,
+        side: THREE.DoubleSide
+    });
+    const thumbnailMeshes = new Map();
+    for (const [name, source] of app.meshObjects) {
+        const mesh = new THREE.Mesh(source.geometry, blackMaterial);
+        mesh.matrixAutoUpdate = false;
+        mesh.userData.frame = source.userData.frame;
+        mesh.userData.scale = source.userData.scale;
+        thumbnailRoot.add(mesh);
+        thumbnailMeshes.set(name, mesh);
+    }
+
+    const thumbnailCamera = new THREE.PerspectiveCamera(30, 1, 0.001, 100);
+    thumbnailCamera.up.set(0, 1, 0);
+    const viewDirection = new THREE.Vector3(0.66, 0.12, 0.75).normalize();
+    const presets = Object.entries(POSE_PRESETS);
+
+    try {
+        for (let index = 0; index < presets.length; index += 1) {
+            const [name, values] = presets[index];
+            setLoading(`Rendering posture thumbnail ${index + 1} of ${presets.length}…`);
+            const state = await fetchJson(presetPoseUrl(values));
+            const transforms = new Map(state.bodies.map((body) => [body.name, body]));
+            for (const mesh of thumbnailMeshes.values()) {
+                const transform = transforms.get(mesh.userData.frame);
+                mesh.visible = Boolean(transform);
+                if (transform) {
+                    mesh.matrix.copy(bodyMeshMatrix(transform, mesh.userData.scale));
+                }
+            }
+            thumbnailRoot.updateMatrixWorld(true);
+            const bounds = new THREE.Box3().setFromObject(thumbnailRoot);
+            const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+            const distance = Math.max(
+                sphere.radius / Math.sin(THREE.MathUtils.degToRad(thumbnailCamera.fov / 2)) * 1.08,
+                0.1
+            );
+            thumbnailCamera.near = Math.max(distance / 200, 0.001);
+            thumbnailCamera.far = Math.max(distance * 5, 10);
+            thumbnailCamera.position.copy(sphere.center).addScaledVector(viewDirection, distance);
+            thumbnailCamera.lookAt(sphere.center);
+            thumbnailCamera.updateProjectionMatrix();
+            thumbnailRenderer.render(thumbnailScene, thumbnailCamera);
+
+            const target = document.querySelector(`[data-preset="${name}"] .preset-thumbnail`);
+            if (target) {
+                const context = target.getContext('2d');
+                context.clearRect(0, 0, target.width, target.height);
+                context.drawImage(thumbnailRenderer.domElement, 0, 0, target.width, target.height);
+                target.classList.add('ready');
+            }
+        }
+    } finally {
+        blackMaterial.dispose();
+        thumbnailRenderer.dispose();
+    }
+}
+
 function applyMeshTransforms(state) {
     const transforms = new Map(state.bodies.map((body) => [body.name, body]));
     for (const object of app.meshObjects.values()) {
@@ -344,17 +571,7 @@ function applyMeshTransforms(state) {
             object.visible = false;
             continue;
         }
-        const r = transform.rotation;
-        const p = transform.position;
-        const matrix = new THREE.Matrix4();
-        matrix.set(
-            r[0], r[1], r[2], p[0],
-            r[3], r[4], r[5], p[1],
-            r[6], r[7], r[8], p[2],
-            0, 0, 0, 1
-        );
-        matrix.scale(new THREE.Vector3(...object.userData.scale));
-        object.matrix.copy(matrix);
+        object.matrix.copy(bodyMeshMatrix(transform, object.userData.scale));
         object.visible = true;
     }
     modelRoot.updateMatrixWorld(true);
@@ -375,7 +592,7 @@ function positionCableSegment(segment, startValues, endValues, radius) {
     segment.visible = true;
 }
 
-function updatePathCable(muscle, selectedName, showAll, activationAvailable) {
+function updatePathCable(muscle, selectedName, pathView, activationAvailable) {
     let cable = app.pathCables.get(muscle.name);
     if (!cable) {
         const material = new THREE.MeshBasicMaterial({
@@ -397,8 +614,11 @@ function updatePathCable(muscle, selectedName, showAll, activationAvailable) {
         cable.segments.push(segment);
     }
 
-    const visible = showAll || muscle.name === selectedName;
-    const radius = activationAvailable || showAll ? 0.00175 : 0.0014;
+    const selected = muscle.name === selectedName;
+    const showAll = pathView === 'all';
+    const focused = pathView === 'focus';
+    const visible = pathView !== 'one' || selected;
+    const radius = selected && !showAll ? 0.002 : 0.00175;
     for (let index = 0; index < cable.segments.length; index += 1) {
         const segment = cable.segments[index];
         if (!visible || index >= segmentCount) {
@@ -413,7 +633,10 @@ function updatePathCable(muscle, selectedName, showAll, activationAvailable) {
         );
     }
 
-    if (activationAvailable) {
+    if (focused && !selected) {
+        cable.material.color.copy(neutralColor);
+        cable.material.opacity = 0.34;
+    } else if (activationAvailable) {
         cable.material.color.copy(activationColor(muscle.activation, segmentColor));
         cable.material.opacity = showAll ? 0.9 : 1;
     } else {
@@ -464,7 +687,7 @@ function renderMusclePaths(state) {
     const activationAvailable = hasCompleteActivationData(state);
     let selected = null;
     for (const muscle of state.muscles) {
-        updatePathCable(muscle, selectedName, showAll, activationAvailable);
+        updatePathCable(muscle, selectedName, app.pathView, activationAvailable);
         if (muscle.name === selectedName) selected = muscle;
     }
     if (selected && !showAll) renderSelectedGlyph(selected, activationAvailable);
@@ -490,48 +713,60 @@ function updateMomentArms(muscle) {
     }
 }
 
-function updateViewerSubtitle() {
-    if (app.mode === 'benchmark') {
-        setText(
-            '#viewer-subtitle',
-            app.pathView === 'all'
-                ? 'All 50 OpenSim muscle paths, colored by activation at the current Reach8 frame.'
-                : 'One selected OpenSim muscle path, colored by its activation at the current Reach8 frame.'
-        );
-    } else if (app.state?.mode === 'static' && hasCompleteActivationData(app.state)) {
-        setText(
-            '#viewer-subtitle',
-            app.pathView === 'all'
-                ? 'Exact static posture with all 50 paths colored by the validated holding estimate.'
-                : 'Exact static posture with the selected path colored by the validated holding estimate.'
-        );
-    } else {
-        setText(
-            '#viewer-subtitle',
-            app.pathView === 'all'
-                ? 'All 50 OpenSim muscle centerlines at this exact pose. Neutral color does not represent effort.'
-                : 'One selected OpenSim muscle centerline at this exact pose. Neutral color does not represent effort.'
-        );
-    }
+function syncViewerDrawers() {
+    const showDetailsView = app.pathView !== 'all';
+    const showActivation = !showDetailsView && app.activationPanelVisible;
+    const showDetails = showDetailsView && app.musclePanelVisible;
+    $('#activation-panel').classList.toggle('hidden', showDetailsView);
+    $('#activation-panel').classList.toggle('collapsed', !showActivation);
+    $('#muscle-panel').classList.toggle('hidden', !showDetailsView);
+    $('#muscle-panel').classList.toggle('collapsed', !showDetails);
+    $('#toggle-activation-panel').textContent = showActivation ? 'Hide list' : 'Show list';
+    $('#toggle-activation-panel').setAttribute('aria-expanded', String(showActivation));
+    $('#toggle-muscle-panel').textContent = showDetails ? 'Hide' : 'Show';
+    $('#toggle-muscle-panel').setAttribute('aria-expanded', String(showDetails));
+    $('#back-to-activations').textContent = app.pathView === 'focus'
+        ? '← Back to all activations'
+        : '← Show all muscles';
 }
 
 function setPathView(view, refresh = true) {
-    app.pathView = view === 'one' ? 'one' : 'all';
+    const nextView = view === 'one' ? 'one' : (view === 'focus' ? 'focus' : 'all');
+    const changed = nextView !== app.pathView;
+    app.pathView = nextView;
     const showOne = app.pathView === 'one';
+    const showDetails = app.pathView !== 'all';
+    if (changed && showDetails) {
+        app.activationPanelVisible = false;
+        app.musclePanelVisible = true;
+    } else if (changed) {
+        app.activationPanelVisible = true;
+        app.musclePanelVisible = false;
+    }
     $('#view-all-muscles').classList.toggle('active', !showOne);
     $('#view-one-muscle').classList.toggle('active', showOne);
     $('#view-all-muscles').setAttribute('aria-pressed', String(!showOne));
     $('#view-one-muscle').setAttribute('aria-pressed', String(showOne));
-    $('#muscle-panel').classList.toggle('hidden', !showOne);
-    $('#selected-path-legend').classList.toggle('hidden', !showOne);
-    updateViewerSubtitle();
+    $('#selected-path-legend').classList.toggle('hidden', !showDetails);
+    syncViewerDrawers();
     if (refresh && app.state) applyState(app.state);
 }
 
-function selectMuscle(name) {
+function toggleActivationPanel() {
+    app.activationPanelVisible = !app.activationPanelVisible;
+    syncViewerDrawers();
+}
+
+function toggleMusclePanel() {
+    if (app.pathView === 'all') return;
+    app.musclePanelVisible = !app.musclePanelVisible;
+    syncViewerDrawers();
+}
+
+function selectMuscle(name, view = app.pathView === 'all' ? 'focus' : app.pathView) {
     const select = $('#muscle-select');
     select.value = name;
-    setPathView('one', false);
+    setPathView(view, false);
     if (app.state) {
         app.state.selectedMuscle = name;
         applyState(app.state);
@@ -597,7 +832,7 @@ function updateActivationRanking(muscles) {
             const value = document.createElement('span');
             value.className = 'rank-value';
             row.append(name, track, value);
-            row.addEventListener('click', () => selectMuscle(muscle.name));
+            row.addEventListener('click', () => selectMuscle(muscle.name, 'focus'));
             rowData = { row, fill, value };
             app.activationRows.set(muscle.name, rowData);
         }
@@ -621,6 +856,7 @@ function updateCoordinateReadings(state, force = false) {
         if (input && (force || document.activeElement !== input)) {
             input.value = String(value);
         }
+        if (input) updateRangeProgress(input);
         if (output) output.textContent = formatDegrees(Number(value));
     }
 }
@@ -634,6 +870,32 @@ function setPositionStatus(className, heading, detail) {
     const span = document.createElement('span');
     span.textContent = detail;
     status.append(strong, span);
+    status.title = `${heading}: ${detail}`;
+}
+
+function updateRangeProgress(input) {
+    const minimum = Number(input.min);
+    const maximum = Number(input.max);
+    const value = Number(input.value);
+    const progress = maximum > minimum
+        ? ((value - minimum) / (maximum - minimum)) * 100
+        : 0;
+    input.style.setProperty('--range-progress', `${Math.max(0, Math.min(100, progress))}%`);
+}
+
+function syncPresetLibrary() {
+    const benchmarkMode = app.mode === 'benchmark';
+    const visible = !benchmarkMode && app.presetLibraryVisible;
+    $('#static-presets').classList.toggle('hidden', !visible);
+    $('#toggle-preset-library').classList.toggle('hidden', benchmarkMode);
+    $('#toggle-preset-library').classList.toggle('active', visible);
+    $('#toggle-preset-library').setAttribute('aria-expanded', String(visible));
+}
+
+function togglePresetLibrary() {
+    if (app.mode === 'benchmark') return;
+    app.presetLibraryVisible = !app.presetLibraryVisible;
+    syncPresetLibrary();
 }
 
 function neutralizeDisplayedActivation() {
@@ -653,11 +915,9 @@ function neutralizeDisplayedActivation() {
     }
     $('#activation-reading').classList.add('hidden');
     $('#geometry-legend').classList.remove('hidden');
-    $('#activation-legend').classList.add('hidden');
     $('#activation-ranking').classList.add('hidden');
     $('#activation-ranking').replaceChildren();
     $('#activation-empty').classList.remove('hidden');
-    updateViewerSubtitle();
 }
 
 function setStaticButtonState(busy, retry = false) {
@@ -667,33 +927,26 @@ function setStaticButtonState(busy, retry = false) {
     button.setAttribute('aria-busy', String(busy));
     button.textContent = busy
         ? 'Calculating…'
-        : (retry ? 'Retry static calculation' : 'Calculate now');
+        : (retry ? 'Try again' : 'Recalculate');
 }
 
 function showStaticPending(phase = 'waiting') {
     neutralizeDisplayedActivation();
     const solving = phase === 'solving';
-    $('#mode-explanation').className = 'mode-explanation static';
-    $('#mode-explanation').innerHTML = solving
-        ? '<strong>Calculating the exact static posture.</strong> Old colors stay hidden until the solver returns a result that passes its quality checks.'
-        : '<strong>Static posture estimate.</strong> Geometry follows the exact slider values; activation is recalculated after the controls settle.';
-    setText('#muscle-fine-print', 'Geometry, path length, and moment arms use the exact requested pose. Static activation is shown only after a validated solve.');
-    setText('#effort-source-label', solving ? 'Static solve in progress' : 'Exact static posture');
-    setText('#effort-panel-title', solving ? 'Calculating activation' : 'Activation pending');
-    setText('#effort-panel-subtitle', 'No activation colors from an earlier posture are retained.');
-    setText('#activation-empty strong', solving ? 'Calculating the holding estimate.' : 'Waiting for the exact posture.');
+    setText('#effort-source-label', 'Static · 50');
+    setText('#activation-empty strong', solving ? 'Calculating…' : 'Posture changed');
     setText(
         '#activation-empty span',
         solving
-            ? 'OpenSim is solving all 50 muscle activations under gravity with no external hand load.'
-            : 'The static solve starts automatically after the sliders stop moving.'
+            ? 'Waiting for a validated result.'
+            : 'Activation will update automatically.'
     );
     setPositionStatus(
         solving ? 'static' : 'manual',
-        solving ? 'Calculating exact static activation' : 'Exact angles changed',
+        solving ? 'Calculating activation…' : 'Updating posture',
         solving
-            ? 'The displayed paths remain neutral until this posture is validated.'
-            : 'Geometry updates now; activation will recalculate after a short pause.'
+            ? 'Colors appear only after quality checks pass.'
+            : 'Geometry updates first; activation follows.'
     );
     setStaticButtonState(solving);
 }
@@ -703,30 +956,24 @@ function showStaticFailure(message, analysis = null) {
     const reason = analysis?.quality?.reason || analysis?.solver?.detail ||
         analysis?.message || analysis?.reason || message ||
         'The solver did not return a validated result for this posture.';
-    $('#mode-explanation').className = 'mode-explanation unavailable';
-    $('#mode-explanation').innerHTML = '<strong>Static activation was not accepted.</strong> The exact geometry remains visible, but no effort colors are shown.';
-    setText('#muscle-fine-print', 'The exact posture geometry remains available. No activation is shown because the static solve failed or did not pass its quality checks.');
-    setText('#effort-source-label', 'Static result withheld');
-    setText('#effort-panel-title', 'Activation not shown');
-    setText('#effort-panel-subtitle', reason);
-    setText('#activation-empty strong', 'No activation colors shown.');
-    setText('#activation-empty span', `${reason} Adjust the posture or retry the calculation.`);
+    setText('#effort-source-label', 'Static · 50');
+    setText('#activation-empty strong', 'No activation result');
+    setText('#activation-empty span', 'This posture did not pass the model checks.');
     setPositionStatus(
         'unavailable',
-        'Static activation withheld',
+        'No activation result',
         reason
     );
     setStaticButtonState(false, true);
-    updateViewerSubtitle();
 }
 
 function describeStaticQuality(analysis) {
     const details = [];
     const elapsed = Number(analysis?.solver?.durationMs);
     const reserve = Number(analysis?.quality?.maxReserveTorqueNm);
-    if (Number.isFinite(elapsed)) details.push(`Solved in ${elapsed.toFixed(0)} ms`);
-    if (Number.isFinite(reserve)) details.push(`maximum reserve ${reserve.toFixed(3)} N·m`);
-    return details.length ? `${details.join(' · ')}.` : 'Backend convergence and quality checks passed.';
+    if (Number.isFinite(elapsed)) details.push(`${elapsed.toFixed(0)} ms`);
+    if (Number.isFinite(reserve)) details.push(`reserve ${reserve.toFixed(3)} N·m`);
+    return details.length ? details.join(' · ') : 'Quality checks passed';
 }
 
 function applyState(state) {
@@ -755,33 +1002,22 @@ function applyState(state) {
         const reading = $('#activation-reading');
         reading.style.borderLeft = `4px solid ${activationColor(selected.activation).getStyle()}`;
         $('#geometry-legend').classList.add('hidden');
-        $('#activation-legend').classList.remove('hidden');
         $('#activation-ranking').classList.remove('hidden');
         $('#activation-empty').classList.add('hidden');
         updateActivationRanking(state.muscles);
         if (state.mode === 'benchmark') {
-            setText(
-                '#effort-panel-subtitle',
-                `Every modeled compartment at authored frame ${state.benchmark.frame + 1} of ${app.supportedPoses.poses.length}, ${formatTime(state.benchmark.time)}.`
-            );
+            setText('#effort-source-label', 'Reach8 · 50');
             setPositionStatus(
                 'effort',
-                'Recorded Reach8 activation',
-                `Authored frame ${state.benchmark.frame + 1} of ${app.supportedPoses.poses.length} at ${formatTime(state.benchmark.time)}.`
+                `Reach8 frame ${state.benchmark.frame + 1} of ${app.benchmark.frames}`,
+                `${formatTime(state.benchmark.time)} · authored CMC activation`
             );
         } else if (state.mode === 'static') {
             const quality = describeStaticQuality(state.staticHolding);
-            $('#mode-explanation').className = 'mode-explanation static';
-            $('#mode-explanation').innerHTML = '<strong>Validated static posture estimate.</strong> Colors show the generic model’s minimum-effort solution for holding these exact angles under gravity, with no external hand load.';
-            setText('#muscle-fine-print', 'Static activation is a generic optimized model estimate under gravity, not measured patient effort, force, pain, injury, or diagnostic confidence.');
-            setText('#effort-source-label', 'Validated static solve');
-            setText('#effort-panel-title', 'All 50 static activation estimates');
-            setText('#effort-panel-subtitle', quality);
-            setText('#activation-note', 'Effort proxy—not patient data. This is a generic minimum-effort holding solution; real co-contraction and patient-specific recruitment may differ.');
-            setPositionStatus('static', 'Static holding estimate ready', quality);
+            setText('#effort-source-label', 'Static · 50');
+            setPositionStatus('static', 'Ready', quality);
             setStaticButtonState(false);
         }
-        updateViewerSubtitle();
     } else {
         updateCoordinateReadings(state);
         if (app.mode === 'static' && !app.staticCalculating) showStaticPending('waiting');
@@ -887,7 +1123,6 @@ async function calculateStaticActivation() {
 }
 
 function commitAngleChange(geometryDelay = 55, solveDelay = 550) {
-    stopSweep();
     if (app.mode !== 'static') setMode('static');
     app.staticCalculating = false;
     app.staticRequest += 1;
@@ -932,27 +1167,6 @@ async function requestBenchmarkFrame(time) {
     }
 }
 
-function updateReach8MatchStatus(match) {
-    const names = Object.keys(match.requested ?? {});
-    const coverage = match.coverage?.status === 'high'
-        ? 'high-coverage projection'
-        : 'approximate projection';
-    const detail = `Angles remain exact. Nearest point on Reach8: maximum difference ${Number(match.maxErrorDegrees).toFixed(1)} degrees, RMS ${Number(match.rmsErrorDegrees).toFixed(1)} degrees across ${names.length} angles.`;
-    setPositionStatus(
-        'effort match',
-        `Exact pose - ${coverage} at ${formatTime(match.time)}`,
-        detail
-    );
-    setText(
-        '#effort-panel-subtitle',
-        `Linear interpolation along Reach8 near ${formatTime(match.time)}. ${detail}`
-    );
-}
-
-function stopSweep() {
-    app.sweepPlaying = false;
-}
-
 function stopBenchmark() {
     app.benchmarkPlaying = false;
     $('#toggle-benchmark').textContent = app.mode === 'benchmark'
@@ -989,9 +1203,11 @@ function buildCoordinateControls() {
         input.value = String(coordinate.default);
         input.dataset.default = String(coordinate.default);
         input.setAttribute('aria-label', coordinate.label);
+        updateRangeProgress(input);
         input.addEventListener('input', () => {
             output.textContent = formatDegrees(Number(input.value));
             app.staticCoordinates[coordinate.name] = Number(input.value);
+            updateRangeProgress(input);
             for (const button of document.querySelectorAll('[data-preset]')) {
                 button.classList.remove('active');
                 button.setAttribute('aria-pressed', 'false');
@@ -1025,7 +1241,6 @@ function buildMuscleSelect() {
 }
 
 function resetPose() {
-    stopSweep();
     stopBenchmark();
     if (app.mode === 'benchmark') {
         app.benchmarkTime = app.benchmark.timeStart;
@@ -1034,6 +1249,8 @@ function resetPose() {
         requestBenchmarkFrame(app.benchmarkTime);
         return;
     }
+    app.presetLibraryVisible = false;
+    syncPresetLibrary();
     for (const button of document.querySelectorAll('[data-preset]')) {
         button.classList.remove('active');
         button.setAttribute('aria-pressed', 'false');
@@ -1043,6 +1260,7 @@ function resetPose() {
         app.staticCoordinates[coordinate.name] = value;
         const input = document.getElementById(`coordinate-${coordinate.name}`);
         input.value = String(value);
+        updateRangeProgress(input);
         setText(`#coordinate-output-${coordinate.name}`, formatDegrees(value));
     }
     commitAngleChange(0, 100);
@@ -1058,6 +1276,7 @@ function applyPosePreset(name) {
         app.staticCoordinates[coordinate.name] = Number(value);
         const input = document.getElementById(`coordinate-${coordinate.name}`);
         input.value = String(value);
+        updateRangeProgress(input);
         setText(`#coordinate-output-${coordinate.name}`, formatDegrees(value));
     }
     for (const button of document.querySelectorAll('[data-preset]')) {
@@ -1065,6 +1284,8 @@ function applyPosePreset(name) {
         button.classList.toggle('active', active);
         button.setAttribute('aria-pressed', String(active));
     }
+    app.presetLibraryVisible = false;
+    syncPresetLibrary();
     commitAngleChange(0, 100);
 }
 
@@ -1116,9 +1337,9 @@ function setMode(mode, force = false) {
     const nextMode = mode === 'benchmark' ? 'benchmark' : 'static';
     if (!force && nextMode === app.mode && app.state) return;
     app.mode = nextMode;
-    stopSweep();
     stopBenchmark();
     app.benchmarkGeneration += 1;
+    app.muscleDetailRequest += 1;
     app.queuedBenchmarkTime = null;
     window.clearTimeout(app.poseTimer);
     window.clearTimeout(app.staticTimer);
@@ -1132,11 +1353,14 @@ function setMode(mode, force = false) {
     $('#mode-benchmark').classList.toggle('active', benchmarkMode);
     $('#mode-static').setAttribute('aria-pressed', String(!benchmarkMode));
     $('#mode-benchmark').setAttribute('aria-pressed', String(benchmarkMode));
+    $('#movement-choice').classList.toggle('hidden', !benchmarkMode);
+    $('#movement-select').disabled = !benchmarkMode;
     $('#benchmark-transport').classList.toggle('hidden', !benchmarkMode);
-    $('#static-presets').classList.toggle('hidden', benchmarkMode);
+    if (benchmarkMode) app.presetLibraryVisible = false;
+    syncPresetLibrary();
     $('#static-actions').classList.toggle('hidden', benchmarkMode);
     $('#activation-panel').classList.toggle('static-source', !benchmarkMode);
-    $('#reset-pose').textContent = benchmarkMode ? 'Restart movement' : 'Reset posture';
+    $('#reset-pose').textContent = benchmarkMode ? 'Restart' : 'Reset';
     for (const coordinate of app.model.coordinates) {
         const input = document.getElementById(`coordinate-${coordinate.name}`);
         input.disabled = benchmarkMode;
@@ -1148,20 +1372,14 @@ function setMode(mode, force = false) {
             button.classList.remove('active');
             button.setAttribute('aria-pressed', 'false');
         }
-        $('#mode-explanation').classList.add('benchmark');
-        $('#mode-explanation').classList.remove('unavailable');
-        $('#mode-explanation').innerHTML = '<strong>Reach8 authored movement reference.</strong> Colors and angles come directly from the authors\' stored CMC simulation. These values are not mixed with the static-posture solver.';
-        setText('#muscle-fine-print', 'Activation is a stored OpenSim CMC model state - not measured patient effort, force, pain, or tissue damage.');
-        setText('#effort-source-label', 'Current Reach8 frame');
-        setText('#effort-panel-title', 'All 50 muscle activations');
-        setText('#effort-panel-subtitle', 'Every modeled compartment, ranked by its value at the current frame.');
-        setText('#activation-note', 'Effort proxy—not patient data. Reach8 activation is an authored CMC model state, not muscle force, pain, damage, fatigue, or diagnostic confidence.');
-        setText('#angle-control-note', 'Reach8 angles are read-only here and follow the authored movement timeline. Return to Static posture estimate to choose exact angles.');
+        setText('#effort-source-label', 'Reach8 · 50');
+        setText('#activation-empty strong', 'Loading Reach8 frame…');
+        setText('#activation-empty span', 'Waiting for authored activation values.');
         $('#toggle-benchmark').textContent = 'Play';
         setPositionStatus(
             'effort',
-            'Recorded Reach8 activation',
-            'The disabled sliders report the current authored frame; use the timeline below to move through the recording.'
+            'Reach8 movement',
+            'Use the timeline below; posture sliders are read-only.'
         );
         requestBenchmarkFrame(app.benchmarkTime);
     } else {
@@ -1169,15 +1387,14 @@ function setMode(mode, force = false) {
             const value = Number(app.staticCoordinates?.[coordinate.name] ?? coordinate.default);
             const input = document.getElementById(`coordinate-${coordinate.name}`);
             input.value = String(value);
+            updateRangeProgress(input);
             setText(`#coordinate-output-${coordinate.name}`, formatDegrees(value));
         }
-        setText('#angle-control-note', 'Exact static angles: geometry follows the sliders. Changing a value clears the previous colors and automatically solves this exact posture after a short pause; Reach8 is not used.');
-        setText('#activation-note', 'Effort proxy—not patient data. Static activation is a generic minimum-effort holding estimate, not muscle force, pain, damage, fatigue, or diagnostic confidence.');
+        setText('#effort-source-label', 'Static · 50');
         showStaticPending('waiting');
         schedulePose(0);
         scheduleStaticSolve(180);
     }
-    updateViewerSubtitle();
 }
 
 function toggleBenchmark() {
@@ -1199,8 +1416,8 @@ function toggleBenchmark() {
     $('#toggle-benchmark').setAttribute('aria-pressed', 'true');
     setPositionStatus(
         'effort',
-        'Recorded Reach8 activation',
-        'The angle controls follow the current authored frame.'
+        'Reach8 playback',
+        'Playing authored CMC frames.'
     );
 }
 
@@ -1274,11 +1491,61 @@ function attachViewerInteraction() {
     canvas.addEventListener('pointercancel', endDrag);
     canvas.addEventListener('wheel', (event) => {
         event.preventDefault();
-        orbitRadius = THREE.MathUtils.clamp(
-            orbitRadius * Math.exp(event.deltaY * 0.0012),
+        setOrbitOrientation();
+        cameraLookTarget.copy(cameraAimOffset)
+            .applyQuaternion(orbitOrientation)
+            .add(cameraTarget);
+        const viewDistance = camera.position.distanceTo(cameraLookTarget);
+        const nextViewDistance = THREE.MathUtils.clamp(
+            viewDistance * Math.exp(event.deltaY * 0.0012),
             0.18,
             8
         );
+        if (nextViewDistance === viewDistance) return;
+
+        const bounds = canvas.getBoundingClientRect();
+        zoomPointer.set(
+            ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
+            -((event.clientY - bounds.top) / bounds.height) * 2 + 1
+        );
+        camera.updateMatrixWorld();
+        zoomRaycaster.setFromCamera(zoomPointer, camera);
+
+        const surfaceHit = zoomRaycaster.intersectObject(modelRoot, true)
+            .find((intersection) => intersection.object.visible);
+        if (surfaceHit) {
+            zoomAnchor.copy(surfaceHit.point);
+        } else {
+            camera.getWorldDirection(zoomPlaneNormal);
+            zoomPlane.setFromNormalAndCoplanarPoint(zoomPlaneNormal, cameraLookTarget);
+            if (!zoomRaycaster.ray.intersectPlane(zoomPlane, zoomAnchor)) {
+                return;
+            }
+        }
+
+        const scale = nextViewDistance / viewDistance;
+        zoomCameraPosition.copy(camera.position)
+            .sub(zoomAnchor)
+            .multiplyScalar(scale)
+            .add(zoomAnchor);
+        zoomNextLookTarget.copy(cameraLookTarget)
+            .sub(zoomAnchor)
+            .multiplyScalar(scale)
+            .add(zoomAnchor);
+
+        zoomFromPivot.copy(zoomCameraPosition).sub(cameraTarget);
+        const nextOrbitRadius = zoomFromPivot.length();
+        if (nextOrbitRadius < 1e-6) return;
+        orbitRadius = nextOrbitRadius;
+        zoomFromPivot.multiplyScalar(1 / orbitRadius);
+        orbitPitch = Math.asin(THREE.MathUtils.clamp(zoomFromPivot.y, -1, 1));
+        orbitYaw = Math.atan2(zoomFromPivot.x, zoomFromPivot.z);
+
+        setOrbitOrientation();
+        cameraAimOffset.copy(zoomNextLookTarget)
+            .sub(cameraTarget)
+            .applyQuaternion(orbitOrientation.invert());
+        updateCamera();
     }, { passive: false });
 }
 
@@ -1287,14 +1554,13 @@ async function initialize() {
     requestAnimationFrame(animate);
     try {
         setLoading('Reading the official model and benchmark inventory…');
-        [app.health, app.model, app.benchmark, app.supportedPoses] = await Promise.all([
+        [app.health, app.model, app.benchmark] = await Promise.all([
             fetchJson('/api/health'),
             fetchJson('/api/model'),
-            fetchJson('/api/benchmark'),
-            fetchJson('/api/benchmark/poses')
+            fetchJson('/api/benchmark')
         ]);
         $('#server-status').className = 'server-status online';
-        $('#server-status span:last-child').textContent = 'OpenSim connected';
+        $('#server-status span:last-child').textContent = 'Ready';
         updateInventory();
         app.staticCoordinates = Object.fromEntries(
             app.model.coordinates.map((coordinate) => [coordinate.name, Number(coordinate.default)])
@@ -1307,6 +1573,11 @@ async function initialize() {
         setLoading('Calculating the default OpenSim pose…');
         await requestPose();
         await loadMeshes(app.model.meshes);
+        try {
+            await renderPresetThumbnails();
+        } catch {
+            // Posture thumbnails are optional; the model and controls remain usable.
+        }
         fitCameraToModel();
         setLoading('', false);
         setMode('static', true);
@@ -1319,9 +1590,14 @@ async function initialize() {
 }
 
 $('#reset-view').addEventListener('click', resetView);
+$('#mirror-view').addEventListener('click', toggleMirroredView);
 $('#reset-pose').addEventListener('click', resetPose);
+$('#toggle-preset-library').addEventListener('click', togglePresetLibrary);
 $('#mode-static').addEventListener('click', () => setMode('static'));
 $('#mode-benchmark').addEventListener('click', () => setMode('benchmark'));
+$('#movement-select').addEventListener('change', () => {
+    if ($('#movement-select').value === 'reach8') setMode('benchmark', true);
+});
 $('#calculate-static').addEventListener('click', calculateStaticActivation);
 $('#toggle-benchmark').addEventListener('click', toggleBenchmark);
 $('#benchmark-timeline').addEventListener('input', (event) => {
@@ -1336,16 +1612,22 @@ $('#benchmark-timeline').addEventListener('input', (event) => {
     app.queuedBenchmarkTime = null;
     setPositionStatus(
         'effort',
-        'Recorded Reach8 activation',
-        'Timeline and angles show an authored movement frame.'
+        'Loading Reach8 frame…',
+        'Posture and activation come from the authored recording.'
     );
     requestBenchmarkFrame(app.benchmarkTime);
 });
 $('#muscle-select').addEventListener('change', () => {
-    selectMuscle($('#muscle-select').value);
+    selectMuscle(
+        $('#muscle-select').value,
+        app.pathView === 'one' ? 'one' : 'focus'
+    );
 });
 $('#view-all-muscles').addEventListener('click', () => setPathView('all'));
 $('#view-one-muscle').addEventListener('click', () => setPathView('one'));
+$('#toggle-activation-panel').addEventListener('click', toggleActivationPanel);
+$('#toggle-muscle-panel').addEventListener('click', toggleMusclePanel);
+$('#back-to-activations').addEventListener('click', () => setPathView('all'));
 for (const button of document.querySelectorAll('[data-preset]')) {
     button.addEventListener('click', () => applyPosePreset(button.dataset.preset));
 }

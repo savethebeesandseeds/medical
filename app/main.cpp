@@ -1901,6 +1901,13 @@ HttpResponse routeRequest(const std::string& method, const std::string& target,
             resolved = webRoot / "vendor/three.module.min.js";
         } else if (path == "/vendor/three.core.min.js") {
             resolved = webRoot / "vendor/three.core.min.js";
+        } else if (path == "/LICENSE") {
+            resolved = webRoot.parent_path() / "LICENSE";
+        } else if (path == "/THIRD_PARTY_NOTICES.md") {
+            resolved = webRoot.parent_path() / "THIRD_PARTY_NOTICES.md";
+        } else if (path == "/models/mobl_arms/LICENSE.txt") {
+            resolved = webRoot.parent_path() / "models" / "mobl_arms" /
+                "LICENSE.txt";
         } else if (isSafeModelAssetPath(path)) {
             resolved = webRoot / path.substr(1);
         } else {

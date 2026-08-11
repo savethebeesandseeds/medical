@@ -4,16 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>MoBL-ARMS muscle activation explorer</title>
+    <title>MoBL-ARMS Posture &amp; Activation Explorer</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
     <main class="app-shell">
         <header class="page-header">
             <div>
-                <p class="eyebrow">OpenSim C++ · MoBL-ARMS</p>
-                <h1>Upper-extremity muscle activation explorer</h1>
-                <p class="intro">Estimate the generic muscle activation needed to hold an exact static posture, or inspect the authors’ Reach8 CMC movement as a separate reference.</p>
+                <p class="eyebrow">OpenSim research model</p>
+                <h1>MoBL-ARMS Posture &amp; Activation Explorer</h1>
+                <p class="intro">Set a right-arm posture and inspect model-estimated muscle activation.</p>
             </div>
             <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
                 <span class="status-dot" aria-hidden="true"></span>
@@ -21,76 +21,109 @@
             </div>
         </header>
 
-        <section class="safety-note" aria-label="Medical limitation">
-            <strong>Research visualization—not a diagnosis.</strong>
-            This generic model is not patient-specific. It cannot identify injured tissue, explain pain, or recommend treatment.
-        </section>
-
-        <section class="mode-panel panel" aria-labelledby="analysis-source-title">
-            <div>
-                <p class="eyebrow">Analysis source</p>
-                <h2 id="analysis-source-title">Choose what the colors mean</h2>
-            </div>
-            <div class="mode-switch" role="group" aria-label="Activation analysis source">
-                <button id="mode-static" class="mode-button active" type="button" aria-pressed="true">
-                    <strong>Static posture estimate</strong>
-                    <span>Exact angles · holding against gravity</span>
-                </button>
-                <button id="mode-benchmark" class="mode-button" type="button" aria-pressed="false">
-                    <strong>Reach8 reference</strong>
-                    <span>Authors’ recorded CMC movement</span>
-                </button>
-            </div>
-        </section>
-
-        <section id="mode-explanation" class="mode-explanation static" aria-live="polite">
-            <strong>Static posture estimate:</strong> set exact angles; after the controls settle, the app calculates a generic minimum-effort holding solution under gravity with no external hand load.
-        </section>
-
-        <section class="summary-strip" aria-label="Model inventory">
-            <div><strong id="count-bodies">—</strong><span>bodies</span></div>
-            <div><strong id="count-muscles">—</strong><span>muscles</span></div>
-            <div><strong id="count-ligaments">—</strong><span>ligaments</span></div>
-            <div><strong id="count-meshes">—</strong><span>authored meshes</span></div>
-            <p id="runtime-note">Loading model inventory…</p>
-        </section>
-
         <div id="error" class="error hidden" role="alert"></div>
+
+        <aside class="use-boundary" aria-label="Important use limitations">
+            <strong>Research use only · Not a medical device</strong>
+            <span>MoBL-ARMS is licensed for non-commercial use only. Outputs are generic model estimates—not patient measurements, diagnosis, treatment guidance, or evidence of pain or injury.</span>
+            <a href="#model-information">Read limitations and licensing</a>
+        </aside>
 
         <section class="workspace">
             <section class="viewer-panel panel" aria-labelledby="viewer-title">
                 <header class="panel-header viewer-header">
                     <div>
-                        <h2 id="viewer-title">Right upper extremity</h2>
-                        <p id="viewer-subtitle">Official surface geometry and OpenSim muscle centerlines. Drag to rotate; scroll to zoom.</p>
+                        <h2 id="viewer-title">Right upper limb</h2>
+                        <p id="viewer-instructions">Drag to rotate · scroll to zoom</p>
                     </div>
                     <div class="viewer-actions">
+                        <button id="mirror-view" class="quiet-button" type="button" aria-pressed="false" title="Visual mirror of the right-side model">Mirror left</button>
+                        <button id="reset-view" class="quiet-button" type="button">Reset view</button>
+                    </div>
+                </header>
+
+                <div class="viewer-toolbar" aria-label="Viewer controls">
+                    <div class="toolbar-group source-group">
+                        <span id="analysis-source-title" class="toolbar-label">Activation source</span>
+                        <div class="source-controls">
+                            <div class="mode-switch compact" role="group" aria-labelledby="analysis-source-title">
+                                <button id="mode-static" class="mode-button active" type="button" aria-pressed="true">Static posture</button>
+                                <button id="mode-benchmark" class="mode-button" type="button" aria-pressed="false">Movement</button>
+                            </div>
+                            <div id="movement-choice" class="movement-choice hidden">
+                                <label for="movement-select">Movement type</label>
+                                <select id="movement-select" aria-label="Movement type">
+                                    <option value="reach8">Reach8</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="toolbar-group">
+                        <span class="toolbar-label">Muscle paths</span>
                         <div class="path-view-switch" role="group" aria-label="Muscle path view">
                             <button id="view-all-muscles" class="active" type="button" aria-pressed="true">All muscles</button>
                             <button id="view-one-muscle" type="button" aria-pressed="false">One muscle</button>
                         </div>
-                        <button id="reset-view" class="quiet-button" type="button">Reset view</button>
                     </div>
-                </header>
+                </div>
 
                 <div class="viewer-stage">
                     <div class="scene-wrap">
                         <div id="scene"></div>
                         <div id="geometry-legend" class="scene-legend" aria-label="Viewer legend">
-                            <span><i class="bone-key"></i>Authored surface geometry</span>
-                            <span><i class="path-key"></i>OpenSim muscle centerlines</span>
-                            <span id="selected-path-legend" class="hidden"><i class="selected-key"></i>Selected muscle</span>
+                            <span><i class="bone-key"></i>Model geometry</span>
+                            <span><i class="path-key"></i>Muscle paths</span>
+                            <span id="selected-path-legend" class="hidden"><i class="selected-key"></i>Selected</span>
                         </div>
-                        <div id="activation-legend" class="activation-legend hidden" aria-label="Muscle effort color scale">
-                            <div class="legend-heading">
-                                <strong>Activation · effort proxy</strong>
-                                <span>0–1</span>
+                        <section id="activation-panel" class="viewer-drawer activation-panel static-source" aria-label="Muscle activations">
+                            <div id="activation-legend" class="activation-legend" aria-label="Muscle activation color scale">
+                                <div class="legend-heading">
+                                    <div class="legend-title">
+                                        <strong>Activation scale</strong>
+                                        <span>0–1</span>
+                                    </div>
+                                </div>
+                                <div class="activation-ramp" aria-hidden="true"></div>
+                                <div class="activation-labels"><span>0</span><span>0.5</span><span>1</span></div>
+                                <small>Nonlinear scale</small>
+                                <button id="toggle-activation-panel" class="text-button activation-list-toggle" type="button" aria-controls="activation-panel-content" aria-expanded="true">Hide list</button>
                             </div>
-                            <div class="activation-ramp" aria-hidden="true"></div>
-                            <div class="activation-labels"><span>0 · inactive</span><span>0.5</span><span>1 · highly active</span></div>
-                            <small>A smooth nonlinear curve places yellow near 0.18 and red near 0.34; numeric activation remains 0–1. White points mark the selected path.</small>
-                        </div>
-                        <div class="thickness-note">Tube width is display thickness only—not anatomical muscle volume.</div>
+                            <div id="activation-panel-content" class="drawer-content">
+                                <div id="activation-empty" class="effort-empty hidden">
+                                    <strong>Calculating…</strong>
+                                    <span>Waiting for a validated result.</span>
+                                </div>
+                                <div id="activation-ranking" class="activation-ranking"></div>
+                            </div>
+                        </section>
+
+                        <section id="muscle-panel" class="viewer-drawer muscle-panel hidden" aria-labelledby="muscle-title">
+                            <header class="section-header drawer-header muscle-drawer-header">
+                                <h2 id="muscle-title">Details</h2>
+                                <select id="muscle-select" aria-label="Selected muscle"></select>
+                                <button id="toggle-muscle-panel" class="text-button" type="button" aria-controls="muscle-panel-content" aria-expanded="true">Hide</button>
+                                <button id="back-to-activations" class="text-button muscle-back-button" type="button">← Back to all activations</button>
+                            </header>
+                            <div id="muscle-panel-content" class="drawer-content">
+                            <dl class="key-readings">
+                                <div>
+                                    <dt>Musculotendon path length</dt>
+                                    <dd><strong id="muscle-length">—</strong> <span>cm</span></dd>
+                                </div>
+                                <div>
+                                    <dt>Path points at this pose</dt>
+                                    <dd><strong id="path-points">—</strong></dd>
+                                </div>
+                                <div id="activation-reading" class="activation-reading hidden">
+                                    <dt>Activation estimate</dt>
+                                    <dd><strong id="muscle-activation">—</strong> <span>0–1</span></dd>
+                                </div>
+                            </dl>
+                            <h3>Moment arms at this pose</h3>
+                            <div id="moment-arms" class="moment-arms"></div>
+                            </div>
+                        </section>
+
                         <div id="loading" class="loading" role="status" aria-live="polite">
                             <span class="spinner" aria-hidden="true"></span>
                             <span id="loading-text">Loading the official model…</span>
@@ -99,38 +132,79 @@
 
                     <aside id="pose-panel" class="pose-dock" aria-labelledby="pose-title">
                         <header class="pose-dock-header">
-                            <div>
-                                <p class="eyebrow">Position</p>
-                                <h2 id="pose-title">Arm angles</h2>
+                            <h2 id="pose-title">Posture</h2>
+                            <div id="position-status" class="position-status manual" role="status" aria-live="polite">
+                                <strong>Preparing</strong>
+                                <span>Loading model</span>
                             </div>
                             <button id="reset-pose" class="text-button" type="button">Reset</button>
+                            <button id="toggle-preset-library" class="library-button" type="button" aria-controls="static-presets" aria-expanded="false">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M3.5 5.5c2.8-.7 5.6-.2 8 1.5v12c-2.4-1.7-5.2-2.2-8-1.5zM20.5 5.5c-2.8-.7-5.6-.2-8 1.5v12c2.4-1.7 5.2-2.2 8-1.5z"/>
+                                </svg>
+                                <span>Posture library</span>
+                                <small>21</small>
+                            </button>
                         </header>
-                        <div id="position-status" class="position-status manual" role="status" aria-live="polite">
-                            <strong>Choose an exact static posture</strong>
-                            <span>Move any slider, then calculate the holding estimate.</span>
-                        </div>
-                        <section id="static-presets" class="preset-section" aria-labelledby="preset-title">
+                        <section id="static-presets" class="preset-section preset-catalog hidden" aria-labelledby="preset-title">
                             <div class="preset-heading">
-                                <h3 id="preset-title">Example posture shortcuts</h3>
-                                <span>Geometry presets, not validated tests</span>
+                                <h3 id="preset-title">Posture library</h3>
+                                <span>21 reference postures</span>
                             </div>
-                            <div id="pose-presets" class="pose-presets">
-                                <button type="button" data-preset="arm-side" aria-pressed="false">Arm by side</button>
-                                <button type="button" data-preset="flexion-90" aria-pressed="false">Forward flexion 90°</button>
-                                <button type="button" data-preset="abduction-90" aria-pressed="false">Abduction 90°</button>
-                                <button type="button" data-preset="scaption-90" aria-pressed="false">Scaption 90°</button>
-                                <button type="button" data-preset="scaption-ir" aria-pressed="false">Scaption + internal rotation</button>
-                                <button type="button" data-preset="external-side" aria-pressed="false">External rotation at side</button>
-                                <button type="button" data-preset="rotation-90-90" aria-pressed="false">90/90 rotation posture</button>
-                                <button type="button" data-preset="elbow-supinated" aria-pressed="false">Elbow 90° · supinated</button>
+                            <p class="catalog-note">Reference angles only; functional labels are approximate.</p>
+                            <div id="pose-presets" class="preset-groups">
+                                <section class="preset-group" aria-labelledby="preset-functional">
+                                    <h4 id="preset-functional">Functional reference</h4>
+                                    <div class="pose-presets">
+                                        <button type="button" data-preset="arm-side" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Arm by side</span></button>
+                                        <button type="button" data-preset="forward-reach" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forward reach</span></button>
+                                        <button type="button" data-preset="hand-to-mouth" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Hand to mouth</span></button>
+                                        <button type="button" data-preset="cross-body-reach" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Cross-body reach</span></button>
+                                        <button type="button" data-preset="hand-behind-head" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Hand behind head</span></button>
+                                        <button type="button" data-preset="high-forward-reach" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>High forward reach</span></button>
+                                    </div>
+                                </section>
+                                <section class="preset-group" aria-labelledby="preset-shoulder">
+                                    <h4 id="preset-shoulder">Shoulder elevation</h4>
+                                    <div class="pose-presets">
+                                        <button type="button" data-preset="flexion-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forward 90°</span></button>
+                                        <button type="button" data-preset="abduction-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Abduction 90°</span></button>
+                                        <button type="button" data-preset="scaption-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Scaption 90°</span></button>
+                                    </div>
+                                </section>
+                                <section class="preset-group" aria-labelledby="preset-rotation">
+                                    <h4 id="preset-rotation">Shoulder rotation</h4>
+                                    <div class="pose-presets">
+                                        <button type="button" data-preset="external-side" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>External rotation</span></button>
+                                        <button type="button" data-preset="internal-side" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Internal rotation</span></button>
+                                        <button type="button" data-preset="rotation-90-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>90/90 external rotation</span></button>
+                                        <button type="button" data-preset="scaption-ir" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Scaption + internal rotation</span></button>
+                                    </div>
+                                </section>
+                                <section class="preset-group" aria-labelledby="preset-elbow">
+                                    <h4 id="preset-elbow">Elbow &amp; forearm</h4>
+                                    <div class="pose-presets">
+                                        <button type="button" data-preset="elbow-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Elbow 90° neutral</span></button>
+                                        <button type="button" data-preset="elbow-120" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Elbow flexion 120°</span></button>
+                                        <button type="button" data-preset="elbow-supinated" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forearm supinated 60°</span></button>
+                                        <button type="button" data-preset="forearm-pronated" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forearm pronated 60°</span></button>
+                                    </div>
+                                </section>
+                                <section class="preset-group" aria-labelledby="preset-wrist">
+                                    <h4 id="preset-wrist">Wrist</h4>
+                                    <div class="pose-presets">
+                                        <button type="button" data-preset="wrist-extension-30" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Extension 30°</span></button>
+                                        <button type="button" data-preset="wrist-flexion-30" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Flexion 30°</span></button>
+                                        <button type="button" data-preset="wrist-deviation-positive" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Deviation +20°</span></button>
+                                        <button type="button" data-preset="wrist-deviation-negative" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Deviation −10°</span></button>
+                                    </div>
+                                </section>
                             </div>
                         </section>
                         <div id="coordinate-controls" class="coordinate-controls compact"></div>
                         <div id="static-actions" class="static-actions">
-                            <button id="calculate-static" class="primary-button" type="button">Calculate now</button>
-                            <span id="static-action-note">Recalculates automatically after the sliders settle; use this button to run immediately or retry.</span>
+                            <button id="calculate-static" class="quiet-button" type="button">Recalculate</button>
                         </div>
-                        <p id="angle-control-note" class="fine-print"><strong>Exact static angles:</strong> geometry follows the sliders. Changing a value clears the previous colors and automatically solves this exact posture without using Reach8 interpolation.</p>
                     </aside>
                 </div>
 
@@ -147,73 +221,27 @@
                     <span class="source-chip">Author-supplied CMC states</span>
                 </div>
             </section>
-
-            <aside class="control-column">
-                <section id="activation-panel" class="panel activation-panel" aria-labelledby="effort-panel-title">
-                    <header class="section-header">
-                        <div>
-                            <p id="effort-source-label" class="eyebrow">Current Reach8 frame</p>
-                            <h2 id="effort-panel-title">All 50 muscle activations</h2>
-                            <p id="effort-panel-subtitle">Every modeled compartment, ranked by its value at the current frame.</p>
-                        </div>
-                    </header>
-                    <div id="activation-empty" class="effort-empty hidden">
-                        <strong>Matching activation colors.</strong>
-                        <span>Finding the authored Reach8 frame closest to the requested angles.</span>
-                    </div>
-                    <div id="activation-ranking" class="activation-ranking"></div>
-                    <p id="activation-note" class="fine-print"><strong>Effort proxy—not patient data.</strong> Activation is a model state between 0 and 1. It is not muscle force, pain, damage, fatigue, or diagnostic confidence.</p>
-                </section>
-
-                <section id="muscle-panel" class="panel muscle-panel hidden" aria-labelledby="muscle-title">
-                    <header class="section-header">
-                        <div>
-                            <h2 id="muscle-title">Selected muscle</h2>
-                            <p>Select one of the model’s 50 muscle paths.</p>
-                        </div>
-                    </header>
-                    <label class="field-label" for="muscle-select">Muscle name</label>
-                    <select id="muscle-select"></select>
-                    <dl class="key-readings">
-                        <div>
-                            <dt>Musculotendon path length</dt>
-                            <dd><strong id="muscle-length">—</strong> <span>cm</span></dd>
-                        </div>
-                        <div>
-                            <dt>Path points at this pose</dt>
-                            <dd><strong id="path-points">—</strong></dd>
-                        </div>
-                        <div id="activation-reading" class="activation-reading hidden">
-                            <dt>Activation · effort proxy</dt>
-                            <dd><strong id="muscle-activation">—</strong> <span>0–1</span></dd>
-                        </div>
-                    </dl>
-                    <h3>Moment arms at this pose</h3>
-                    <div id="moment-arms" class="moment-arms"></div>
-                    <p id="muscle-fine-print" class="fine-print">These are model-derived geometric quantities. No activation, force, injury, or pain inference is calculated.</p>
-                </section>
-            </aside>
         </section>
 
-        <section class="provenance panel" aria-labelledby="provenance-title">
-            <div>
-                <p class="eyebrow">Source and limits</p>
-                <h2 id="provenance-title">The model—not this webpage—is the anatomy authority</h2>
-            </div>
-            <div class="provenance-copy">
-                <p><strong>Model:</strong> <a href="https://simtk.org/projects/upexdyn" target="_blank" rel="noreferrer">MoBL-ARMS Dynamic Upper Limb</a>, the supplied OpenSim 4.1 free-torso model with Millard–Schutte-matched curves. The webpage does not create or relocate anatomy.</p>
-                <p><strong>Activation sources:</strong> static-posture estimates are solved on request for the exact displayed angles under gravity and no external hand load, and are shown only after the backend accepts its quality checks. Reach8 is kept separate and reads the authors’ <code>CMC_results_states.sto</code> directly.</p>
-                <p><strong>Compatibility:</strong> package inventory, benchmark structure, and geometry paths are checked with OpenSim 4.6 at startup. The authors’ complete 4.1 benchmark has not been independently re-run here.</p>
-                <p><strong>Use terms:</strong> non-commercial research, academic, evaluation, and personal use only. Commercial use requires a separate license; attribution is retained in the project files.</p>
-                <p><strong>Clinical boundary:</strong> clinical research would require patient-specific data, a validated inference method, uncertainty reporting, clinical ground truth, clinician oversight, and ethics/regulatory review.</p>
+        <section id="model-information" class="model-information panel" aria-labelledby="model-information-title">
+            <header class="model-information-header">
+                <h2 id="model-information-title">Model details and limitations</h2>
+                <p><strong>Research model—not a diagnosis.</strong> Results are generic model estimates, not patient measurements.</p>
+            </header>
+            <div class="model-information-body">
+                <p><strong>Model:</strong> <a href="https://simtk.org/projects/upexdyn" target="_blank" rel="noreferrer">MoBL-ARMS Dynamic Upper Limb</a> with <span id="count-bodies">—</span> bodies, <span id="count-muscles">—</span> muscles, <span id="count-ligaments">—</span> ligaments, and <span id="count-meshes">—</span> authored meshes. The model supplies the anatomy and muscle paths; tube width is illustrative.</p>
+                <p><strong>Mirror view:</strong> reflects the rendered right-limb model for left-side visualization. It does not change the right-side coordinates or activation calculation and is not a separately validated left-arm model.</p>
+                <p><strong>Static posture:</strong> calculated for the exact displayed angles under model gravity, with no external hand load. Results are shown only after convergence, equilibrium, and reserve checks pass. Passive muscle-fiber force and real co-contraction are not represented.</p>
+                <p><strong>Reach8 movement:</strong> reads the authors’ <code>CMC_results_states.sto</code> directly. It is the only recorded movement currently included and is not an estimate for the slider posture.</p>
+                <p><strong>Interpretation:</strong> activation is a generic model state from 0–1. It is not measured effort, force, pain, damage, fatigue, diagnostic confidence, or a patient-specific result.</p>
+                <p><strong>Compatibility:</strong> <span id="runtime-note">Loading model inventory…</span></p>
+                <p><strong>Integrity:</strong> <span id="model-hash">Model: checking…</span><br><span id="benchmark-hash">Reach8 states: checking…</span></p>
+                <p><strong>Runtime:</strong> <span id="gpu-note">GPU access: checking…</span></p>
+                <p><strong>Use terms:</strong> the original application code is <a href="/LICENSE" target="_blank">MIT-licensed</a>. The MoBL-ARMS model, meshes, and Reach8 data are separately licensed for non-commercial research, academic, evaluation, and personal use only; the MIT license does not apply to those assets. Commercial model use requires a separate license. See the <a href="/models/mobl_arms/LICENSE.txt" target="_blank">model license</a> and <a href="/THIRD_PARTY_NOTICES.md" target="_blank">third-party notices</a>.</p>
+                <p><strong>Attribution:</strong> model use must acknowledge the MoBL-ARMS authors and cite Saul et al. (2015) and McFarland et al. (2019), as specified in the model package license.</p>
+                <p><strong>Clinical use:</strong> this software is not a medical device and must not be used to diagnose or treat. Patient-specific clinical research would require validated patient data, uncertainty reporting, clinical ground truth, clinician oversight, and ethics or regulatory review.</p>
             </div>
         </section>
-
-        <footer>
-            <span id="model-hash">Model integrity: checking…</span>
-            <span id="benchmark-hash">Benchmark integrity: checking…</span>
-            <span id="gpu-note">GPU access: checking…</span>
-        </footer>
     </main>
 
     <script type="module" src="/app.js"></script>
