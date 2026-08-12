@@ -1,4 +1,5 @@
 import * as THREE from '/vendor/three.module.min.js';
+import { createDiagnosisWorkflow } from '/diagnosis.js';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -35,6 +36,10 @@ const app = {
     benchmarkGeneration: 0,
     cameraFitted: false
 };
+
+let diagnosisViewerSnapshot = null;
+let diagnosisWorkflow = null;
+let viewerExporting = false;
 
 const sceneHost = $('#scene');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -317,9 +322,11 @@ function setMirroredView(mirrored) {
     updateCamera();
 
     const button = $('#mirror-view');
+    const buttonLabel = app.mirrored ? 'Show right' : 'Mirror left';
     button.classList.toggle('active', app.mirrored);
     button.setAttribute('aria-pressed', String(app.mirrored));
-    button.textContent = app.mirrored ? 'Show right' : 'Mirror left';
+    button.setAttribute('aria-label', buttonLabel);
+    button.dataset.tooltip = buttonLabel;
     setText('#viewer-title', app.mirrored ? 'Left upper limb (mirrored)' : 'Right upper limb');
     setText(
         '#viewer-instructions',
@@ -337,6 +344,91 @@ function setMirroredView(mirrored) {
 
 function toggleMirroredView() {
     setMirroredView(!app.mirrored);
+}
+
+function viewerImageFilename({ transparent, scale }) {
+    const side = app.mirrored ? 'left-mirrored' : 'right';
+    const source = app.mode === 'benchmark' ? 'reach8-movement' : 'static-posture';
+    const background = transparent ? 'transparent' : 'background';
+    return `waajacu-upper-limb-${side}-${source}-${background}-${scale}x.png`;
+}
+
+function canvasToPngBlob(canvas) {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('The browser could not encode the image.'));
+        }, 'image/png');
+    });
+}
+
+async function downloadViewerImage({ transparent, scale }) {
+    if (viewerExporting) return;
+    viewerExporting = true;
+
+    const menu = $('#viewer-download-menu');
+    const status = $('#viewer-download-status');
+    const optionButtons = [...document.querySelectorAll('[data-viewer-download]')];
+    optionButtons.forEach((button) => { button.disabled = true; });
+    status.textContent = 'Preparing image...';
+
+    let exportRenderer = null;
+    const gridWasVisible = grid.visible;
+    try {
+        updateCamera();
+        const requestedWidth = Math.max(Math.round(sceneHost.clientWidth * scale), 1);
+        const requestedHeight = Math.max(Math.round(sceneHost.clientHeight * scale), 1);
+        const sizeLimit = 4096;
+        const reduction = Math.min(1, sizeLimit / Math.max(requestedWidth, requestedHeight));
+        const width = Math.max(Math.round(requestedWidth * reduction), 1);
+        const height = Math.max(Math.round(requestedHeight * reduction), 1);
+
+        exportRenderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true,
+            preserveDrawingBuffer: true
+        });
+        exportRenderer.setPixelRatio(1);
+        exportRenderer.setSize(width, height, false);
+        exportRenderer.setClearColor(transparent ? 0x000000 : 0xe8ece9, transparent ? 0 : 1);
+        exportRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const exportCamera = camera.clone();
+        exportCamera.aspect = width / height;
+        exportCamera.updateProjectionMatrix();
+        exportCamera.updateMatrixWorld(true);
+
+        if (transparent) grid.visible = false;
+        exportRenderer.render(scene, exportCamera);
+        grid.visible = gridWasVisible;
+        const blob = await canvasToPngBlob(exportRenderer.domElement);
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = viewerImageFilename({ transparent, scale });
+        document.body.append(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        status.textContent = `Download started - ${width} x ${height} PNG`;
+        window.setTimeout(() => {
+            if (menu.open) menu.open = false;
+            status.textContent = '';
+        }, 650);
+    } catch (error) {
+        status.textContent = 'Image could not be created.';
+        showError(`The viewer image could not be downloaded: ${error.message}`);
+    } finally {
+        grid.visible = gridWasVisible;
+        if (exportRenderer) {
+            exportRenderer.dispose();
+            exportRenderer.forceContextLoss();
+        }
+        optionButtons.forEach((button) => { button.disabled = false; });
+        viewerExporting = false;
+    }
 }
 
 function fitCameraToModel() {
@@ -983,7 +1075,7 @@ function applyState(state) {
     }
     applyMeshTransforms(state);
     const selected = renderMusclePaths(state);
-    if (!selected) throw new Error(`OpenSim returned no path for ${state.selectedMuscle}.`);
+    if (!selected) throw new Error(`No path was returned for ${state.selectedMuscle}.`);
 
     setText('#muscle-length', (selected.lengthM * 100).toFixed(2));
     setText('#path-points', String(selected.points.length));
@@ -1570,7 +1662,7 @@ async function initialize() {
         setPathView('all', false);
         configureBenchmarkTimeline();
 
-        setLoading('Calculating the default OpenSim pose…');
+        setLoading('Calculating the default posture…');
         await requestPose();
         await loadMeshes(app.model.meshes);
         try {
@@ -1581,16 +1673,107 @@ async function initialize() {
         fitCameraToModel();
         setLoading('', false);
         setMode('static', true);
+        diagnosisWorkflow?.setReady(true);
     } catch (error) {
         $('#server-status').className = 'server-status offline';
         $('#server-status span:last-child').textContent = 'Unavailable';
         setLoading('', false);
+        diagnosisWorkflow?.setReady(false);
         showError(`The official model could not be loaded: ${error.message}`);
     }
 }
 
+function enterDiagnosisWorkspace() {
+    const viewerPanel = document.querySelector('.viewer-panel');
+    const slot = $('#diagnosis-viewer-slot');
+    if (!viewerPanel || !slot || viewerPanel.parentElement === slot) return;
+
+    diagnosisViewerSnapshot = {
+        mode: app.mode,
+        staticCoordinates: app.staticCoordinates ? { ...app.staticCoordinates } : null,
+        benchmarkTime: app.benchmarkTime,
+        pathView: app.pathView,
+        activationPanelVisible: app.activationPanelVisible,
+        musclePanelVisible: app.musclePanelVisible,
+        mirrored: app.mirrored
+    };
+
+    stopBenchmark();
+    window.clearTimeout(app.poseTimer);
+    window.clearTimeout(app.staticTimer);
+    app.poseRequest += 1;
+    app.staticRequest += 1;
+    app.benchmarkGeneration += 1;
+    app.mode = 'static';
+    app.staticCalculating = false;
+    app.pathView = 'all';
+    app.activationPanelVisible = false;
+    app.musclePanelVisible = false;
+    $('#activation-panel').classList.add('static-source');
+    neutralizeDisplayedActivation();
+    syncViewerDrawers();
+    slot.append(viewerPanel);
+}
+
+function leaveDiagnosisWorkspace() {
+    const viewerPanel = document.querySelector('.viewer-panel');
+    const explorer = $('#explorer-workspace');
+    if (viewerPanel && explorer && viewerPanel.parentElement !== explorer) {
+        explorer.append(viewerPanel);
+    }
+    if (!diagnosisViewerSnapshot) return;
+
+    const snapshot = diagnosisViewerSnapshot;
+    diagnosisViewerSnapshot = null;
+    window.clearTimeout(app.poseTimer);
+    window.clearTimeout(app.staticTimer);
+    app.poseRequest += 1;
+    app.staticRequest += 1;
+    app.benchmarkGeneration += 1;
+    app.staticCalculating = false;
+    app.staticCoordinates = snapshot.staticCoordinates
+        ? { ...snapshot.staticCoordinates }
+        : app.staticCoordinates;
+    app.benchmarkTime = snapshot.benchmarkTime;
+    app.pathView = snapshot.pathView;
+    app.activationPanelVisible = snapshot.activationPanelVisible;
+    app.musclePanelVisible = snapshot.musclePanelVisible;
+    setMirroredView(snapshot.mirrored);
+    syncViewerDrawers();
+    if (app.model) setMode(snapshot.mode, true);
+    else app.mode = snapshot.mode;
+}
+
+diagnosisWorkflow = createDiagnosisWorkflow({
+    fetchJson,
+    applyState,
+    getModel: () => app.model,
+    getSelectedMuscle: () => $('#muscle-select')?.value || 'BIClong',
+    setMirroredView,
+    neutralizeActivation: neutralizeDisplayedActivation,
+    enterDiagnosis: enterDiagnosisWorkspace,
+    leaveDiagnosis: leaveDiagnosisWorkspace,
+    resizeViewer: resizeRenderer
+});
+
 $('#reset-view').addEventListener('click', resetView);
 $('#mirror-view').addEventListener('click', toggleMirroredView);
+document.querySelectorAll('[data-viewer-download]').forEach((button) => {
+    button.addEventListener('click', () => {
+        downloadViewerImage({
+            scale: Number(button.dataset.scale),
+            transparent: button.dataset.transparent === 'true'
+        });
+    });
+});
+$('#viewer-download-menu').addEventListener('toggle', (event) => {
+    event.currentTarget.querySelector('summary')
+        .setAttribute('aria-expanded', String(event.currentTarget.open));
+});
+document.addEventListener('pointerdown', (event) => {
+    const menu = $('#viewer-download-menu');
+    if (menu.open && !menu.contains(event.target) && !viewerExporting) menu.open = false;
+});
 $('#reset-pose').addEventListener('click', resetPose);
 $('#toggle-preset-library').addEventListener('click', togglePresetLibrary);
 $('#mode-static').addEventListener('click', () => setMode('static'));

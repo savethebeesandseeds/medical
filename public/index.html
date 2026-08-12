@@ -4,16 +4,20 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>MoBL-ARMS Posture &amp; Activation Explorer</title>
+    <title>Waajacu's Medical</title>
+    <link rel="icon" type="image/png" href="/waajacu_medical.png">
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
     <main class="app-shell">
         <header class="page-header">
-            <div>
-                <p class="eyebrow">OpenSim research model</p>
-                <h1>MoBL-ARMS Posture &amp; Activation Explorer</h1>
-                <p class="intro">Set a right-arm posture and inspect model-estimated muscle activation.</p>
+            <div class="app-brand">
+                <img class="app-logo" src="/waajacu_medical.png" width="90" height="90" alt="">
+                <div class="app-brand-copy">
+                    <p class="eyebrow">Upper-limb research tool</p>
+                    <h1>Waajacu's Medical</h1>
+                    <p class="intro">Movement assessment and muscle activation.</p>
+                </div>
             </div>
             <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
                 <span class="status-dot" aria-hidden="true"></span>
@@ -29,16 +33,17 @@
             <a href="#model-information">Read limitations and licensing</a>
         </aside>
 
-        <section class="workspace">
+        <nav class="app-tabs" role="tablist" aria-label="Application sections">
+            <button id="tab-explorer" class="active" type="button" role="tab" aria-selected="true" aria-controls="explorer-workspace"><span>Explorer</span><small>Posture and activation</small></button>
+            <button id="tab-diagnosis" type="button" role="tab" aria-selected="false" aria-controls="diagnosis-workspace"><span>Diagnosis</span><small>Guided assessment</small></button>
+        </nav>
+
+        <section id="explorer-workspace" class="workspace" role="tabpanel" aria-labelledby="tab-explorer">
             <section class="viewer-panel panel" aria-labelledby="viewer-title">
                 <header class="panel-header viewer-header">
                     <div>
                         <h2 id="viewer-title">Right upper limb</h2>
                         <p id="viewer-instructions">Drag to rotate · scroll to zoom</p>
-                    </div>
-                    <div class="viewer-actions">
-                        <button id="mirror-view" class="quiet-button" type="button" aria-pressed="false" title="Visual mirror of the right-side model">Mirror left</button>
-                        <button id="reset-view" class="quiet-button" type="button">Reset view</button>
                     </div>
                 </header>
 
@@ -70,11 +75,53 @@
                 <div class="viewer-stage">
                     <div class="scene-wrap">
                         <div id="scene"></div>
+                        <div class="scene-actions" role="group" aria-label="View actions">
+                            <button id="mirror-view" class="scene-action-button" type="button" aria-label="Mirror left" aria-pressed="false" data-tooltip="Mirror left">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 3v18M9 7 4 12l5 5V7Zm6 0 5 5-5 5V7Z" />
+                                </svg>
+                            </button>
+                            <details id="viewer-download-menu" class="viewer-download-menu">
+                                <summary class="scene-action-button" role="button" aria-label="Download image" aria-haspopup="true" aria-expanded="false" data-tooltip="Download image">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
+                                    </svg>
+                                </summary>
+                                <div class="viewer-download-options" role="group" aria-label="Image download options">
+                                    <button type="button" data-viewer-download data-scale="1" data-transparent="false">
+                                        <strong>PNG with background</strong>
+                                        <span>Current viewer size</span>
+                                    </button>
+                                    <button type="button" data-viewer-download data-scale="1" data-transparent="true">
+                                        <strong>Transparent PNG</strong>
+                                        <span>Current viewer size</span>
+                                    </button>
+                                    <button type="button" data-viewer-download data-scale="2" data-transparent="false">
+                                        <strong>High-resolution PNG</strong>
+                                        <span>Background, 2x size</span>
+                                    </button>
+                                    <button type="button" data-viewer-download data-scale="2" data-transparent="true">
+                                        <strong>High-resolution transparent</strong>
+                                        <span>Transparent, 2x size</span>
+                                    </button>
+                                    <p id="viewer-download-status" class="viewer-download-status" aria-live="polite"></p>
+                                </div>
+                            </details>
+                            <button id="reset-view" class="scene-action-button" type="button" aria-label="Reset view" data-tooltip="Reset view">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M20 11a8 8 0 1 1-2.35-5.65M20 4v7h-7" />
+                                </svg>
+                            </button>
+                        </div>
                         <div id="geometry-legend" class="scene-legend" aria-label="Viewer legend">
                             <span><i class="bone-key"></i>Model geometry</span>
                             <span><i class="path-key"></i>Muscle paths</span>
                             <span id="selected-path-legend" class="hidden"><i class="selected-key"></i>Selected</span>
                         </div>
+                        <section id="capacity-angle-overlay" class="capacity-angle-overlay diagnosis-capacity-only hidden" aria-label="Position angles">
+                            <strong>Angles</strong>
+                            <dl id="capacity-angle-grid"></dl>
+                        </section>
                         <section id="activation-panel" class="viewer-drawer activation-panel static-source" aria-label="Muscle activations">
                             <div id="activation-legend" class="activation-legend" aria-label="Muscle activation color scale">
                                 <div class="legend-heading">
@@ -223,6 +270,236 @@
             </section>
         </section>
 
+        <section id="diagnosis-workspace" class="diagnosis-workspace hidden" role="tabpanel" aria-labelledby="tab-diagnosis">
+            <section class="diagnosis-records panel" aria-labelledby="diagnosis-records-title">
+                <header>
+                    <div>
+                        <h2 id="diagnosis-records-title">Diagnosis records</h2>
+                        <span id="diagnosis-draft-state">No unfinished assessment</span>
+                    </div>
+                    <button id="diagnosis-new-assessment" class="quiet-button" type="button">New assessment</button>
+                </header>
+                <p class="diagnosis-records-privacy">Completed reports and unfinished work are stored only in this browser profile.</p>
+                <div id="diagnosis-saved-report-list"></div>
+            </section>
+
+            <section id="diagnosis-safety-landing" class="diagnosis-safety-landing panel" aria-labelledby="diagnosis-safety-title">
+                <header>
+                    <p class="eyebrow">Required before movement</p>
+                    <h2 id="diagnosis-safety-title">Shoulder safety check</h2>
+                    <p>Review every warning sign before continuing.</p>
+                </header>
+                <div class="diagnosis-safety-body">
+                    <div class="diagnosis-safety-intro">
+                        <h3>Before you begin</h3>
+                        <p>This screen cannot rule out an urgent condition. If a warning applies, record it and stop here; do not use this application to delay medical care.</p>
+                        <p>This assessment records movement observations. It does not diagnose pain or injury.</p>
+                    </div>
+                    <div>
+                        <div id="diagnosis-safety-form"></div>
+                        <div id="diagnosis-safety-warning" class="diagnosis-stop-warning hidden" role="alert"></div>
+                        <div class="diagnosis-safety-footer">
+                            <span id="diagnosis-safety-state">Review required</span>
+                            <button id="diagnosis-continue" class="primary-button" type="button" disabled>Continue to personal details</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="diagnosis-intake" class="diagnosis-intake panel hidden" aria-labelledby="diagnosis-intake-title">
+                <header>
+                    <p class="eyebrow">Step 2 of 3</p>
+                    <h2 id="diagnosis-intake-title">Personal details and pain history</h2>
+                    <p>These details provide context for the report. They do not alter the model calculation.</p>
+                </header>
+                <form id="diagnosis-intake-form">
+                    <section class="diagnosis-intake-section" aria-labelledby="intake-person-title">
+                        <div class="diagnosis-intake-heading">
+                            <h3 id="intake-person-title">Personal details</h3>
+                            <span>Required fields are marked *</span>
+                        </div>
+                        <div class="diagnosis-intake-grid">
+                            <label class="diagnosis-field span-2"><span>Name *</span><input name="name" type="text" maxlength="120" autocomplete="name" required></label>
+                            <label class="diagnosis-field"><span>Age *</span><input name="ageYears" type="number" min="1" max="120" step="1" inputmode="numeric" required></label>
+                            <label class="diagnosis-field"><span>Gender *</span><select name="gender" required>
+                                <option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="nonbinary">Non-binary</option><option value="self_described">Self-described</option><option value="prefer_not_to_say">Prefer not to say</option>
+                            </select></label>
+                            <label class="diagnosis-field"><span>Height (cm) *</span><input name="heightCm" type="number" min="80" max="250" step="0.1" inputmode="decimal" required></label>
+                            <label class="diagnosis-field"><span>Weight (kg) *</span><input name="weightKg" type="number" min="20" max="350" step="0.1" inputmode="decimal" required></label>
+                            <label class="diagnosis-field"><span>Arm being assessed *</span><select name="assessedArm" required><option value="">Select</option><option value="right">Right</option><option value="left">Left</option></select></label>
+                            <label class="diagnosis-field"><span>City</span><input name="city" type="text" maxlength="100" autocomplete="address-level2"></label>
+                            <label class="diagnosis-field span-2"><span>Email</span><input name="email" type="email" maxlength="160" autocomplete="email"></label>
+                        </div>
+                    </section>
+
+                    <section class="diagnosis-intake-section" aria-labelledby="intake-pain-title">
+                        <div class="diagnosis-intake-heading">
+                            <h3 id="intake-pain-title">Pain history</h3>
+                            <span>Short answers are enough</span>
+                        </div>
+                        <div class="diagnosis-intake-grid">
+                            <label class="diagnosis-field"><span>How long has it hurt? *</span><select name="painDuration" required>
+                                <option value="">Select</option><option value="under_24_hours">Less than 24 hours</option><option value="1_to_7_days">1–7 days</option><option value="1_to_6_weeks">1–6 weeks</option><option value="6_to_12_weeks">6–12 weeks</option><option value="3_to_6_months">3–6 months</option><option value="over_6_months">More than 6 months</option><option value="recurrent">Comes and goes / recurrent</option>
+                            </select></label>
+                            <label class="diagnosis-field"><span>How did it begin? *</span><select name="painOnset" required>
+                                <option value="">Select</option><option value="sudden_injury">Sudden, during an injury</option><option value="sudden_no_injury">Sudden, without a clear injury</option><option value="gradual_overuse">Gradual / repeated use</option><option value="gradual_unknown">Gradual, cause unclear</option><option value="after_inactivity">After inactivity or sleep</option><option value="recurrent">A recurrent problem</option><option value="unsure">Unsure</option>
+                            </select></label>
+                            <label class="diagnosis-field"><span>Pain now · 0–10 *</span><input name="painNow" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
+                            <label class="diagnosis-field"><span>Worst pain · 0–10 *</span><input name="painWorst" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
+                            <label class="diagnosis-field span-2"><span>Main pain location *</span><select name="primaryPainLocation" required>
+                                <option value="">Select</option><option value="front_shoulder">Front of shoulder</option><option value="side_shoulder_upper_arm">Side of shoulder / upper arm</option><option value="top_ac_region">Top of shoulder / AC region</option><option value="back_shoulder">Back of shoulder</option><option value="shoulder_blade">Around shoulder blade</option><option value="neck_to_arm">Neck spreading into arm</option><option value="elbow_forearm_hand">Elbow, forearm, or hand</option><option value="multiple_or_other">Multiple areas / other</option>
+                            </select></label>
+                            <fieldset class="diagnosis-intake-checks span-2">
+                                <legend>Other features</legend>
+                                <label><input name="painAtRest" type="checkbox"> Pain at rest</label>
+                                <label><input name="nightPain" type="checkbox"> Wakes or disturbs sleep</label>
+                                <label><input name="radiatingPain" type="checkbox"> Spreads down the arm</label>
+                                <label><input name="clickingInstability" type="checkbox"> Clicking, catching, or instability</label>
+                            </fieldset>
+                            <label class="diagnosis-field span-2"><span>Injury or onset details</span><textarea name="onsetDetails" maxlength="600" placeholder="What happened, or what activity seemed to start it?"></textarea></label>
+                            <label class="diagnosis-field span-2"><span>What makes it worse or better?</span><textarea name="aggravatingRelieving" maxlength="600" placeholder="Movements, work, sport, rest, sleep position, medication, or other factors"></textarea></label>
+                            <label class="diagnosis-field span-2"><span>Relevant history</span><textarea name="relevantHistory" maxlength="600" placeholder="Previous shoulder injury, surgery, diagnosis, or treatment"></textarea></label>
+                        </div>
+                    </section>
+
+                    <p class="diagnosis-intake-privacy"><strong>Local browser storage:</strong> details and finished reports are saved here for resume and history. They are not sent to a patient-record server. Anyone using this browser profile can view them.</p>
+                    <div class="diagnosis-intake-actions">
+                        <button id="diagnosis-intake-back" class="quiet-button" type="button">Back to safety</button>
+                        <span id="diagnosis-intake-state" role="status">Complete the required fields.</span>
+                        <button class="primary-button" type="submit">Start movement assessment</button>
+                    </div>
+                </form>
+            </section>
+
+            <div id="diagnosis-assessment" class="diagnosis-assessment hidden">
+                <header class="diagnosis-assessment-bar panel">
+                    <div>
+                        <p class="eyebrow">Single assessment</p>
+                        <h2>Shoulder movement assessment</h2>
+                    </div>
+                    <span class="diagnosis-assessment-summary">25 postures · one response each</span>
+                    <button id="diagnosis-restart" class="quiet-button" type="button">Restart</button>
+                </header>
+
+                <aside class="diagnosis-observation-panel panel diagnosis-standard-only" aria-labelledby="diagnosis-observation-title">
+                    <header class="diagnosis-standard-only">
+                        <h2 id="diagnosis-observation-title">Observation</h2>
+                        <span id="diagnosis-save-state">Not recorded</span>
+                    </header>
+                    <div id="diagnosis-observation-form" class="diagnosis-standard-only"></div>
+                    <section class="diagnosis-metrics diagnosis-standard-only" aria-labelledby="diagnosis-metrics-title">
+                        <div class="diagnosis-metrics-heading">
+                            <h3 id="diagnosis-metrics-title">Model reference</h3>
+                            <button id="diagnosis-run-model" class="quiet-button" type="button" disabled>Run model reference</button>
+                        </div>
+                        <p id="diagnosis-model-caveat"></p>
+                        <div id="diagnosis-model-status" class="diagnosis-model-status">Select a test.</div>
+                        <div id="diagnosis-model-metrics"></div>
+                    </section>
+                </aside>
+
+                <div class="diagnosis-center">
+                    <section class="diagnosis-instructions panel diagnosis-standard-only" aria-labelledby="diagnosis-current-title">
+                        <div class="diagnosis-test-heading">
+                            <span id="diagnosis-current-id" class="diagnosis-test-id">Test 1</span>
+                            <h2 id="diagnosis-current-title">Neutral baseline</h2>
+                        </div>
+                        <p id="diagnosis-purpose"></p>
+                        <dl class="diagnosis-instruction-grid">
+                            <div><dt>Start</dt><dd id="diagnosis-start"></dd></div>
+                            <div><dt>Action</dt><dd id="diagnosis-movement"></dd></div>
+                            <div><dt>Target</dt><dd id="diagnosis-target"></dd></div>
+                        </dl>
+                        <p id="diagnosis-interpretation-hint" class="diagnosis-hint"></p>
+                    </section>
+                    <section id="capacity-instructions" class="diagnosis-instructions capacity-instructions panel diagnosis-capacity-only hidden" aria-labelledby="capacity-position-title">
+                        <div class="diagnosis-test-heading">
+                            <span id="capacity-position-id" class="diagnosis-test-id">Progressive 1 of 25</span>
+                            <h2 id="capacity-position-title">Movement position</h2>
+                        </div>
+                        <p><strong>Reference posture—not a prescribed exercise.</strong> <span id="capacity-position-instruction">Do not attempt it if it is uncomfortable or unsuitable.</span></p>
+                        <p class="diagnosis-hint"><strong>Colors are model estimates, not patient measurements.</strong> Stop for sharp or increasing pain, numbness, tingling, loss of control, or marked weakness.</p>
+                        <div class="capacity-position-actions">
+                            <button id="capacity-previous" class="quiet-button" type="button">Previous</button>
+                            <span id="capacity-save-state" role="status">Select a response in the assessment record</span>
+                            <button id="capacity-next" class="primary-button" type="button">Next position</button>
+                        </div>
+                    </section>
+                    <div id="diagnosis-viewer-slot" class="diagnosis-viewer-slot"></div>
+                </div>
+
+                <aside class="diagnosis-tests-panel panel" aria-label="Assessment record">
+                <div id="diagnosis-stop-warning" class="diagnosis-stop-warning hidden" role="alert"></div>
+                <ol id="diagnosis-test-list" class="diagnosis-test-list diagnosis-standard-only"></ol>
+                <div id="capacity-screen-intro" class="diagnosis-capacity-only hidden">
+                    <strong>25 postures</strong>
+                    <p>18 progressive, then 7 discrimination postures. Stop if a posture is unsafe or uncomfortable.</p>
+                </div>
+                <div class="capacity-record-wrap diagnosis-capacity-only hidden">
+                    <table class="capacity-record-table">
+                        <thead><tr><th scope="col">Position</th><th scope="col">Done</th><th scope="col">Pain</th><th scope="col">Weak</th><th scope="col">Unsure</th><th scope="col">Skip</th><th scope="col">Comments</th></tr></thead>
+                        <tbody id="capacity-position-list"></tbody>
+                    </table>
+                </div>
+            </aside>
+
+            <div class="diagnosis-actions panel diagnosis-standard-only">
+                <div>
+                    <strong>Biomechanical observation report</strong>
+                    <span>Generates hypotheses and limitations—not a medical diagnosis.</span>
+                </div>
+                <button id="diagnosis-generate-report" class="primary-button" type="button">Generate report</button>
+                <button id="diagnosis-copy-json" class="quiet-button" type="button" disabled>Copy JSON</button>
+                <button id="diagnosis-download-json" class="quiet-button" type="button" disabled>Download JSON</button>
+            </div>
+
+            </div>
+
+            <section id="diagnosis-report-screen" class="diagnosis-report-screen hidden" aria-labelledby="diagnosis-report-screen-title">
+                <header class="diagnosis-report-screen-header panel">
+                    <div>
+                        <p class="eyebrow">Assessment complete</p>
+                        <h2 id="diagnosis-report-screen-title">Results and report</h2>
+                    </div>
+                    <div class="diagnosis-report-screen-actions">
+                        <button id="diagnosis-report-back" class="quiet-button" type="button">Back to assessment</button>
+                        <button id="capacity-copy-json" class="quiet-button" type="button" disabled>Copy full JSON</button>
+                        <button id="capacity-download-json" class="quiet-button" type="button" disabled>Download full JSON</button>
+                        <button id="diagnosis-report-restart" class="quiet-button" type="button">Restart</button>
+                    </div>
+                </header>
+                <section id="diagnosis-report" class="diagnosis-report panel" aria-labelledby="diagnosis-report-title">
+                    <div class="diagnosis-report-watermark" aria-hidden="true">
+                        <img src="/waajacu_medical.png" alt="">
+                        <span>Waajacu's Medical</span>
+                    </div>
+                    <header>
+                        <div class="diagnosis-report-brand">
+                            <img src="/waajacu_medical.png" width="42" height="42" alt="">
+                            <div>
+                                <span class="diagnosis-report-brand-name">Waajacu's Medical</span>
+                                <h2 id="diagnosis-report-title">25-position biomechanical assessment</h2>
+                            </div>
+                        </div>
+                        <span id="diagnosis-report-time"></span>
+                    </header>
+                    <div id="diagnosis-report-content"></div>
+                </section>
+            </section>
+        </section>
+
+        <div id="app-dialog" class="app-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
+            <button id="app-dialog-backdrop" class="app-dialog-backdrop" type="button" aria-label="Close dialog"></button>
+            <section class="app-dialog-card">
+                <h2 id="app-dialog-title">Confirm action</h2>
+                <p id="app-dialog-message"></p>
+                <div class="app-dialog-actions">
+                    <button id="app-dialog-cancel" class="quiet-button" type="button">Cancel</button>
+                    <button id="app-dialog-confirm" class="primary-button" type="button">Confirm</button>
+                </div>
+            </section>
+        </div>
+
         <section id="model-information" class="model-information panel" aria-labelledby="model-information-title">
             <header class="model-information-header">
                 <h2 id="model-information-title">Model details and limitations</h2>
@@ -234,12 +511,17 @@
                 <p><strong>Static posture:</strong> calculated for the exact displayed angles under model gravity, with no external hand load. Results are shown only after convergence, equilibrium, and reserve checks pass. Passive muscle-fiber force and real co-contraction are not represented.</p>
                 <p><strong>Reach8 movement:</strong> reads the authors’ <code>CMC_results_states.sto</code> directly. It is the only recorded movement currently included and is not an estimate for the slider posture.</p>
                 <p><strong>Interpretation:</strong> activation is a generic model state from 0–1. It is not measured effort, force, pain, damage, fatigue, diagnostic confidence, or a patient-specific result.</p>
+                <p><strong>Observation workflow:</strong> the Diagnosis tab records self-reported symptoms and movement observations and generates biomechanical hypotheses only. It cannot identify a painful tissue, rule out urgent conditions, or replace assessment by a qualified clinician.</p>
+                <p><strong>Movement screens:</strong> the default moderate set uses 18 progressive postures from a 39-position exact search; all 39 intact postures passed the model quality gates. Complete modeled loss of any single target group remained mechanically feasible throughout this moderate set because other muscles compensated, so it records movement difficulty but does not calculate a muscle signature. The separate seven-position advanced set was selected from 444 baseline-valid gravity-only postures for noiseless model separation only. It is extreme, has no independent error-correcting panel, is not clinically validated, and does not identify a painful or injured tissue.</p>
+                <p><strong>Force output:</strong> when a static posture passes every quality gate, <code>activeActuatorForceN</code> is a generic, pose-linearized active actuator estimate. It excludes passive muscle-fiber force and external hand loads and is not measured patient force. Shoulder joint reaction is not calculated.</p>
+                <p><strong>Model coverage:</strong> trapezius and serratus anterior are not independent muscle actuators in this model; scapular and clavicular motion follows authored coupling constraints. Resisted, supported, and assisted tests require measured external loads before model demand can be interpreted.</p>
                 <p><strong>Compatibility:</strong> <span id="runtime-note">Loading model inventory…</span></p>
                 <p><strong>Integrity:</strong> <span id="model-hash">Model: checking…</span><br><span id="benchmark-hash">Reach8 states: checking…</span></p>
                 <p><strong>Runtime:</strong> <span id="gpu-note">GPU access: checking…</span></p>
                 <p><strong>Use terms:</strong> the original application code is <a href="/LICENSE" target="_blank">MIT-licensed</a>. The MoBL-ARMS model, meshes, and Reach8 data are separately licensed for non-commercial research, academic, evaluation, and personal use only; the MIT license does not apply to those assets. Commercial model use requires a separate license. See the <a href="/models/mobl_arms/LICENSE.txt" target="_blank">model license</a> and <a href="/THIRD_PARTY_NOTICES.md" target="_blank">third-party notices</a>.</p>
                 <p><strong>Attribution:</strong> model use must acknowledge the MoBL-ARMS authors and cite Saul et al. (2015) and McFarland et al. (2019), as specified in the model package license.</p>
                 <p><strong>Clinical use:</strong> this software is not a medical device and must not be used to diagnose or treat. Patient-specific clinical research would require validated patient data, uncertainty reporting, clinical ground truth, clinician oversight, and ethics or regulatory review.</p>
+                <p><strong>Safety and method references:</strong> see <a href="https://www.nhs.uk/symptoms/shoulder-pain/" target="_blank" rel="noreferrer">NHS shoulder guidance</a>, the <a href="https://pubmed.ncbi.nlm.nih.gov/28122541/" target="_blank" rel="noreferrer">systematic review of shoulder examination tests</a>, and the <a href="https://opensimconfluence.atlassian.net/wiki/spaces/OpenSim/pages/53084318/Custom%2BStatic%2BOptimization%2Bin%2BMATLAB" target="_blank" rel="noreferrer">OpenSim static-optimization documentation</a>. These references do not validate this application for clinical use.</p>
             </div>
         </section>
     </main>

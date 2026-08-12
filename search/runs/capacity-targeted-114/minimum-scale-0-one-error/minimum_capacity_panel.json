@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "capacity_scale": 0.0,
+  "candidate_posture_count": 114,
+  "all_target_count": 15,
+  "detectable_target_count": 12,
+  "detectable_targets": [
+    "Anterior deltoid",
+    "Biceps",
+    "Coracobrachialis",
+    "Infraspinatus",
+    "Latissimus dorsi",
+    "Middle deltoid",
+    "Pectoralis major",
+    "Posterior deltoid",
+    "Subscapularis",
+    "Supraspinatus",
+    "Teres minor",
+    "Triceps"
+  ],
+  "undetectable_targets": [
+    "Brachialis",
+    "Brachioradialis",
+    "Teres major"
+  ],
+  "hypotheses_include_no_loss": true,
+  "minimum_pair_distance_requested": 3,
+  "witness_count_histogram": {
+    "2": 9,
+    "3": 9,
+    "4": 16,
+    "5": 6,
+    "6": 8,
+    "7": 3,
+    "8": 5,
+    "9": 5,
+    "10": 7,
+    "11": 4,
+    "12": 4,
+    "14": 2
+  },
+  "insufficient_pairs": [
+    {
+      "left": "No modeled capacity loss",
+      "right": "Coracobrachialis",
+      "available_witnesses": 2
+    },
+    {
+      "left": "No modeled capacity loss",
+      "right": "Latissimus dorsi",
+      "available_witnesses": 2
+    },
+    {
+      "left": "No modeled capacity loss",
+      "right": "Pectoralis major",
+      "available_witnesses": 2
+    },
+    {
+      "left": "No modeled capacity loss",
+      "right": "Posterior deltoid",
+      "available_witnesses": 2
+    },
+    {
+      "left": "No modeled capacity loss",
+      "right": "Supraspinatus",
+      "available_witnesses": 2
+    },
+    {
+      "left": "No modeled capacity loss",
+      "right": "Teres minor",
+      "available_witnesses": 2
+    },
+    {
+      "left": "Coracobrachialis",
+      "right": "Teres minor",
+      "available_witnesses": 2
+    },
+    {
+      "left": "Middle deltoid",
+      "right": "Pectoralis major",
+      "available_witnesses": 2
+    },
+    {
+      "left": "Pectoralis major",
+      "right": "Supraspinatus",
+      "available_witnesses": 2
+    }
+  ],
+  "scope": "Generic-model capacity sensitivity under gravity only; not patient ability, pain, injury, or diagnosis.",
+  "status": "infeasible"
+}

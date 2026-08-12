@@ -1,0 +1,25 @@
+[info] Updating Model file from 40000 to latest format...
+[info] Loaded model Right from file /workspace/models/mobl_arms/MOBL_ARMS_41.osim
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+[warning] Body 'thorax' is massless but nonzero inertia provided.
+[warning]  Inertia reset to zero. Otherwise provide nonzero mass.
+{"status":"ok","processed":4,"usable":4,"failed":0,"output":"/workspace/search/runs/final-smoke-8/output/atlas_01.csv"}

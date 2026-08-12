@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "source_usable_pose_count": 3466,
+  "target_count": 15,
+  "demand_candidates_per_target": 4,
+  "selectivity_candidates_per_target": 4,
+  "unique_selected_posture_count": 114,
+  "provenance": {
+    "Anterior deltoid": {
+      "highest_demand": [
+        "sobol__0000159",
+        "sobol__0000165",
+        "sobol__0002239",
+        "sobol__0002303"
+      ],
+      "highest_selectivity": [
+        "sobol__0001013",
+        "sobol__0001333",
+        "sobol__0003637",
+        "sobol__0002239"
+      ]
+    },
+    "Middle deltoid": {
+      "highest_demand": [
+        "sobol__0004067",
+        "sobol__0003667",
+        "sobol__0001387",
+        "sobol__0003323"
+      ],
+      "highest_selectivity": [
+        "sobol__0000673",
+        "sobol__0002495",
+        "sobol__0000111",
+        "sobol__0001423"
+      ]
+    },
+    "Posterior deltoid": {
+      "highest_demand": [
+        "sobol__0003259",
+        "sobol__0000976",
+        "sobol__0000603",
+        "sobol__0002339"
+      ],
+      "highest_selectivity": [
+        "sobol__0000220",
+        "sobol__0001480",
+        "sobol__0003560",
+        "sobol__0002552"
+      ]
+    },
+    "Supraspinatus": {
+      "highest_demand": [
+        "sobol__0003717",
+        "sobol__0001837",
+        "sobol__0002565",
+        "sobol__0000245"
+      ],
+      "highest_selectivity": [
+        "sobol__0000463",
+        "sobol__0002879",
+        "sobol__0003295",
+        "sobol__0000575"
+      ]
+    },
+    "Infraspinatus": {
+      "highest_demand": [
+        "sobol__0004065",
+        "sobol__0000625",
+        "sobol__0000961",
+        "sobol__0001035"
+      ],
+      "highest_selectivity": [
+        "sobol__0002473",
+        "sobol__0000801",
+        "sobol__0002193",
+        "sobol__0000038"
+      ]
+    },
+    "Subscapularis": {
+      "highest_demand": [
+        "sobol__0000257",
+        "sobol__0002549",
+        "sobol__0001711",
+        "sobol__0001601"
+      ],
+      "highest_selectivity": [
+        "sobol__0002117",
+        "sobol__0003303",
+        "sobol__0000309",
+        "sobol__0004053"
+      ]
+    },
+    "Teres minor": {
+      "highest_demand": [
+        "sobol__0001425",
+        "sobol__0001369",
+        "sobol__0001262",
+        "sobol__0001337"
+      ],
+      "highest_selectivity": [
+        "sobol__0004077",
+        "sobol__0002313",
+        "sobol__0002761",
+        "sobol__0002025"
+      ]
+    },
+    "Teres major": {
+      "highest_demand": [
+        "sobol__0002986",
+        "sobol__0000234",
+        "sobol__0003274",
+        "sobol__0001702"
+      ],
+      "highest_selectivity": [
+        "sobol__0003146",
+        "sobol__0002698",
+        "sobol__0003296",
+        "sobol__0002272"
+      ]
+    },
+    "Pectoralis major": {
+      "highest_demand": [
+        "sobol__0002818",
+        "sobol__0001202",
+        "sobol__0002554",
+        "sobol__0002997"
+      ],
+      "highest_selectivity": [
+        "sobol__0002818",
+        "sobol__0001954",
+        "sobol__0001400",
+        "sobol__0003244"
+      ]
+    },
+    "Latissimus dorsi": {
+      "highest_demand": [
+        "sobol__0003516",
+        "sobol__0002764",
+        "sobol__0000860",
+        "sobol__0001310"
+      ],
+      "highest_selectivity": [
+        "sobol__0001014",
+        "sobol__0000447",
+        "sobol__0003758",
+        "sobol__0002594"
+      ]
+    },
+    "Coracobrachialis": {
+      "highest_demand": [
+        "sobol__0000073",
+        "sobol__0003070",
+        "sobol__0003073",
+        "sobol__0003041"
+      ],
+      "highest_selectivity": [
+        "sobol__0001149",
+        "sobol__0003005",
+        "sobol__0000557",
+        "sobol__0000925"
+      ]
+    },
+    "Biceps": {
+      "highest_demand": [
+        "sobol__0002554",
+        "sobol__0003163",
+        "sobol__0001180",
+        "sobol__0000016"
+      ],
+      "highest_selectivity": [
+        "sobol__0002056",
+        "sobol__0001298",
+        "sobol__0000016",
+        "sobol__0000450"
+      ]
+    },
+    "Triceps": {
+      "highest_demand": [
+        "sobol__0001180",
+        "sobol__0003681",
+        "sobol__0000886",
+        "sobol__0001887"
+      ],
+      "highest_selectivity": [
+        "sobol__0003974",
+        "anchor__neutral",
+        "anchor__abduction_45",
+        "anchor__forward_45"
+      ]
+    },
+    "Brachialis": {
+      "highest_demand": [
+        "sobol__0000271",
+        "sobol__0000501",
+        "sobol__0000949",
+        "sobol__0000223"
+      ],
+      "highest_selectivity": [
+        "sobol__0003876",
+        "sobol__0002606",
+        "sobol__0000704",
+        "sobol__0002012"
+      ]
+    },
+    "Brachioradialis": {
+      "highest_demand": [
+        "sobol__0002159",
+        "sobol__0000871",
+        "sobol__0000623",
+        "sobol__0000511"
+      ],
+      "highest_selectivity": [
+        "sobol__0002576",
+        "sobol__0000560",
+        "sobol__0000623",
+        "sobol__0002662"
+      ]
+    }
+  }
+}

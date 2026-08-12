@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "source_posture_count": 114,
+  "target_count": 15,
+  "scales": [
+    0.75,
+    0.5,
+    0.25,
+    0.0
+  ],
+  "case_count": 6840,
+  "workers": 8,
+  "shards": [
+    "capacity_00.csv",
+    "capacity_01.csv",
+    "capacity_02.csv",
+    "capacity_03.csv",
+    "capacity_04.csv",
+    "capacity_05.csv",
+    "capacity_06.csv",
+    "capacity_07.csv"
+  ]
+}

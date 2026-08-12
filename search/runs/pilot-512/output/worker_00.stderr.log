@@ -1,0 +1,21 @@
+Exception caught in Millard2012EquilibriumMuscle::calcMuscleDynamicsInfo from DELT3
+Exception caught in Millard2012EquilibriumMuscle::calcFiberVelocityInfo from DELT3
+DELT3 Fiber velocity Newton method did not converge
+	Thrown at Millard2012EquilibriumMuscle.cpp:1067 in calcFiberVelocityInfo().
+Exception caught in Millard2012EquilibriumMuscle::calcMuscleDynamicsInfo from DELT3
+Exception caught in Millard2012EquilibriumMuscle::calcFiberVelocityInfo from DELT3
+DELT3 Fiber velocity Newton method did not converge
+	Thrown at Millard2012EquilibriumMuscle.cpp:1067 in calcFiberVelocityInfo().
+batch-search processed=25 usable=19 failed=6
+Exception caught in Millard2012EquilibriumMuscle::calcMuscleDynamicsInfo from DELT3
+Exception caught in Millard2012EquilibriumMuscle::calcFiberVelocityInfo from DELT3
+DELT3 Fiber velocity Newton method did not converge
+	Thrown at Millard2012EquilibriumMuscle.cpp:1067 in calcFiberVelocityInfo().
+batch-search processed=50 usable=40 failed=10
+Exception caught in Millard2012EquilibriumMuscle::calcMuscleDynamicsInfo from DELT3
+Exception caught in Millard2012EquilibriumMuscle::calcFiberVelocityInfo from DELT3
+DELT3 Fiber velocity Newton method did not converge
+	Thrown at Millard2012EquilibriumMuscle.cpp:1067 in calcFiberVelocityInfo().
+batch-search processed=75 usable=63 failed=12
+batch-search processed=100 usable=83 failed=17
+batch-search processed=125 usable=103 failed=22

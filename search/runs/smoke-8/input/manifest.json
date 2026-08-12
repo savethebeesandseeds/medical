@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "generator": "seven-dimensional Sobol sequence with seeded digital shift",
+  "seed": 20260812,
+  "requested_count": 8,
+  "generated_count": 8,
+  "workers": 2,
+  "coordinates": [
+    "elv_angle",
+    "shoulder_elv",
+    "shoulder_rot",
+    "elbow_flexion",
+    "pro_sup",
+    "deviation",
+    "flexion"
+  ],
+  "shards": [
+    "candidates_00.csv",
+    "candidates_01.csv"
+  ]
+}

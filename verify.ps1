@@ -95,6 +95,9 @@ $static = Invoke-RestMethod (Get-StaticUrl $staticCoordinates)
 $staticActivationCount = @(
     $static.muscles | Where-Object { $null -ne $_.activation }
 ).Count
+$staticActiveForceCount = @(
+    $static.muscles | Where-Object { $null -ne $_.activeActuatorForceN }
+).Count
 [pscustomobject]@{
     mode = $static.mode
     usable = $static.staticHolding.quality.usable
@@ -102,6 +105,7 @@ $staticActivationCount = @(
     solverTimeMs = $static.staticHolding.solver.durationMs
     constraintMultipliers = $static.staticHolding.solver.constraintMultipliers
     activationValues = $staticActivationCount
+    activeActuatorForceValues = $staticActiveForceCount
     equilibriumResidual = $static.staticHolding.quality.maxGeneralizedForceEquilibriumResidual
     equilibriumLimit = $static.staticHolding.quality.equilibriumResidualLimit
     maximumReserveNm = $static.staticHolding.quality.maxReserveTorqueNm
@@ -112,6 +116,11 @@ Assert-True ($static.mode -eq 'static') 'static endpoint returned the wrong mode
 Assert-True ($static.staticHolding.solver.converged -eq $true) 'static optimizer did not converge'
 Assert-True ($static.staticHolding.quality.usable -eq $true) 'default static posture was withheld'
 Assert-True ($staticActivationCount -eq 50) 'static posture did not return 50 activations'
+Assert-True ($staticActiveForceCount -eq 50) 'usable static posture did not return 50 active actuator force estimates'
+Assert-True ($static.staticHolding.activeActuatorForce.units -eq 'N') 'active actuator force metadata has unexpected units'
+Assert-True ($static.staticHolding.activeActuatorForce.measuredPatientForce -eq $false) 'active actuator force was mislabeled as measured patient force'
+Assert-True ($static.staticHolding.activeActuatorForce.passiveMuscleFiberForceIncluded -eq $false) 'active actuator force unexpectedly includes passive fiber force'
+Assert-True ($static.staticHolding.activeActuatorForce.externalLoadIncluded -eq $false) 'active actuator force unexpectedly includes an external load'
 Assert-True (
     [double]$static.staticHolding.quality.maxGeneralizedForceEquilibriumResidual -le
     [double]$static.staticHolding.quality.equilibriumResidualLimit
@@ -127,6 +136,12 @@ foreach ($muscle in $static.muscles) {
         -not [double]::IsInfinity($activation) -and
         $activation -ge 0 -and $activation -le 1
     ) "static activation is invalid for $($muscle.name)"
+    $activeForce = [double]$muscle.activeActuatorForceN
+    Assert-True (
+        -not [double]::IsNaN($activeForce) -and
+        -not [double]::IsInfinity($activeForce) -and
+        $activeForce -ge 0
+    ) "static active actuator force is invalid for $($muscle.name)"
 }
 
 $staticRepeat = Invoke-RestMethod (Get-StaticUrl $staticCoordinates)
@@ -250,5 +265,14 @@ Assert-True (@($outside2.muscles | Where-Object { $null -ne $_.activation }).Cou
 $partial = Invoke-RestMethod "http://localhost:$Port/api/benchmark/nearest?elbow_flexion=60&t=0.62&muscle=BIClong"
 Assert-True ($partial.match.coverage.status -eq 'incomplete') 'a partial pose query was not marked incomplete'
 Assert-True ($partial.match.coverage.usable -eq $false) 'a partial pose query was marked usable'
+
+Write-Host "`nDiagnosis workflow asset:"
+$diagnosisScript = Invoke-RestMethod "http://localhost:$Port/diagnosis.js"
+Assert-True ($diagnosisScript -match 'movement-reference.js') 'diagnosis workflow does not load the packaged movement reference'
+$movementReference = Invoke-RestMethod "http://localhost:$Port/movement-reference.js"
+Assert-True ($movementReference -match 'MOBL_ARMS_41') 'movement reference asset has unexpected model provenance'
+Assert-True ($movementReference -match '"D7"') 'movement reference asset does not contain all discrimination positions'
+Assert-True ($diagnosisScript -match 'DIAGNOSIS_TESTS') 'diagnosis workflow script did not include its test definitions'
+Assert-True ($diagnosisScript -match 'Biomechanical hypothesis generator') 'diagnosis workflow safety framing is missing'
 
 Write-Host "`nAll verification assertions passed."

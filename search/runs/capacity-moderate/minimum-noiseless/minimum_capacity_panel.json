@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "capacity_scale": 0.0,
+  "candidate_posture_count": 39,
+  "all_target_count": 13,
+  "excluded_equivalent_targets": [
+    "Brachialis",
+    "Brachioradialis"
+  ],
+  "detectable_target_count": 0,
+  "detectable_targets": [],
+  "undetectable_targets": [
+    "Anterior deltoid",
+    "Biceps",
+    "Coracobrachialis",
+    "Infraspinatus",
+    "Latissimus dorsi",
+    "Middle deltoid",
+    "Pectoralis major",
+    "Posterior deltoid",
+    "Subscapularis",
+    "Supraspinatus",
+    "Teres major",
+    "Teres minor",
+    "Triceps"
+  ],
+  "hypotheses_include_no_loss": true,
+  "minimum_pair_distance_requested": 1,
+  "witness_count_histogram": {},
+  "insufficient_pairs": [],
+  "scope": "Generic-model capacity sensitivity under gravity only; not patient ability, pain, injury, or diagnosis.",
+  "status": "optimal",
+  "certified_minimum_posture_count": 0,
+  "selected_sample_ids": [],
+  "one_posture_per_movement_family": false,
+  "selected_movement_family_count": 0
+}

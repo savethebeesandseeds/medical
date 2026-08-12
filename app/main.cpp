@@ -119,6 +119,7 @@ struct StaticHoldingResult {
     int physicalLinearizations{0};
     int constraintMultipliers{0};
     std::vector<double> activations;
+    std::vector<double> activeActuatorForcesN;
     std::array<double, kPoseCoordinates.size()> reserveTorquesNm{};
     std::array<double, kPoseCoordinates.size()> accelerationResiduals{};
 };
@@ -299,6 +300,66 @@ std::optional<double> queryNumber(
     }
 }
 
+std::vector<std::string> splitSimpleCsvLine(const std::string& line) {
+    std::vector<std::string> fields;
+    std::string field;
+    bool quoted = false;
+    for (std::size_t index = 0; index < line.size(); ++index) {
+        const char character = line[index];
+        if (quoted) {
+            if (character == '"' && index + 1 < line.size() &&
+                    line[index + 1] == '"') {
+                field.push_back('"');
+                ++index;
+            } else if (character == '"') {
+                quoted = false;
+            } else {
+                field.push_back(character);
+            }
+        } else if (character == '"') {
+            quoted = true;
+        } else if (character == ',') {
+            fields.push_back(field);
+            field.clear();
+        } else if (character != '\r') {
+            field.push_back(character);
+        }
+    }
+    if (quoted) {
+        throw std::invalid_argument("Unterminated quoted CSV field");
+    }
+    fields.push_back(field);
+    return fields;
+}
+
+double parseStrictNumber(const std::string& text) {
+    std::size_t consumed = 0;
+    const double value = std::stod(text, &consumed);
+    if (consumed != text.size() || !std::isfinite(value)) {
+        throw std::invalid_argument("Expected a finite number, received: " + text);
+    }
+    return value;
+}
+
+std::string csvEscape(std::string_view text) {
+    if (text.find_first_of(",\"\r\n") == std::string_view::npos) {
+        return std::string(text);
+    }
+    std::string escaped{"\""};
+    for (const char character : text) {
+        if (character == '"') escaped.push_back('"');
+        escaped.push_back(character);
+    }
+    escaped.push_back('"');
+    return escaped;
+}
+
+void appendCsvNumber(std::ostream& output, double value) {
+    if (std::isfinite(value)) {
+        output << std::setprecision(12) << value;
+    }
+}
+
 std::string readFile(const std::filesystem::path& path) {
     std::ifstream stream(path, std::ios::binary);
     if (!stream) throw std::runtime_error("Unable to read " + path.string());
@@ -312,6 +373,7 @@ std::string mimeType(const std::filesystem::path& path) {
     if (extension == ".html") return "text/html; charset=utf-8";
     if (extension == ".js") return "text/javascript; charset=utf-8";
     if (extension == ".css") return "text/css; charset=utf-8";
+    if (extension == ".png") return "image/png";
     if (extension == ".svg") return "image/svg+xml";
     if (extension == ".vtp") return "application/xml; charset=utf-8";
     if (extension == ".txt" || extension == ".md") {
@@ -478,13 +540,14 @@ public:
         applyPose(query);
         const StaticHoldingResult result = solveStaticHolding(requestedDegrees);
         const char* interpretation = result.usable
-            ? "Generic-model minimum-squared-control active-muscle estimate for this exact static posture under the model's gravity and modeled arm-segment weights, with no external load. Passive muscle-fiber force is not included by this StaticOptimization formulation. Not measured patient data, force, pain, injury, fatigue, or a diagnosis."
-            : "Exact pose geometry only. Static-holding activations were withheld because the on-demand optimization did not pass its convergence, constrained generalized-force equilibrium, and reserve-torque quality gates.";
+            ? "Generic-model minimum-squared-control active-muscle estimate for this exact static posture under the model's gravity and modeled arm-segment weights, with no external load. Each activeActuatorForceN value is the solver's pose-linearized active actuator component; passive muscle-fiber force is excluded. It is not measured patient force, pain, injury, fatigue, or a diagnosis."
+            : "Exact pose geometry only. Static-holding activations and active actuator forces were withheld because the on-demand optimization did not pass its convergence, constrained generalized-force equilibrium, and reserve-torque quality gates.";
         std::string response = stateJson(
             selectedMuscle(query), "static",
             result.usable ? &result.activations : nullptr,
             std::nullopt, std::nullopt,
-            "on-demand OpenSim 4.6 static optimization", interpretation);
+            "on-demand OpenSim 4.6 static optimization", interpretation,
+            result.usable ? &result.activeActuatorForcesN : nullptr);
 
         std::ostringstream details;
         details << ",\"staticHolding\":{\"method\":\"OpenSim inverse-dynamics torque balance with bounded SimTK static optimization\",";
@@ -503,6 +566,18 @@ public:
                 << "\"equilibrium\":\"full inverse-dynamics mobility residual balanced by actuator controls and authored constraint reactions\","
                 << "\"base\":\"six free thorax coordinates locked at model defaults\","
                 << "\"coupledCoordinates\":\"authored scapula, clavicle, shoulder and wrist constraints preserved\"},";
+        details << "\"activeActuatorForce\":{\"available\":"
+                << (result.usable ? "true" : "false")
+                << ",\"field\":\"muscles[].activeActuatorForceN\","
+                << "\"units\":\"N\","
+                << "\"method\":\"optimized muscle control multiplied by the pose-linearized inextensible-tendon active fiber-force capacity\","
+                << "\"component\":\"active actuator component only\","
+                << "\"linearizedAtRequestedPose\":true,"
+                << "\"passiveMuscleFiberForceIncluded\":false,"
+                << "\"externalLoadIncluded\":false,"
+                << "\"gravityAndModelSegmentWeightsIncluded\":true,"
+                << "\"measuredPatientForce\":false,"
+                << "\"interpretation\":\"Generic-model solver output; not measured patient muscle force, tissue load, pain, or a diagnosis.\"},";
         details << "\"solver\":{\"algorithm\":\"SimTK InteriorPoint\","
                 << "\"activationExponent\":2,\"musclePhysiology\":true,"
                 << "\"maximumIterations\":" << kStaticMaximumIterations << ','
@@ -529,6 +604,8 @@ public:
                 << "\",\"reason\":\"" << jsonEscape(result.reason) << "\",";
         details << "\"activationCount\":"
                 << (result.usable ? result.activations.size() : 0)
+                << ",\"activeActuatorForceCount\":"
+                << (result.usable ? result.activeActuatorForcesN.size() : 0)
                 << ",\"maxAssemblyErrorDegrees\":";
         appendNumber(details, result.maximumAssemblyErrorDegrees);
         details << ",\"assemblyToleranceDegrees\":";
@@ -975,6 +1052,194 @@ public:
         return output.str();
     }
 
+    void runBatchSearchCsv(const std::filesystem::path& inputPath,
+                           const std::filesystem::path& outputPath,
+                           int progressEvery) {
+        std::ifstream input(inputPath);
+        if (!input) {
+            throw std::runtime_error(
+                "Unable to open batch-search input: " + inputPath.string());
+        }
+        if (!outputPath.parent_path().empty()) {
+            std::filesystem::create_directories(outputPath.parent_path());
+        }
+        std::ofstream output(outputPath, std::ios::trunc);
+        if (!output) {
+            throw std::runtime_error(
+                "Unable to open batch-search output: " + outputPath.string());
+        }
+
+        std::string headerLine;
+        if (!std::getline(input, headerLine)) {
+            throw std::invalid_argument("Batch-search input is empty");
+        }
+        const auto header = splitSimpleCsvLine(headerLine);
+        const bool capacityMode = header.size() == kPoseCoordinates.size() + 4;
+        if ((header.size() != kPoseCoordinates.size() + 1 && !capacityMode) ||
+                header.front() != "sample_id") {
+            throw std::invalid_argument(
+                "Batch-search header must contain sample_id, the seven pose coordinates, and optional capacity fields");
+        }
+        for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
+            if (header[index + 1] != kPoseCoordinates[index].name) {
+                throw std::invalid_argument(
+                    "Unexpected batch-search coordinate column: " +
+                    header[index + 1]);
+            }
+        }
+        if (capacityMode &&
+                (header[8] != "capacity_target" ||
+                 header[9] != "capacity_muscles" ||
+                 header[10] != "capacity_scale")) {
+            throw std::invalid_argument(
+                "Optional capacity columns must be capacity_target, capacity_muscles, capacity_scale");
+        }
+
+        output << "sample_id";
+        for (const auto& coordinate : kPoseCoordinates) {
+            output << ',' << coordinate.name;
+        }
+        output << ",capacity_target,capacity_muscles,capacity_scale"
+               << ",usable,status,reason,duration_ms,objective"
+               << ",max_assembly_error_deg,max_equilibrium_residual"
+               << ",max_reserve_torque_nm,muscles_at_floor"
+               << ",muscles_at_capacity";
+        const auto& muscles = model_->getMuscles();
+        for (int index = 0; index < muscles.getSize(); ++index) {
+            output << ",activation__" << muscles.get(index).getName();
+        }
+        for (int index = 0; index < muscles.getSize(); ++index) {
+            output << ",active_force_n__" << muscles.get(index).getName();
+        }
+        output << '\n';
+
+        std::size_t processed = 0;
+        std::size_t usable = 0;
+        std::size_t failed = 0;
+        std::string line;
+        while (std::getline(input, line)) {
+            if (line.empty()) continue;
+            const auto fields = splitSimpleCsvLine(line);
+            if (fields.size() != header.size()) {
+                throw std::invalid_argument(
+                    "Batch-search row has the wrong number of fields at data row " +
+                    std::to_string(processed + 1));
+            }
+
+            std::array<double, kPoseCoordinates.size()> requestedDegrees{};
+            for (std::size_t index = 0; index < kPoseCoordinates.size(); ++index) {
+                requestedDegrees[index] = parseStrictNumber(fields[index + 1]);
+                const auto& coordinate = model_->getCoordinateSet().get(
+                    kPoseCoordinates[index].name);
+                const double minimumDegrees = SimTK::convertRadiansToDegrees(
+                    coordinate.getRangeMin());
+                const double maximumDegrees = SimTK::convertRadiansToDegrees(
+                    coordinate.getRangeMax());
+                if (requestedDegrees[index] < minimumDegrees -
+                            kStaticInputRangeToleranceDegrees ||
+                        requestedDegrees[index] > maximumDegrees +
+                            kStaticInputRangeToleranceDegrees) {
+                    throw std::invalid_argument(
+                        "Batch-search coordinate is outside the authored model range: " +
+                        std::string(kPoseCoordinates[index].name));
+                }
+                requestedDegrees[index] = std::clamp(
+                    requestedDegrees[index], minimumDegrees, maximumDegrees);
+            }
+
+            std::string capacityTarget;
+            std::string capacityMuscles;
+            double capacityScale = 1.0;
+            std::map<std::string, double> muscleCapacityScales;
+            if (capacityMode) {
+                capacityTarget = fields[8];
+                capacityMuscles = fields[9];
+                capacityScale = parseStrictNumber(fields[10]);
+                if (capacityTarget.empty() || capacityMuscles.empty() ||
+                        capacityScale < 0.0 || capacityScale > 1.0) {
+                    throw std::invalid_argument(
+                        "Capacity rows require a target, one or more muscles, and a scale between zero and one");
+                }
+                std::size_t start = 0;
+                while (start <= capacityMuscles.size()) {
+                    const std::size_t end = capacityMuscles.find(';', start);
+                    const std::string muscleName = capacityMuscles.substr(
+                        start, end == std::string::npos
+                            ? std::string::npos : end - start);
+                    if (muscleName.empty() ||
+                            !staticModel_->getMuscles().contains(muscleName)) {
+                        throw std::invalid_argument(
+                            "Unknown capacity-reduction muscle: " + muscleName);
+                    }
+                    muscleCapacityScales[muscleName] = capacityScale;
+                    if (end == std::string::npos) break;
+                    start = end + 1;
+                }
+            }
+
+            const StaticHoldingResult result = solveStaticHolding(
+                requestedDegrees, muscleCapacityScales);
+            ++processed;
+            if (result.usable) {
+                ++usable;
+            } else {
+                ++failed;
+            }
+
+            output << csvEscape(fields.front());
+            for (const double angle : requestedDegrees) {
+                output << ',';
+                appendCsvNumber(output, angle);
+            }
+            output << ',' << csvEscape(capacityTarget)
+                   << ',' << csvEscape(capacityMuscles) << ',';
+            appendCsvNumber(output, capacityScale);
+            output << ',' << (result.usable ? "1" : "0")
+                   << ',' << csvEscape(result.status)
+                   << ',' << csvEscape(result.reason) << ',';
+            appendCsvNumber(output, result.durationMilliseconds);
+            output << ',';
+            appendCsvNumber(output, result.objective);
+            output << ',';
+            appendCsvNumber(output, result.maximumAssemblyErrorDegrees);
+            output << ',';
+            appendCsvNumber(output, result.maximumOptimizerConstraintResidual);
+            output << ',';
+            appendCsvNumber(output, result.maximumReserveTorqueNm);
+            output << ',' << result.musclesAtLowerControlLimit
+                   << ',' << result.musclesAtOrAboveCapacityThreshold;
+            for (int index = 0; index < muscles.getSize(); ++index) {
+                output << ',';
+                if (result.usable &&
+                        static_cast<std::size_t>(index) < result.activations.size()) {
+                    appendCsvNumber(output, result.activations[static_cast<std::size_t>(index)]);
+                }
+            }
+            for (int index = 0; index < muscles.getSize(); ++index) {
+                output << ',';
+                if (result.usable && static_cast<std::size_t>(index) <
+                        result.activeActuatorForcesN.size()) {
+                    appendCsvNumber(output,
+                        result.activeActuatorForcesN[static_cast<std::size_t>(index)]);
+                }
+            }
+            output << '\n';
+            output.flush();
+
+            if (progressEvery > 0 && processed %
+                    static_cast<std::size_t>(progressEvery) == 0) {
+                std::cerr << "batch-search processed=" << processed
+                          << " usable=" << usable
+                          << " failed=" << failed << std::endl;
+            }
+        }
+        std::cout << "{\"status\":\"ok\",\"processed\":" << processed
+                  << ",\"usable\":" << usable
+                  << ",\"failed\":" << failed
+                  << ",\"output\":\"" << jsonEscape(outputPath.string())
+                  << "\"}" << std::endl;
+    }
+
 private:
     std::optional<std::size_t> poseCoordinateIndex(
             const std::string& name) const {
@@ -1109,7 +1374,8 @@ private:
 
     StaticHoldingResult solveStaticHolding(
             const std::array<double, kPoseCoordinates.size()>&
-                requestedDegrees) {
+                requestedDegrees,
+            const std::map<std::string, double>& muscleCapacityScales = {}) {
         StaticHoldingResult result;
         const double nan = std::numeric_limits<double>::quiet_NaN();
         result.reserveTorquesNm.fill(nan);
@@ -1193,6 +1459,18 @@ private:
                         muscle->calcInextensibleTendonActiveFiberForce(
                             solverState, 1.0);
                     staticModel_->setAllControllersEnabled(false);
+                    if (const auto scale = muscleCapacityScales.find(
+                            muscle->getName());
+                            scale != muscleCapacityScales.end()) {
+                        // Capacity sensitivity must use nested feasible-force
+                        // intervals [0, scale*Fmax]. The model's authored 1%
+                        // control floor is useful for its original workflows,
+                        // but retaining it here can make a partially weakened
+                        // muscle less feasible than a fully removed muscle.
+                        lowerBounds[scalarIndex] = 0.0;
+                        lowerControlByName[muscle->getName()] = 0.0;
+                        optimalForces[scalarIndex] *= scale->second;
+                    }
                 } else {
                     optimalForces[scalarIndex] = actuator->getOptimalForce();
                 }
@@ -1399,26 +1677,36 @@ private:
 
             bool validActivations = true;
             result.activations.reserve(static_cast<std::size_t>(muscleCount()));
+            result.activeActuatorForcesN.reserve(
+                static_cast<std::size_t>(muscleCount()));
             const auto& muscles = model_->getMuscles();
             for (int index = 0; index < muscles.getSize(); ++index) {
                 const auto found = controlsByName.find(
+                    muscles.get(index).getName());
+                const auto forceFound = actuationsByName.find(
                     muscles.get(index).getName());
                 const auto lowerFound = lowerControlByName.find(
                     muscles.get(index).getName());
                 const auto upperFound = upperControlByName.find(
                     muscles.get(index).getName());
                 if (found == controlsByName.end() ||
+                        forceFound == actuationsByName.end() ||
                         lowerFound == lowerControlByName.end() ||
                         upperFound == upperControlByName.end() ||
                         !std::isfinite(found->second) ||
+                        !std::isfinite(forceFound->second) ||
+                        forceFound->second < 0.0 ||
                         found->second < lowerFound->second - 1.0e-6 ||
                         found->second > upperFound->second + 1.0e-6) {
                     validActivations = false;
                     result.activations.push_back(nan);
+                    result.activeActuatorForcesN.push_back(nan);
                 } else {
                     const double activation = std::clamp(
                         found->second, lowerFound->second, upperFound->second);
                     result.activations.push_back(activation);
+                    result.activeActuatorForcesN.push_back(
+                        forceFound->second);
                     if (activation <= lowerFound->second + 1.0e-5) {
                         ++result.musclesAtLowerControlLimit;
                     }
@@ -1528,7 +1816,10 @@ private:
         result.durationMilliseconds =
             std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - started).count();
-        if (!result.usable) result.activations.clear();
+        if (!result.usable) {
+            result.activations.clear();
+            result.activeActuatorForcesN.clear();
+        }
         return result;
     }
 
@@ -1552,7 +1843,8 @@ private:
             std::optional<std::size_t> benchmarkIndex,
             const char* activationSource =
                 "stored OpenSim 4.1 CMC state",
-            const char* interpretation = nullptr) {
+            const char* interpretation = nullptr,
+            const std::vector<double>* activeActuatorForcesN = nullptr) {
         std::ostringstream output;
         output << "{\"model\":\"" << kModelId << "\",\"mode\":\""
                << mode << "\",\"selectedMuscle\":\""
@@ -1600,6 +1892,11 @@ private:
             if (activations != nullptr) {
                 output << ",\"activation\":";
                 appendNumber(output, activations->at(static_cast<std::size_t>(index)));
+            }
+            if (activeActuatorForcesN != nullptr) {
+                output << ",\"activeActuatorForceN\":";
+                appendNumber(output, activeActuatorForcesN->at(
+                    static_cast<std::size_t>(index)));
             }
             output << ",\"points\":[";
             for (int pointIndex = 0; pointIndex < path.getSize(); ++pointIndex) {
@@ -1895,8 +2192,14 @@ HttpResponse routeRequest(const std::string& method, const std::string& target,
             resolved = webRoot / "index.html";
         } else if (path == "/app.js") {
             resolved = webRoot / "app.js";
+        } else if (path == "/diagnosis.js") {
+            resolved = webRoot / "diagnosis.js";
+        } else if (path == "/movement-reference.js") {
+            resolved = webRoot / "movement-reference.js";
         } else if (path == "/styles.css") {
             resolved = webRoot / "styles.css";
+        } else if (path == "/waajacu_medical.png") {
+            resolved = webRoot / "waajacu_medical.png";
         } else if (path == "/vendor/three.module.min.js") {
             resolved = webRoot / "vendor/three.module.min.js";
         } else if (path == "/vendor/three.core.min.js") {
@@ -2028,6 +2331,9 @@ int runServer(int port, const std::filesystem::path& webRoot,
 int main(int argc, char** argv) {
     int port = 8080;
     bool selfTest = false;
+    std::optional<std::filesystem::path> batchSearchInput;
+    std::optional<std::filesystem::path> batchSearchOutput;
+    int batchProgressEvery = 25;
     std::filesystem::path webRoot = "/workspace/public";
     std::filesystem::path modelPath = kModelPath;
     std::filesystem::path geometryPath = kGeometryPath;
@@ -2045,6 +2351,12 @@ int main(int argc, char** argv) {
             geometryPath = argv[++index];
         } else if (argument == "--benchmark" && index + 1 < argc) {
             benchmarkPath = argv[++index];
+        } else if (argument == "--batch-search" && index + 1 < argc) {
+            batchSearchInput = std::filesystem::path(argv[++index]);
+        } else if (argument == "--batch-output" && index + 1 < argc) {
+            batchSearchOutput = std::filesystem::path(argv[++index]);
+        } else if (argument == "--batch-progress-every" && index + 1 < argc) {
+            batchProgressEvery = std::stoi(argv[++index]);
         } else if (argument == "--self-test") {
             selfTest = true;
         } else {
@@ -2061,6 +2373,19 @@ int main(int argc, char** argv) {
         ModelExplorer explorer(modelPath, geometryPath, benchmarkPath);
         if (selfTest) {
             std::cout << explorer.selfTestJson() << std::endl;
+            return 0;
+        }
+        if (batchSearchInput.has_value() || batchSearchOutput.has_value()) {
+            if (!batchSearchInput.has_value() || !batchSearchOutput.has_value()) {
+                throw std::invalid_argument(
+                    "Batch search requires both --batch-search and --batch-output");
+            }
+            if (batchProgressEvery < 0) {
+                throw std::invalid_argument(
+                    "--batch-progress-every cannot be negative");
+            }
+            explorer.runBatchSearchCsv(
+                *batchSearchInput, *batchSearchOutput, batchProgressEvery);
             return 0;
         }
         if (port < 1 || port > 65535) {

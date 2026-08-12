@@ -31,12 +31,14 @@ on_error() {
 trap on_error ERR
 
 if ! command -v g++ >/dev/null 2>&1 || ! command -v ninja >/dev/null 2>&1 \
+        || ! command -v cbc >/dev/null 2>&1 \
         || [[ ! -f /usr/include/GL/freeglut.h ]]; then
     stage "1/7 Installing Debian build dependencies"
     export DEBIAN_FRONTEND=noninteractive
     apt-get -o Acquire::Retries=5 update
     apt-get -o Acquire::Retries=5 install --fix-missing --yes --no-install-recommends \
         autoconf automake autotools-dev bison build-essential byacc ca-certificates \
+        coinor-cbc \
         cmake curl freeglut3-dev gfortran git liblapack-dev libopenblas-dev \
         libpcre2-dev libpcre3-dev libssl-dev libtool libxi-dev libxmu-dev \
         lsb-release ninja-build patchelf pkg-config python3 wget

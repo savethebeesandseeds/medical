@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "capacity_scale": 0.0,
+  "candidate_posture_count": 114,
+  "all_target_count": 15,
+  "detectable_target_count": 12,
+  "detectable_targets": [
+    "Anterior deltoid",
+    "Biceps",
+    "Coracobrachialis",
+    "Infraspinatus",
+    "Latissimus dorsi",
+    "Middle deltoid",
+    "Pectoralis major",
+    "Posterior deltoid",
+    "Subscapularis",
+    "Supraspinatus",
+    "Teres minor",
+    "Triceps"
+  ],
+  "undetectable_targets": [
+    "Brachialis",
+    "Brachioradialis",
+    "Teres major"
+  ],
+  "hypotheses_include_no_loss": true,
+  "minimum_pair_distance_requested": 1,
+  "witness_count_histogram": {
+    "2": 9,
+    "3": 9,
+    "4": 16,
+    "5": 6,
+    "6": 8,
+    "7": 3,
+    "8": 5,
+    "9": 5,
+    "10": 7,
+    "11": 4,
+    "12": 4,
+    "14": 2
+  },
+  "insufficient_pairs": [],
+  "scope": "Generic-model capacity sensitivity under gravity only; not patient ability, pain, injury, or diagnosis.",
+  "status": "optimal",
+  "certified_minimum_posture_count": 10,
+  "selected_sample_ids": [
+    "sobol__0000447",
+    "sobol__0000450",
+    "sobol__0000463",
+    "sobol__0001369",
+    "sobol__0001387",
+    "sobol__0001425",
+    "sobol__0001711",
+    "sobol__0002549",
+    "sobol__0003073",
+    "sobol__0004077"
+  ]
+}

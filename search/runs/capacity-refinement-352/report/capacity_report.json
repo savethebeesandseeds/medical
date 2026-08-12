@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "interpretation": "Generic-model capacity-reduction sensitivity under gravity only. Modeled outcomes are not patient ability, pain, injury, or diagnosis.",
+  "case_count": 5280,
+  "status_counts": {
+    "usable": 3851,
+    "solver_failed": 830,
+    "reserve_too_high": 515,
+    "capacity_limited": 84
+  },
+  "target_scale_summary": [
+    {
+      "capacity_scale": 0.0,
+      "target": "Anterior deltoid",
+      "modeled_able": 132,
+      "modeled_unable": 55,
+      "ambiguous_solver_failure": 165
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Biceps",
+      "modeled_able": 238,
+      "modeled_unable": 35,
+      "ambiguous_solver_failure": 79
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Brachialis",
+      "modeled_able": 330,
+      "modeled_unable": 14,
+      "ambiguous_solver_failure": 8
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Brachioradialis",
+      "modeled_able": 330,
+      "modeled_unable": 14,
+      "ambiguous_solver_failure": 8
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Coracobrachialis",
+      "modeled_able": 297,
+      "modeled_unable": 41,
+      "ambiguous_solver_failure": 14
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Infraspinatus",
+      "modeled_able": 248,
+      "modeled_unable": 31,
+      "ambiguous_solver_failure": 73
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Latissimus dorsi",
+      "modeled_able": 286,
+      "modeled_unable": 58,
+      "ambiguous_solver_failure": 8
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Middle deltoid",
+      "modeled_able": 99,
+      "modeled_unable": 76,
+      "ambiguous_solver_failure": 177
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Pectoralis major",
+      "modeled_able": 273,
+      "modeled_unable": 42,
+      "ambiguous_solver_failure": 37
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Posterior deltoid",
+      "modeled_able": 268,
+      "modeled_unable": 44,
+      "ambiguous_solver_failure": 40
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Subscapularis",
+      "modeled_able": 298,
+      "modeled_unable": 47,
+      "ambiguous_solver_failure": 7
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Supraspinatus",
+      "modeled_able": 294,
+      "modeled_unable": 43,
+      "ambiguous_solver_failure": 15
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Teres major",
+      "modeled_able": 329,
+      "modeled_unable": 14,
+      "ambiguous_solver_failure": 9
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Teres minor",
+      "modeled_able": 239,
+      "modeled_unable": 44,
+      "ambiguous_solver_failure": 69
+    },
+    {
+      "capacity_scale": 0.0,
+      "target": "Triceps",
+      "modeled_able": 190,
+      "modeled_unable": 41,
+      "ambiguous_solver_failure": 121
+    }
+  ],
+  "separation_by_scale": [
+    {
+      "capacity_scale": 0.0,
+      "posture_count": 352,
+      "minimum_pairwise_outcome_distance": 0,
+      "indistinguishable_pair_count": 3,
+      "indistinguishable_pairs": [
+        [
+          "Brachialis",
+          "Brachioradialis"
+        ],
+        [
+          "Brachialis",
+          "Teres major"
+        ],
+        [
+          "Brachioradialis",
+          "Teres major"
+        ]
+      ]
+    }
+  ],
+  "monotonicity_violation_count": 0,
+  "monotonicity_violations": [],
+  "failure_definition": {
+    "modeled_unable": [
+      "capacity_limited",
+      "reserve_too_high"
+    ],
+    "ambiguous": "optimizer or numerical failure",
+    "modeled_able": "passed the same exact equilibrium and reserve gates as the live static solver"
+  }
+}

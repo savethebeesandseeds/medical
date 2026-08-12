@@ -1,0 +1,5 @@
+batch-search processed=25 usable=24 failed=1
+batch-search processed=50 usable=49 failed=1
+batch-search processed=75 usable=74 failed=1
+batch-search processed=100 usable=99 failed=1
+batch-search processed=125 usable=124 failed=1

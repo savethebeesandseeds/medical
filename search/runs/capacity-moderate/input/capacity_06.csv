@@ -1,0 +1,74 @@
+sample_id,elv_angle,shoulder_elv,shoulder_rot,elbow_flexion,pro_sup,deviation,flexion,capacity_target,capacity_muscles,capacity_scale
+moderate__scaption_60@@middle_deltoid@@0.00,45,60,0,0,0,0,0,Middle deltoid,DELT2,0.000000
+moderate__forward_75@@biceps@@0.00,90,75,0,0,0,0,0,Biceps,BIClong;BICshort,0.000000
+moderate__forward_30@@teres_major@@0.00,90,30,0,0,0,0,0,Teres major,TMAJ,0.000000
+moderate__neutral@@teres_minor@@0.00,0,0,0,0,0,0,0,Teres minor,TMIN,0.000000
+moderate__scaption_15@@supraspinatus@@0.00,45,15,0,0,0,0,0,Supraspinatus,SUPSP,0.000000
+moderate__scaption_30_internal_30@@teres_minor@@0.00,45,30,-30,90,0,0,0,Teres minor,TMIN,0.000000
+moderate__forward_60@@posterior_deltoid@@0.00,90,60,0,0,0,0,0,Posterior deltoid,DELT3,0.000000
+moderate__side_45@@anterior_deltoid@@0.00,0,45,0,0,0,0,0,Anterior deltoid,DELT1,0.000000
+moderate__forward_15@@teres_major@@0.00,90,15,0,0,0,0,0,Teres major,TMAJ,0.000000
+moderate__scaption_45_elbow_90@@subscapularis@@0.00,45,45,0,90,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__scaption_45_external_30@@posterior_deltoid@@0.00,45,45,30,90,0,0,0,Posterior deltoid,DELT3,0.000000
+moderate__side_45@@latissimus_dorsi@@0.00,0,45,0,0,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000
+moderate__side_30@@triceps@@0.00,0,30,0,0,0,0,0,Triceps,TRIlong;TRIlat;TRImed,0.000000
+moderate__rotation_side_external_40@@brachioradialis@@0.00,0,15,40,90,0,0,0,Brachioradialis,BRD,0.000000
+moderate__scaption_30@@latissimus_dorsi@@0.00,45,30,0,0,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000
+moderate__forearm_pronation_45@@pectoralis_major@@0.00,0,0,0,90,-45,0,0,Pectoralis major,PECM1;PECM2;PECM3,0.000000
+moderate__scaption_60_elbow_90@@biceps@@0.00,45,60,0,90,0,0,0,Biceps,BIClong;BICshort,0.000000
+moderate__scaption_30@@middle_deltoid@@0.00,45,30,0,0,0,0,0,Middle deltoid,DELT2,0.000000
+moderate__scaption_30_internal_30@@middle_deltoid@@0.00,45,30,-30,90,0,0,0,Middle deltoid,DELT2,0.000000
+moderate__neutral@@coracobrachialis@@0.00,0,0,0,0,0,0,0,Coracobrachialis,CORB,0.000000
+moderate__scaption_30_internal_30@@triceps@@0.00,45,30,-30,90,0,0,0,Triceps,TRIlong;TRIlat;TRImed,0.000000
+moderate__side_75@@middle_deltoid@@0.00,0,75,0,0,0,0,0,Middle deltoid,DELT2,0.000000
+moderate__rotation_side_internal_40@@biceps@@0.00,0,15,-40,90,0,0,0,Biceps,BIClong;BICshort,0.000000
+moderate__side_30@@coracobrachialis@@0.00,0,30,0,0,0,0,0,Coracobrachialis,CORB,0.000000
+moderate__scaption_60_elbow_90@@brachialis@@0.00,45,60,0,90,0,0,0,Brachialis,BRA,0.000000
+moderate__side_30@@latissimus_dorsi@@0.00,0,30,0,0,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000
+moderate__scaption_45@@triceps@@0.00,45,45,0,0,0,0,0,Triceps,TRIlong;TRIlat;TRImed,0.000000
+moderate__rotation_side_internal_40@@teres_minor@@0.00,0,15,-40,90,0,0,0,Teres minor,TMIN,0.000000
+moderate__scaption_60_elbow_90@@pectoralis_major@@0.00,45,60,0,90,0,0,0,Pectoralis major,PECM1;PECM2;PECM3,0.000000
+moderate__scaption_60@@brachioradialis@@0.00,45,60,0,0,0,0,0,Brachioradialis,BRD,0.000000
+moderate__scaption_60@@coracobrachialis@@0.00,45,60,0,0,0,0,0,Coracobrachialis,CORB,0.000000
+moderate__scaption_45_elbow_90@@infraspinatus@@0.00,45,45,0,90,0,0,0,Infraspinatus,INFSP,0.000000
+moderate__forearm_supination_45@@brachialis@@0.00,0,0,0,90,45,0,0,Brachialis,BRA,0.000000
+moderate__scaption_45_internal_30@@anterior_deltoid@@0.00,45,45,-30,90,0,0,0,Anterior deltoid,DELT1,0.000000
+moderate__scaption_30_elbow_90@@brachioradialis@@0.00,45,30,0,90,0,0,0,Brachioradialis,BRD,0.000000
+moderate__forearm_pronation_45@@posterior_deltoid@@0.00,0,0,0,90,-45,0,0,Posterior deltoid,DELT3,0.000000
+moderate__elbow_90@@triceps@@0.00,0,0,0,90,0,0,0,Triceps,TRIlong;TRIlat;TRImed,0.000000
+moderate__scaption_30_internal_30@@coracobrachialis@@0.00,45,30,-30,90,0,0,0,Coracobrachialis,CORB,0.000000
+moderate__forearm_supination_45@@teres_major@@0.00,0,0,0,90,45,0,0,Teres major,TMAJ,0.000000
+moderate__scaption_60_internal_30@@teres_major@@0.00,45,60,-30,90,0,0,0,Teres major,TMAJ,0.000000
+moderate__neutral@@pectoralis_major@@0.00,0,0,0,0,0,0,0,Pectoralis major,PECM1;PECM2;PECM3,0.000000
+moderate__side_60_elbow_90@@biceps@@0.00,0,60,0,90,0,0,0,Biceps,BIClong;BICshort,0.000000
+moderate__forearm_pronation_45@@infraspinatus@@0.00,0,0,0,90,-45,0,0,Infraspinatus,INFSP,0.000000
+moderate__scaption_45_external_30@@coracobrachialis@@0.00,45,45,30,90,0,0,0,Coracobrachialis,CORB,0.000000
+moderate__rotation_side_internal_40@@subscapularis@@0.00,0,15,-40,90,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__side_60@@subscapularis@@0.00,0,60,0,0,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__scaption_75@@pectoralis_major@@0.00,45,75,0,0,0,0,0,Pectoralis major,PECM1;PECM2;PECM3,0.000000
+moderate__forward_45_elbow_90@@teres_minor@@0.00,90,45,0,90,0,0,0,Teres minor,TMIN,0.000000
+moderate__rotation_side_external_20@@subscapularis@@0.00,0,15,20,90,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__forward_60@@triceps@@0.00,90,60,0,0,0,0,0,Triceps,TRIlong;TRIlat;TRImed,0.000000
+moderate__forward_45_elbow_90@@latissimus_dorsi@@0.00,90,45,0,90,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000
+moderate__scaption_45_external_30@@teres_major@@0.00,45,45,30,90,0,0,0,Teres major,TMAJ,0.000000
+moderate__side_15@@subscapularis@@0.00,0,15,0,0,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__side_30_elbow_90@@teres_minor@@0.00,0,30,0,90,0,0,0,Teres minor,TMIN,0.000000
+moderate__scaption_45_internal_30@@subscapularis@@0.00,45,45,-30,90,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__rotation_side_internal_20@@teres_major@@0.00,0,15,-20,90,0,0,0,Teres major,TMAJ,0.000000
+moderate__forward_30@@latissimus_dorsi@@0.00,90,30,0,0,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000
+moderate__rotation_side_internal_20@@subscapularis@@0.00,0,15,-20,90,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__side_30@@teres_major@@0.00,0,30,0,0,0,0,0,Teres major,TMAJ,0.000000
+moderate__forward_30_elbow_90@@infraspinatus@@0.00,90,30,0,90,0,0,0,Infraspinatus,INFSP,0.000000
+moderate__scaption_45_elbow_90@@coracobrachialis@@0.00,45,45,0,90,0,0,0,Coracobrachialis,CORB,0.000000
+moderate__forward_60@@latissimus_dorsi@@0.00,90,60,0,0,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000
+moderate__side_60@@brachialis@@0.00,0,60,0,0,0,0,0,Brachialis,BRA,0.000000
+moderate__side_30_elbow_90@@biceps@@0.00,0,30,0,90,0,0,0,Biceps,BIClong;BICshort,0.000000
+moderate__side_45_elbow_90@@subscapularis@@0.00,0,45,0,90,0,0,0,Subscapularis,SUBSC,0.000000
+moderate__side_45@@supraspinatus@@0.00,0,45,0,0,0,0,0,Supraspinatus,SUPSP,0.000000
+moderate__scaption_45_external_30@@biceps@@0.00,45,45,30,90,0,0,0,Biceps,BIClong;BICshort,0.000000
+moderate__side_75@@brachialis@@0.00,0,75,0,0,0,0,0,Brachialis,BRA,0.000000
+moderate__forward_15@@latissimus_dorsi@@0.00,90,15,0,0,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000
+moderate__scaption_45@@brachialis@@0.00,45,45,0,0,0,0,0,Brachialis,BRA,0.000000
+moderate__neutral@@brachialis@@0.00,0,0,0,0,0,0,0,Brachialis,BRA,0.000000
+moderate__rotation_side_external_40@@anterior_deltoid@@0.00,0,15,40,90,0,0,0,Anterior deltoid,DELT1,0.000000
+moderate__scaption_15@@latissimus_dorsi@@0.00,45,15,0,0,0,0,0,Latissimus dorsi,LAT1;LAT2;LAT3,0.000000

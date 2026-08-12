@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "capacity_scale": 0.0,
+  "deltas_degrees": [
+    2.0,
+    5.0
+  ],
+  "undercovered_pair_count": 9,
+  "witness_source_count": 13,
+  "generated_posture_count": 352,
+  "pair_witness_sources": {
+    "No modeled capacity loss <> Coracobrachialis": [
+      "sobol__0001262",
+      "sobol__0001369"
+    ],
+    "No modeled capacity loss <> Latissimus dorsi": [
+      "sobol__0000447",
+      "sobol__0002303"
+    ],
+    "No modeled capacity loss <> Pectoralis major": [
+      "sobol__0000603",
+      "sobol__0003073"
+    ],
+    "No modeled capacity loss <> Posterior deltoid": [
+      "sobol__0000673",
+      "sobol__0001387"
+    ],
+    "No modeled capacity loss <> Supraspinatus": [
+      "sobol__0000463",
+      "sobol__0000603"
+    ],
+    "No modeled capacity loss <> Teres minor": [
+      "sobol__0000625",
+      "sobol__0004077"
+    ],
+    "Coracobrachialis <> Teres minor": [
+      "sobol__0000625",
+      "sobol__0004077"
+    ],
+    "Middle deltoid <> Pectoralis major": [
+      "sobol__0001711",
+      "sobol__0002761"
+    ],
+    "Pectoralis major <> Supraspinatus": [
+      "sobol__0000463",
+      "sobol__0003073"
+    ]
+  }
+}
