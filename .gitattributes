@@ -6,3 +6,10 @@ muscles/tools/ms-human-region-evidence.json text eol=lf
 muscles/public/vendor/mujoco.js text eol=lf
 muscles/public/vendor/MUJOCO_LICENSE.txt text eol=lf
 muscles/public/vendor/THREE_LICENSE.txt text eol=lf
+
+# The reviewed MS-Human source-tree digest was produced from its Windows
+# checkout. Keep text assets at CRLF everywhere, while preserving the two
+# locally corrected XML files whose reviewed byte representation is mixed.
+muscles/models/ms_human_700/** text=auto eol=crlf
+muscles/models/ms_human_700/assets/body_primary/Body_Arm_l.xml -text -eol -diff
+muscles/models/ms_human_700/assets/body_primary/Body_Torso_Simple.xml -text -eol -diff
