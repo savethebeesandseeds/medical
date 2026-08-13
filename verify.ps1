@@ -273,6 +273,6 @@ $movementReference = Invoke-RestMethod "http://localhost:$Port/movement-referenc
 Assert-True ($movementReference -match 'MOBL_ARMS_41') 'movement reference asset has unexpected model provenance'
 Assert-True ($movementReference -match '"D7"') 'movement reference asset does not contain all discrimination positions'
 Assert-True ($diagnosisScript -match 'DIAGNOSIS_TESTS') 'diagnosis workflow script did not include its test definitions'
-Assert-True ($diagnosisScript -match 'Biomechanical hypothesis generator') 'diagnosis workflow safety framing is missing'
+Assert-True ($diagnosisScript -match 'not a tissue diagnosis') 'diagnosis workflow safety framing is missing'
 
 Write-Host "`nAll verification assertions passed."

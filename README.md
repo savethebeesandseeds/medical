@@ -1,9 +1,12 @@
-# MoBL-ARMS Upper-Extremity Explorer
+# Waajacu's Medical musculoskeletal explorer
 
 This is a local Debian 11 container running OpenSim 4.6 and a native C++ web
-service. It renders the official MoBL-ARMS right upper-extremity model and its
-OpenSim-computed muscle paths. There is deliberately no Dockerfile: `run.ps1`
-starts a stock Debian container and `setup.sh` provisions it.
+service. The established analysis renders the official MoBL-ARMS right
+upper-extremity model and its OpenSim-computed muscle paths. A separate
+MS-Human-700 right-arm laboratory prototypes the Apache-2.0-licensed whole-body
+foundation with exact articulation, wrapped paths, and a static-hold estimate.
+There is deliberately no Dockerfile: `run.ps1` starts a stock Debian container
+and `setup.sh` provisions it.
 
 ## Start
 
@@ -66,9 +69,42 @@ states are read directly from the supplied `CMC_results_states.sto` and are
 never used to fill a static pose.
 
 The page does not calculate muscle force, injury, pain source, fatigue, or a
-diagnosis. It does not combine MoBL-ARMS with a separate full-body model.
-Rendered muscle tubes are centerline display glyphs, not volumetric muscle
-anatomy.
+diagnosis. It does not use the separate MS-Human prototype in any MoBL-ARMS
+calculation. Rendered muscle tubes are centerline display glyphs, not
+volumetric muscle anatomy.
+
+## MS-Human right-arm prototype
+
+Open <http://localhost:8080/full-body.html> to use the separate MS-Human-700
+right-arm static-posture laboratory. It intentionally does not replace or share
+state with the established MoBL-ARMS tool at `/`.
+
+The prototype exposes the model's seven independent right-arm controls and
+realizes its polynomial scapula, clavicle, shoulder, and wrist couplings in the
+official MuJoCo 3.10.0 WebAssembly runtime. Thirty-two arm bone meshes remain in
+body-local coordinates and every pose rebuilds current wrapping-aware muscle
+paths. A faint sternum, spine, neck, and right rib context explains proximal
+attachments without drawing the rest of the body.
+
+The static-hold calculation includes 88 functionally relevant muscles: 61
+right-arm-file actuators and 27 shoulder-girdle stabilizers from the torso file.
+It minimizes squared activation while balancing gravity, model self-weight, and
+authored passive forces at zero velocity/acceleration and with no external hand
+load. Activations are withheld unless a fresh MuJoCo replay passes finite-value,
+equilibrium, reserve-torque, and capacity checks. Some authored joint-range
+postures are genuinely not balanceable under those assumptions and remain gray.
+
+The pinned upstream MJCF package is vendored under `models/ms_human_700/` with
+two documented bilateral-coordinate corrections; see its `SOURCE.md`. The
+articulated browser assets under `public/models/ms_human_700/` can be regenerated
+with `tools/export_ms_human_arm.py`; the original complete default-pose export
+remains reproducible with `tools/export_ms_human.py`. Their isolated Python
+dependencies are pinned in `tools/requirements-ms-human.txt`.
+
+Run `verify-ms-human.ps1` while the application is running to check the source
+hashes, both generated inventories, body-local geometry structure, pinned
+MuJoCo runtime, mechanical parity metadata, licensing, route types, and scoped
+content-security policy.
 
 ## Licensing
 
@@ -81,6 +117,12 @@ material. See `THIRD_PARTY_NOTICES.md` for the dependency and asset boundaries.
 See `models/mobl_arms/SOURCE.md` and `models/mobl_arms/LICENSE.txt`. MoBL-ARMS is
 licensed for non-commercial research, academic, evaluation, and personal use;
 commercial use requires a separate license and model use requires attribution.
+
+MS-Human-700 is separately distributed under Apache License 2.0 and can be used
+as the whole-body base under those terms. See `models/ms_human_700/LICENSE` and
+`models/ms_human_700/SOURCE.md`. Because the associated publication describes
+earlier OpenSim models as parameter references, written provenance confirmation
+from the maintainers remains prudent before a commercial release.
 
 The source package targets OpenSim 4.1. The package inventory and default-pose
 geometry/path checks pass on OpenSim 4.6. OpenSim warns that the source model's

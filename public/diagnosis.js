@@ -1,8 +1,26 @@
 import { MOVEMENT_MODEL_REFERENCE } from '/movement-reference.js';
+import {
+    REPORT_SCHEMA_VERSION,
+    buildReportV5,
+    createAssessmentId,
+    fullReportExport,
+    mainReportExport,
+    migrateReportToV5
+} from '/report-v5.js';
 
 const DIAGNOSIS_DRAFT_KEY = 'waajacu-medical.diagnosis-draft.v1';
 const DIAGNOSIS_REPORTS_KEY = 'waajacu-medical.patient-reports.v1';
 const MAX_SAVED_REPORTS = 100;
+
+// MoBL-ARMS coordinate convention used by both Explorer presets and Diagnosis:
+// shoulder_rot: negative external, positive internal;
+// pro_sup: negative supination, positive pronation.
+export const MOBL_ARMS_ROTATION_SIGN = Object.freeze({
+    shoulderExternal: -1,
+    shoulderInternal: 1,
+    forearmSupination: -1,
+    forearmPronation: 1
+});
 
 const POSE_KEYS = [
     'elv_angle',
@@ -30,12 +48,12 @@ const MUSCLE_GROUPS = Object.freeze({
 });
 
 const ADVANCED_CAPACITY_POSITIONS = Object.freeze([
-    { id: 'D1', name: 'High elevation · external rotation', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: -52.19735649, shoulder_elv: 125.74419034, shoulder_rot: 88.52052318, elbow_flexion: 119.07245252, pro_sup: -41.73916481, deviation: 5.13902301, flexion: 37.40828524 } },
+    { id: 'D1', name: 'High elevation · internal rotation', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: -52.19735649, shoulder_elv: 125.74419034, shoulder_rot: 88.52052318, elbow_flexion: 119.07245252, pro_sup: -41.73916481, deviation: 5.13902301, flexion: 37.40828524 } },
     { id: 'D2', name: 'High side elevation · bent elbow', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: 9.85342476, shoulder_elv: 113.42973722, shoulder_rot: -41.13767995, elbow_flexion: 109.2970619, pro_sup: 1.85458519, deviation: 23.7669527, flexion: 39.40047274 } },
     { id: 'D3', name: 'High diagonal elevation · rotated forearm', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: 31.65029976, shoulder_elv: 97.68754972, shoulder_rot: 55.54200755, elbow_flexion: 18.3986244, pro_sup: 79.97958519, deviation: 13.78648395, flexion: 40.80672274 } },
-    { id: 'D4', name: 'Diagonal reach · internal rotation', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: 44.74600288, shoulder_elv: 60.17290128, shoulder_rot: -58.93553151, elbow_flexion: 12.95428846, pro_sup: -63.69228981, deviation: 12.84654254, flexion: -53.58780851 } },
+    { id: 'D4', name: 'Diagonal reach · external rotation', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: 44.74600288, shoulder_elv: 60.17290128, shoulder_rot: -58.93553151, elbow_flexion: 12.95428846, pro_sup: -63.69228981, deviation: 12.84654254, flexion: -53.58780851 } },
     { id: 'D5', name: 'High rear-plane elevation · bent elbow', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: -47.18759087, shoulder_elv: 105.74907316, shoulder_rot: 40.18360911, elbow_flexion: 69.37030409, pro_sup: -34.16103981, deviation: 17.0506441, flexion: 27.62312899 } },
-    { id: 'D6', name: 'Diagonal elevation · internal rotation', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: 39.69229194, shoulder_elv: 76.85014738, shoulder_rot: -55.82273854, elbow_flexion: 85.01727674, pro_sup: 19.23739769, deviation: -6.67860394, flexion: 5.44539462 } },
+    { id: 'D6', name: 'Diagonal elevation · external rotation', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: 39.69229194, shoulder_elv: 76.85014738, shoulder_rot: -55.82273854, elbow_flexion: 85.01727674, pro_sup: 19.23739769, deviation: -6.67860394, flexion: 5.44539462 } },
     { id: 'D7', name: 'High forward reach · bent elbow', instruction: 'Discrimination position selected for model separation. This is an extreme research posture; do not attempt it without appropriate professional supervision.', coordinates: { elv_angle: 92.14151069, shoulder_elv: 110.66850675, shoulder_rot: -38.97703542, elbow_flexion: 118.91376112, pro_sup: 35.64364769, deviation: 18.44346637, flexion: 45.17195712 } }
 ]);
 
@@ -52,18 +70,33 @@ const MODERATE_CAPACITY_POSITIONS = Object.freeze([
     { id: 'M10', name: 'Side raise 30° · elbow bent', instruction: 'With the elbow bent, move the upper arm a small distance sideways.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 30, elbow_flexion: 90 } },
     { id: 'M11', name: 'Side raise 45° · elbow bent', instruction: 'With the elbow bent, lift sideways to about halfway to horizontal.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 45, elbow_flexion: 90 } },
     { id: 'M12', name: 'Side raise 60° · elbow bent', instruction: 'With the elbow bent, lift sideways only to the displayed moderate angle.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 60, elbow_flexion: 90 } },
-    { id: 'M13', name: 'External rotation 20°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm outward slightly.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: 20, elbow_flexion: 90 } },
-    { id: 'M14', name: 'External rotation 40°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm outward without forcing it.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: 40, elbow_flexion: 90 } },
-    { id: 'M15', name: 'Internal rotation 20°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm inward slightly.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: -20, elbow_flexion: 90 } },
-    { id: 'M16', name: 'Internal rotation 40°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm inward without forcing it.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: -40, elbow_flexion: 90 } },
-    { id: 'M17', name: 'Forearm pronation 45°', instruction: 'Keep the elbow at 90 degrees and turn the palm partly downward.', coordinates: { ...NEUTRAL_POSE, elbow_flexion: 90, pro_sup: -45 } },
-    { id: 'M18', name: 'Forearm supination 45°', instruction: 'Keep the elbow at 90 degrees and turn the palm partly upward.', coordinates: { ...NEUTRAL_POSE, elbow_flexion: 90, pro_sup: 45 } }
+    { id: 'M13', name: 'Internal rotation 20°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm inward slightly.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderInternal * 20, elbow_flexion: 90 } },
+    { id: 'M14', name: 'Internal rotation 40°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm inward without forcing it.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderInternal * 40, elbow_flexion: 90 } },
+    { id: 'M15', name: 'External rotation 20°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm outward slightly.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderExternal * 20, elbow_flexion: 90 } },
+    { id: 'M16', name: 'External rotation 40°', instruction: 'Keep the elbow bent and close to the body; rotate the forearm outward without forcing it.', coordinates: { ...NEUTRAL_POSE, shoulder_elv: 15, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderExternal * 40, elbow_flexion: 90 } },
+    { id: 'M17', name: 'Forearm supination 45°', instruction: 'Keep the elbow at 90 degrees and turn the palm partly upward.', coordinates: { ...NEUTRAL_POSE, elbow_flexion: 90, pro_sup: MOBL_ARMS_ROTATION_SIGN.forearmSupination * 45 } },
+    { id: 'M18', name: 'Forearm pronation 45°', instruction: 'Keep the elbow at 90 degrees and turn the palm partly downward.', coordinates: { ...NEUTRAL_POSE, elbow_flexion: 90, pro_sup: MOBL_ARMS_ROTATION_SIGN.forearmPronation * 45 } }
 ]);
 
 const ALL_CAPACITY_POSITIONS = Object.freeze([...MODERATE_CAPACITY_POSITIONS, ...ADVANCED_CAPACITY_POSITIONS]);
+const ASSESSMENT_POSITIONS = MODERATE_CAPACITY_POSITIONS;
 
 function emptyPositionResponse() {
-    return { answered: false, result: 'not_tested', painScore: '', weaknessScore: '', painLocation: '', notes: '' };
+    return {
+        answered: false,
+        completion: 'not_recorded',
+        pain: 'not_recorded',
+        weakness: 'not_recorded',
+        stiffness: 'not_recorded',
+        compensation: 'not_recorded',
+        painScore: '',
+        weaknessScore: '',
+        painLocation: '',
+        limitingFactor: '',
+        compensationDetail: '',
+        notes: '',
+        result: 'not_tested'
+    };
 }
 
 // Codes come from exact complete-capacity-loss re-solves at the seven selected
@@ -216,7 +249,7 @@ export const DIAGNOSIS_TESTS = Object.freeze([
         model: {
             kind: 'static-path',
             label: 'Unloaded quasi-static external rotation',
-            samples: () => pathSamples({ elbow_flexion: 90 }, 'shoulder_rot', [0, -11.25, -22.5, -33.75, -45])
+            samples: () => pathSamples({ elbow_flexion: 90 }, 'shoulder_rot', [0, 11.25, 22.5, 33.75, 45].map((value) => value * MOBL_ARMS_ROTATION_SIGN.shoulderExternal))
         }
     },
     {
@@ -239,7 +272,7 @@ export const DIAGNOSIS_TESTS = Object.freeze([
         movement: 'Hold briefly without added resistance. Stop if symptoms increase.',
         target: 'A comfortable 60° posture; do not force thumb-down rotation.',
         hint: 'This posture co-activates several muscles and cannot isolate supraspinatus.',
-        model: { kind: 'static', label: 'Gravity-only posture; no test resistance', samples: () => [{ progress: 0, coordinates: { ...NEUTRAL_POSE, elv_angle: 30, shoulder_elv: 60, shoulder_rot: 45 } }] }
+        model: { kind: 'static', label: 'Gravity-only posture; no test resistance', samples: () => [{ progress: 0, coordinates: { ...NEUTRAL_POSE, elv_angle: 30, shoulder_elv: 60, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderInternal * 45 } }] }
     },
     {
         id: 10,
@@ -442,7 +475,8 @@ function defaultResponse() {
 export function createDiagnosisWorkflow(controller) {
     const byId = (id) => document.getElementById(id);
     const state = {
-        schemaVersion: 4,
+        schemaVersion: REPORT_SCHEMA_VERSION,
+        assessmentId: createAssessmentId(),
         workflowMode: 'observations',
         activeTestId: 0,
         activeCapacityIndex: 0,
@@ -459,6 +493,9 @@ export function createDiagnosisWorkflow(controller) {
         running: false,
         ready: false,
         report: null,
+        reportAnnex: null,
+        reportStored: false,
+        legacySymptomAssessment: null,
         previewGeneration: 0,
         assessmentOpen: false,
         phase: 'safety',
@@ -478,23 +515,65 @@ export function createDiagnosisWorkflow(controller) {
 
     function savedReports() {
         const reports = readStoredJson(DIAGNOSIS_REPORTS_KEY, []);
-        return Array.isArray(reports) ? reports.filter((entry) => entry?.report?.generatedAt && entry.report?.intake) : [];
+        if (!Array.isArray(reports)) return [];
+        return reports.map((entry) => {
+            const patient = entry?.patient ?? entry?.report?.intake ?? {};
+            const migrated = migrateReportToV5(entry?.report, entry?.technicalAnnex ?? null);
+            return { ...entry, patient, report: migrated.report, technicalAnnex: migrated.technicalAnnex };
+        }).filter((entry) => entry?.report?.generatedAt && entry.patient);
     }
 
     function restoreDraft() {
         const draft = readStoredJson(DIAGNOSIS_DRAFT_KEY, null);
-        if (!draft || draft.schemaVersion !== state.schemaVersion) return false;
+        if (!draft || ![4, state.schemaVersion].includes(Number(draft.schemaVersion))) return false;
         const emptyResponses = Object.fromEntries(ALL_CAPACITY_POSITIONS.map((position) => [position.id, emptyPositionResponse()]));
-        state.activeCapacityIndex = Math.max(0, Math.min(ALL_CAPACITY_POSITIONS.length - 1, Number(draft.activeCapacityIndex) || 0));
+        const migrateLegacyResponse = (response = {}) => {
+            if (Number(draft.schemaVersion) !== 4) return response;
+            const completion = ({ able: 'full', pain_limited: 'stopped', unable: 'unable', uncertain: 'stopped', not_tested: response.answered ? 'skipped' : 'not_recorded' })[response.result] ?? 'not_recorded';
+            return {
+                completion,
+                pain: response.result === 'pain_limited' || Number(response.painScore) > 0 ? 'yes' : 'not_recorded',
+                weakness: response.weakness === 'yes' || Number(response.weaknessScore) > 0 ? 'yes' : 'not_recorded',
+                stiffness: 'not_recorded',
+                compensation: 'not_recorded',
+                painScore: response.painScore ?? '',
+                weaknessScore: response.weaknessScore ?? '',
+                painLocation: response.painLocation ?? '',
+                limitingFactor: '',
+                compensationDetail: '',
+                notes: response.notes ?? '',
+                answered: completion === 'skipped',
+                migratedFromDraftVersion: 4
+            };
+        };
+        state.activeCapacityIndex = Math.max(0, Math.min(ASSESSMENT_POSITIONS.length - 1, Number(draft.activeCapacityIndex) || 0));
         state.capacityResponses = Object.fromEntries(ALL_CAPACITY_POSITIONS.map((position) => [
             position.id,
-            { ...emptyResponses[position.id], ...(draft.capacityResponses?.[position.id] ?? {}) }
+            { ...emptyResponses[position.id], ...migrateLegacyResponse(draft.capacityResponses?.[position.id] ?? {}) }
         ]));
+        for (const response of Object.values(state.capacityResponses)) {
+            response.answered = capacityResponseComplete(response);
+            response.result = legacyCapacityResult(response);
+        }
+        const firstUnansweredIndex = ASSESSMENT_POSITIONS.findIndex((position) => !state.capacityResponses[position.id].answered);
+        if (firstUnansweredIndex !== -1) state.activeCapacityIndex = Math.min(state.activeCapacityIndex, firstUnansweredIndex);
         state.testedSide = draft.testedSide === 'left' ? 'left' : 'right';
         state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, typeof draft.redFlags?.[flag.id] === 'boolean' ? draft.redFlags[flag.id] : null]));
         state.safetyReviewed = Boolean(draft.safetyReviewed);
         state.intakeCompleted = Boolean(draft.intakeCompleted);
         state.intake = draft.intake && typeof draft.intake === 'object' ? { ...draft.intake } : {};
+        state.legacySymptomAssessment = Number(draft.schemaVersion) === 4 && (draft.responses || draft.runs)
+            ? {
+                sourceSchemaVersion: 4,
+                sourceCollection: 'draft.responses-and-runs',
+                readOnly: true,
+                interpretationExcluded: true,
+                mayContainFreeTextIdentifiers: true,
+                responses: structuredClone(draft.responses ?? {}),
+                runs: structuredClone(draft.runs ?? {})
+            }
+            : (draft.legacySymptomAssessment ?? null);
+        state.assessmentId = draft.assessmentId || createAssessmentId();
         state.assessmentOpen = Boolean(draft.assessmentOpen);
         state.phase = ['safety', 'intake', 'assessment', 'report'].includes(draft.phase) ? draft.phase : 'safety';
         state.draftUpdatedAt = draft.updatedAt ?? null;
@@ -502,7 +581,7 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function persistDraft() {
-        if (state.phase === 'report' && !state.viewingSavedReport) {
+        if (state.phase === 'report' && !state.viewingSavedReport && state.reportStored) {
             try { window.localStorage.removeItem(DIAGNOSIS_DRAFT_KEY); } catch { /* storage unavailable */ }
             state.draftUpdatedAt = null;
             updateSavedRecordsUi();
@@ -519,6 +598,7 @@ export function createDiagnosisWorkflow(controller) {
         }
         const draft = {
             schemaVersion: state.schemaVersion,
+            assessmentId: state.assessmentId,
             updatedAt: new Date().toISOString(),
             phase: state.phase,
             activeCapacityIndex: state.activeCapacityIndex,
@@ -528,6 +608,7 @@ export function createDiagnosisWorkflow(controller) {
             safetyReviewed: state.safetyReviewed,
             intakeCompleted: state.intakeCompleted,
             intake: state.intake,
+            legacySymptomAssessment: state.legacySymptomAssessment,
             assessmentOpen: state.assessmentOpen
         };
         try {
@@ -554,28 +635,27 @@ export function createDiagnosisWorkflow(controller) {
         }
     }
 
-    function reportPatientKey(report) {
-        const intake = report?.intake ?? {};
+    function reportPatientKey(intake = {}) {
         const email = String(intake.email ?? '').trim().toLowerCase();
         if (email) return `email:${email}`;
         return `name:${String(intake.name ?? '').trim().toLowerCase()}|city:${String(intake.city ?? '').trim().toLowerCase()}`;
     }
 
     function archiveReport(report) {
-        if (!report?.generatedAt || !report?.intake?.name) return;
-        const entry = { id: report.generatedAt, patientKey: reportPatientKey(report), report };
-        let reports = savedReports().filter((item) => item.id !== entry.id);
+        if (!report?.generatedAt || !state.intake?.name) return false;
+        const patient = { ...state.intake };
+        const assessmentId = report.assessment?.assessmentId || report.generatedAt;
+        const entry = { id: assessmentId, patientKey: reportPatientKey(patient), patient, report, technicalAnnex: state.reportAnnex };
+        const reports = savedReports().filter((item) => (item.report?.assessment?.assessmentId || item.id) !== assessmentId);
         reports.unshift(entry);
-        reports = reports.slice(0, MAX_SAVED_REPORTS);
-        while (reports.length) {
-            try {
-                window.localStorage.setItem(DIAGNOSIS_REPORTS_KEY, JSON.stringify(reports));
-                break;
-            } catch {
-                reports.pop();
-            }
+        if (reports.length > MAX_SAVED_REPORTS) return false;
+        try {
+            window.localStorage.setItem(DIAGNOSIS_REPORTS_KEY, JSON.stringify(reports));
+        } catch {
+            return false;
         }
         updateSavedRecordsUi();
+        return true;
     }
 
     function closeAppDialog() {
@@ -595,7 +675,7 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function importPatientDetails(entry) {
-        const prior = entry.report.intake;
+        const prior = entry.patient ?? entry.report.intake ?? {};
         const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'assessedArm', 'email', 'city'];
         for (const field of demographics) state.intake[field] = prior[field] ?? '';
         state.intakeCompleted = false;
@@ -607,10 +687,10 @@ export function createDiagnosisWorkflow(controller) {
 
     function updateSavedRecordsUi() {
         const reports = savedReports();
-        const answered = ALL_CAPACITY_POSITIONS.filter((position) => state.capacityResponses[position.id]?.answered).length;
+        const answered = ASSESSMENT_POSITIONS.filter((position) => state.capacityResponses[position.id]?.answered).length;
         const patient = state.intake?.name ? `${state.intake.name} · ` : '';
         byId('diagnosis-draft-state').textContent = state.draftUpdatedAt
-            ? `${patient}${answered} of ${ALL_CAPACITY_POSITIONS.length} responses saved`
+            ? `${patient}${answered} of ${ASSESSMENT_POSITIONS.length} positions saved`
             : 'No unfinished assessment';
 
         const host = byId('diagnosis-saved-report-list');
@@ -631,16 +711,16 @@ export function createDiagnosisWorkflow(controller) {
             const patientCell = document.createElement('td');
             patientCell.className = 'saved-report-patient';
             const patientName = document.createElement('strong');
-            patientName.textContent = entry.report.intake.name || 'Unnamed';
+            patientName.textContent = entry.patient?.name || 'Unnamed';
             const patientEmail = document.createElement('span');
-            patientEmail.textContent = entry.report.intake.email || 'No email';
+            patientEmail.textContent = entry.patient?.email || 'No email';
             patientCell.append(patientName, patientEmail);
             row.append(patientCell);
             const values = [
                 new Date(entry.report.generatedAt).toLocaleString(),
-                Number.isFinite(entry.report.intake.ageYears) ? String(entry.report.intake.ageYears) : '—',
-                entry.report.intake.assessedArm || entry.report.testedSide || '—',
-                entry.report.intake.city || '—'
+                Number.isFinite(entry.patient?.ageYears) ? String(entry.patient.ageYears) : '—',
+                entry.patient?.assessedArm || entry.report.assessment?.testedSide || '—',
+                entry.patient?.city || '—'
             ];
             for (const value of values) {
                 const cell = document.createElement('td');
@@ -658,7 +738,7 @@ export function createDiagnosisWorkflow(controller) {
             view.type = 'button';
             view.className = 'quiet-button';
             view.textContent = 'View';
-            view.addEventListener('click', () => showSavedReport(entry.report));
+            view.addEventListener('click', () => showSavedReport(entry));
             const remove = document.createElement('button');
             remove.type = 'button';
             remove.className = 'quiet-button';
@@ -666,7 +746,7 @@ export function createDiagnosisWorkflow(controller) {
             remove.addEventListener('click', () => {
                 showAppDialog({
                     title: 'Delete patient report?',
-                    message: `This will permanently remove the report for ${entry.report.intake.name} dated ${new Date(entry.report.generatedAt).toLocaleString()} from this browser.`,
+                    message: `This will permanently remove the report for ${entry.patient?.name || 'this patient'} dated ${new Date(entry.report.generatedAt).toLocaleString()} from this browser.`,
                     confirmLabel: 'Delete report',
                     danger: true,
                     onConfirm: () => {
@@ -685,16 +765,18 @@ export function createDiagnosisWorkflow(controller) {
         host.append(table);
     }
 
-    function showSavedReport(report) {
+    function showSavedReport(entry) {
         stopCurrentRun();
         state.viewingSavedReport = true;
-        state.report = report;
+        state.reportStored = true;
+        state.report = entry.report;
+        state.reportAnnex = entry.technicalAnnex ?? null;
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.remove('hidden');
         byId('diagnosis-report-back').textContent = 'Back';
-        renderMovementReport(report);
+        renderMovementReport(state.report);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -734,6 +816,7 @@ export function createDiagnosisWorkflow(controller) {
             nightPain: data.has('nightPain'),
             radiatingPain: data.has('radiatingPain'),
             clickingInstability: data.has('clickingInstability'),
+            privacyAccepted: data.has('privacyAccepted'),
             onsetDetails: String(data.get('onsetDetails') ?? '').trim(),
             aggravatingRelieving: String(data.get('aggravatingRelieving') ?? '').trim(),
             relevantHistory: String(data.get('relevantHistory') ?? '').trim()
@@ -793,14 +876,26 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-report-screen').classList.remove('hidden');
         byId('diagnosis-report-back').textContent = 'Back to assessment';
         renderMovementReport(state.report);
-        archiveReport(state.report);
-        clearDraft();
+        state.reportStored = archiveReport(state.report);
+        if (state.reportStored) {
+            clearDraft();
+        } else {
+            persistDraft();
+            showAppDialog({
+                title: 'Report could not be stored',
+                message: 'The resumable assessment has been kept. Download the deidentified report now, or return to the assessment and try again after freeing browser storage.',
+                confirmLabel: 'Keep resumable assessment',
+                danger: false,
+                onConfirm: () => {}
+            });
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
         window.requestAnimationFrame(controller.resizeViewer);
     }
 
     function resetAssessmentData() {
         stopCurrentRun();
+        state.assessmentId = createAssessmentId();
         state.activeTestId = 0;
         state.activeCapacityIndex = 0;
         state.capacityResponses = Object.fromEntries(ALL_CAPACITY_POSITIONS.map((position) => [position.id, emptyPositionResponse()]));
@@ -813,6 +908,9 @@ export function createDiagnosisWorkflow(controller) {
         state.responses = {};
         state.runs = {};
         state.report = null;
+        state.reportAnnex = null;
+        state.reportStored = false;
+        state.legacySymptomAssessment = null;
         byId('diagnosis-intake-form').reset();
         clearDraft();
         setSide('right');
@@ -862,30 +960,107 @@ export function createDiagnosisWorkflow(controller) {
     function renderCapacityList() {
         const tableBody = byId('capacity-position-list');
         tableBody.replaceChildren();
-        const responseOptions = [
-            ['able', 'Completed'],
-            ['pain_limited', 'Pain-limited'],
-            ['unable', 'Weak / unable'],
-            ['uncertain', 'Stopped / unsure'],
-            ['not_tested', 'Skip']
-        ];
-        ALL_CAPACITY_POSITIONS.forEach((position, index) => {
-            if (index === MODERATE_CAPACITY_POSITIONS.length) {
-                const divider = document.createElement('tr');
-                divider.className = 'capacity-section-divider';
-                divider.innerHTML = '<th colspan="7" scope="rowgroup"><strong>Discrimination positions</strong><span>7 maximum-separation research postures</span></th>';
-                tableBody.append(divider);
+        const firstUnansweredIndex = ASSESSMENT_POSITIONS.findIndex((position) => !state.capacityResponses[position.id]?.answered);
+        const unlockedThrough = firstUnansweredIndex === -1 ? ASSESSMENT_POSITIONS.length - 1 : firstUnansweredIndex;
+        const fieldOptions = {
+            completion: [
+                ['not_recorded', 'Select'],
+                ['full', 'Full'],
+                ['partial', 'Partial'],
+                ['unable', 'Unable'],
+                ['stopped', 'Stopped'],
+                ['skipped', 'Skipped']
+            ],
+            pain: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes']],
+            weakness: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes']],
+            stiffness: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes']],
+            compensation: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes'], ['uncertain', 'Unsure']],
+            limitingFactor: [
+                ['', 'Select'], ['pain', 'Pain'], ['weakness', 'Weakness'], ['stiffness', 'Stiffness'],
+                ['instability', 'Instability'], ['fear', 'Fear'], ['coordination', 'Coordination'], ['other', 'Other']
+            ]
+        };
+        const fieldLabels = {
+            completion: 'Completion',
+            pain: 'Pain',
+            weakness: 'Weakness',
+            stiffness: 'Stiffness',
+            compensation: 'Compensation'
+        };
+        const optionLabel = (field, value) => fieldOptions[field].find(([option]) => option === value)?.[1] ?? '—';
+        const responseSelect = (field, response, position) => {
+            const select = document.createElement('select');
+            select.className = 'capacity-record-select';
+            select.setAttribute('aria-label', `${fieldLabels[field]} for ${position.name}`);
+            for (const [value, label] of fieldOptions[field]) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = label;
+                option.selected = response[field] === value;
+                select.append(option);
             }
-            const response = state.capacityResponses[position.id];
+            select.addEventListener('change', () => updateCapacityResponse(field, select.value));
+            return select;
+        };
+        const addDetailSelect = (host, { label, field, value, options, required = false }) => {
+            const wrapper = document.createElement('label');
+            wrapper.className = 'capacity-detail-field';
+            const caption = document.createElement('span');
+            caption.textContent = `${label}${required ? ' *' : ''}`;
+            const select = document.createElement('select');
+            select.setAttribute('aria-label', label);
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select';
+            select.append(placeholder);
+            for (const [optionValue, optionLabelText] of options) {
+                const option = document.createElement('option');
+                option.value = optionValue;
+                option.textContent = optionLabelText;
+                option.selected = String(value ?? '') === String(optionValue);
+                select.append(option);
+            }
+            select.addEventListener('change', () => updateCapacityResponse(field, select.value));
+            wrapper.append(caption, select);
+            host.append(wrapper);
+        };
+        ASSESSMENT_POSITIONS.forEach((position, index) => {
+            const response = { ...emptyPositionResponse(), ...state.capacityResponses[position.id] };
+            state.capacityResponses[position.id] = response;
             const active = index === state.activeCapacityIndex;
+            const locked = index > unlockedThrough;
             const row = document.createElement('tr');
             row.classList.toggle('active', active);
+            row.classList.toggle('locked', locked);
+            if (!locked) {
+                row.classList.add('clickable');
+                row.tabIndex = 0;
+                row.setAttribute('role', 'button');
+                row.setAttribute('aria-label', `Open ${position.name}`);
+                const openPosition = () => {
+                    state.activeCapacityIndex = index;
+                    renderCapacityList();
+                    renderCapacityPosition();
+                    persistDraft();
+                };
+                row.addEventListener('click', (event) => {
+                    if (event.target.closest('input, textarea, button, select, a')) return;
+                    openPosition();
+                });
+                row.addEventListener('keydown', (event) => {
+                    if (event.target !== row || !['Enter', ' '].includes(event.key)) return;
+                    event.preventDefault();
+                    openPosition();
+                });
+            }
             const positionCell = document.createElement('th');
             positionCell.scope = 'row';
             const positionButton = document.createElement('button');
             positionButton.type = 'button';
             positionButton.className = 'capacity-position-open';
+            positionButton.disabled = locked;
             positionButton.setAttribute('aria-current', active ? 'step' : 'false');
+            if (locked) positionButton.setAttribute('aria-label', `${position.name}, locked until the previous posture is completed`);
             positionButton.innerHTML = `<span>${escapeHtml(position.id)}</span><strong>${escapeHtml(position.name)}</strong>`;
             positionButton.addEventListener('click', () => {
                 state.activeCapacityIndex = index;
@@ -895,23 +1070,16 @@ export function createDiagnosisWorkflow(controller) {
             });
             positionCell.append(positionButton);
             row.append(positionCell);
-            responseOptions.forEach(([value, label]) => {
+            ['completion', 'pain', 'weakness', 'stiffness', 'compensation'].forEach((field) => {
                 const cell = document.createElement('td');
                 if (active) {
-                    const input = document.createElement('input');
-                    input.type = 'radio';
-                    input.name = 'capacity-response';
-                    input.value = value;
-                    input.checked = response.answered && response.result === value;
-                    input.setAttribute('aria-label', `${label}: ${position.name}`);
-                    input.addEventListener('change', () => recordCapacityResult(value));
-                    cell.append(input);
-                } else if (response.answered && response.result === value) {
-                    const mark = document.createElement('span');
-                    mark.className = 'capacity-record-mark';
-                    mark.textContent = 'X';
-                    mark.setAttribute('aria-label', label);
-                    cell.append(mark);
+                    cell.append(responseSelect(field, response, position));
+                } else if (response[field] && response[field] !== 'not_recorded') {
+                    const value = document.createElement('span');
+                    value.className = 'capacity-record-value';
+                    value.textContent = `X ${optionLabel(field, response[field])}`;
+                    value.setAttribute('aria-label', `${fieldLabels[field]}: ${optionLabel(field, response[field])}`);
+                    cell.append(value);
                 }
                 row.append(cell);
             });
@@ -938,16 +1106,91 @@ export function createDiagnosisWorkflow(controller) {
             }
             row.append(commentsCell);
             tableBody.append(row);
+
+            const showDetails = active && response.completion !== 'skipped'
+                && (['partial', 'unable', 'stopped'].includes(response.completion)
+                    || response.pain === 'yes' || response.weakness === 'yes' || response.compensation === 'yes');
+            if (showDetails) {
+                const detailRow = document.createElement('tr');
+                detailRow.className = 'capacity-detail-row';
+                const detailCell = document.createElement('td');
+                detailCell.colSpan = 7;
+                const details = document.createElement('div');
+                details.className = 'capacity-detail-fields';
+                if (['partial', 'unable', 'stopped'].includes(response.completion)) {
+                    addDetailSelect(details, {
+                        label: 'Limiting factor',
+                        field: 'limitingFactor',
+                        value: response.limitingFactor,
+                        options: fieldOptions.limitingFactor.slice(1),
+                        required: true
+                    });
+                }
+                if (response.pain === 'yes') {
+                    addDetailSelect(details, {
+                        label: 'Pain 1–10',
+                        field: 'painScore',
+                        value: response.painScore,
+                        options: Array.from({ length: 10 }, (_, value) => [String(value + 1), String(value + 1)]),
+                        required: true
+                    });
+                    addDetailSelect(details, {
+                        label: 'Pain location',
+                        field: 'painLocation',
+                        value: response.painLocation,
+                        options: [
+                            ['front_shoulder', 'Front shoulder'],
+                            ['top_shoulder', 'Top / AC region'],
+                            ['back_shoulder', 'Back shoulder'],
+                            ['lateral_upper_arm', 'Lateral upper arm'],
+                            ['neck_arm', 'Neck / radiating'],
+                            ['other', 'Other']
+                        ],
+                        required: true
+                    });
+                }
+                if (response.weakness === 'yes') {
+                    addDetailSelect(details, {
+                        label: 'Weakness 1–10',
+                        field: 'weaknessScore',
+                        value: response.weaknessScore,
+                        options: Array.from({ length: 10 }, (_, value) => [String(value + 1), String(value + 1)]),
+                        required: true
+                    });
+                }
+                if (response.compensation === 'yes') {
+                    addDetailSelect(details, {
+                        label: 'Movement difference',
+                        field: 'compensationDetail',
+                        value: response.compensationDetail,
+                        options: [
+                            ['shoulder_hike', 'Shoulder hike'],
+                            ['trunk_lean', 'Trunk lean'],
+                            ['scapular_difference', 'Scapular difference'],
+                            ['other', 'Other']
+                        ],
+                        required: true
+                    });
+                }
+                const help = document.createElement('span');
+                help.className = 'capacity-detail-help';
+                help.textContent = 'Complete the marked detail fields to continue.';
+                details.append(help);
+                detailCell.append(details);
+                detailRow.append(detailCell);
+                tableBody.append(detailRow);
+            }
         });
-        const answeredCount = ALL_CAPACITY_POSITIONS.filter((position) => state.capacityResponses[position.id]?.answered).length;
+        const answeredCount = ASSESSMENT_POSITIONS.filter((position) => state.capacityResponses[position.id]?.answered).length;
         const reportRow = document.createElement('tr');
         reportRow.className = 'capacity-report-list-item';
         const reportCell = document.createElement('td');
         reportCell.colSpan = 7;
         const reportButton = document.createElement('button');
-        reportButton.type = 'button';
-        reportButton.className = 'capacity-report-list-button';
-        reportButton.innerHTML = `<span class="diagnosis-test-number" aria-hidden="true">✓</span><span class="diagnosis-test-copy"><strong>Review results</strong><span>${answeredCount} of ${ALL_CAPACITY_POSITIONS.length} answered</span></span>`;
+            reportButton.type = 'button';
+            reportButton.className = 'capacity-report-list-button';
+            reportButton.disabled = answeredCount !== ASSESSMENT_POSITIONS.length;
+            reportButton.innerHTML = `<span class="diagnosis-test-number" aria-hidden="true">✓</span><span class="diagnosis-test-copy"><strong>Review results</strong><span>${answeredCount} of ${ASSESSMENT_POSITIONS.length} positions complete</span></span>`;
         reportButton.addEventListener('click', showReportScreen);
         reportCell.append(reportButton);
         reportRow.append(reportCell);
@@ -974,50 +1217,122 @@ export function createDiagnosisWorkflow(controller) {
 
     async function previewCapacityPose() {
         if (!state.ready || state.workflowMode !== 'capacity') return;
-        const position = ALL_CAPACITY_POSITIONS[state.activeCapacityIndex];
+        const position = ASSESSMENT_POSITIONS[state.activeCapacityIndex];
+        if (!position) return;
         const preview = ++state.previewGeneration;
+        const loading = byId('capacity-view-loading');
+        loading.querySelector('strong').textContent = 'Loading posture…';
+        loading.classList.remove('hidden');
+        controller.neutralizeActivation();
         try {
+            const geometry = await controller.fetchJson(buildUrl('/api/pose', position.coordinates));
+            if (preview !== state.previewGeneration || state.workflowMode !== 'capacity') return;
+            geometry.mode = 'pose';
+            for (const muscle of geometry.muscles ?? []) delete muscle.activation;
+            controller.applyState(geometry);
+            controller.resetView();
+            loading.querySelector('strong').textContent = 'Calculating activation…';
+
             const result = await controller.fetchJson(buildUrl('/api/static-hold', position.coordinates));
             if (preview !== state.previewGeneration || state.workflowMode !== 'capacity') return;
             state.capacityModelStates[position.id] = result;
             controller.applyState(result);
         } catch {
+            if (preview !== state.previewGeneration || state.workflowMode !== 'capacity') return;
             controller.neutralizeActivation();
+        } finally {
+            if (preview === state.previewGeneration) loading.classList.add('hidden');
         }
     }
 
     function renderCapacityPosition() {
-        const positions = ALL_CAPACITY_POSITIONS;
+        const positions = ASSESSMENT_POSITIONS;
+        state.activeCapacityIndex = Math.max(0, Math.min(positions.length - 1, state.activeCapacityIndex));
         const position = positions[state.activeCapacityIndex];
         const response = state.capacityResponses[position.id];
-        const discrimination = state.activeCapacityIndex >= MODERATE_CAPACITY_POSITIONS.length;
-        byId('capacity-position-id').textContent = `${discrimination ? 'Discrimination' : 'Progressive'} ${state.activeCapacityIndex + 1} of ${positions.length}`;
+        byId('capacity-position-id').textContent = `Position ${state.activeCapacityIndex + 1} of ${positions.length}`;
         byId('capacity-position-title').textContent = position.name;
         byId('capacity-position-instruction').textContent = position.instruction ?? 'Do not attempt this posture if it is uncomfortable or unsuitable.';
         byId('capacity-angle-grid').innerHTML = POSE_KEYS.map((key) => `<div><dt>${escapeHtml(CAPACITY_ANGLE_LABELS[key])}</dt><dd>${Number(position.coordinates[key]).toFixed(1)}°</dd></div>`).join('');
-        byId('capacity-save-state').textContent = !response.answered ? 'Select a response in the assessment record' : response.result === 'not_tested' ? 'Skipped' : 'Response saved';
+        byId('capacity-save-state').textContent = capacityResponseStatus(response);
         byId('capacity-previous').disabled = state.activeCapacityIndex === 0;
-        byId('capacity-next').disabled = !response.answered;
-        byId('capacity-next').textContent = state.activeCapacityIndex === positions.length - 1 ? 'Review results' : 'Next position';
         previewCapacityPose();
     }
 
-    function recordCapacityResult(result) {
-        const position = ALL_CAPACITY_POSITIONS[state.activeCapacityIndex];
-        const previous = state.capacityResponses[position.id];
-        state.capacityResponses[position.id] = {
-            answered: true,
-            result,
-            painScore: '',
-            weaknessScore: '',
-            painLocation: '',
-            notes: previous.notes
-        };
+    function capacityResponseComplete(response) {
+        if (response.completion === 'skipped') return true;
+        if (!['full', 'partial', 'unable', 'stopped'].includes(response.completion)) return false;
+        if (!['no', 'yes'].includes(response.pain) || !['no', 'yes'].includes(response.weakness) || !['no', 'yes'].includes(response.stiffness)) return false;
+        if (!['no', 'yes', 'uncertain'].includes(response.compensation)) return false;
+        if (['partial', 'unable', 'stopped'].includes(response.completion) && !response.limitingFactor) return false;
+        if (response.pain === 'yes' && (!response.painScore || !response.painLocation)) return false;
+        if (response.weakness === 'yes' && !response.weaknessScore) return false;
+        return response.compensation !== 'yes' || Boolean(response.compensationDetail);
+    }
+
+    function legacyCapacityResult(response) {
+        if (response.completion === 'skipped') return 'not_tested';
+        if (response.completion === 'unable') return 'unable';
+        if (response.pain === 'yes') return 'pain_limited';
+        if (response.completion === 'stopped' || response.completion === 'partial' || response.weakness === 'yes' || response.stiffness === 'yes' || response.compensation === 'uncertain') return 'uncertain';
+        return response.completion === 'full' ? 'able' : 'not_tested';
+    }
+
+    function capacityResponseStatus(response) {
+        if (response.completion === 'skipped') return 'Position skipped';
+        if (response.answered) return 'Observations saved';
+        if (response.pain === 'yes' && (!response.painScore || !response.painLocation)) return 'Record pain score and location';
+        if (response.weakness === 'yes' && !response.weaknessScore) return 'Record perceived weakness';
+        if (response.compensation === 'yes' && !response.compensationDetail) return 'Record the movement difference';
+        if (['partial', 'unable', 'stopped'].includes(response.completion) && !response.limitingFactor) return 'Record the limiting factor';
+        return 'Record completion, pain, weakness, stiffness, and compensation';
+    }
+
+    function updateCapacityResponse(field, value) {
+        const position = ASSESSMENT_POSITIONS[state.activeCapacityIndex];
+        if (!position) return;
+        const previous = { ...emptyPositionResponse(), ...state.capacityResponses[position.id] };
+        const wasAnswered = previous.answered;
+        const response = { ...previous, [field]: value };
+        if (field === 'completion' && value === 'skipped') {
+            response.pain = 'not_recorded';
+            response.weakness = 'not_recorded';
+            response.stiffness = 'not_recorded';
+            response.compensation = 'not_recorded';
+            response.painScore = '';
+            response.painLocation = '';
+            response.weaknessScore = '';
+            response.limitingFactor = '';
+            response.compensationDetail = '';
+        }
+        if (field === 'completion' && !['partial', 'unable', 'stopped'].includes(value)) response.limitingFactor = '';
+        if (field === 'pain' && value !== 'yes') {
+            response.painScore = '';
+            response.painLocation = '';
+        }
+        if (field === 'weakness' && value !== 'yes') response.weaknessScore = '';
+        if (field === 'compensation' && value !== 'yes') response.compensationDetail = '';
+        response.answered = capacityResponseComplete(response);
+        response.result = legacyCapacityResult(response);
+        state.capacityResponses[position.id] = response;
         state.report = null;
         renderCapacityList();
-        byId('capacity-save-state').textContent = result === 'not_tested' ? 'Skipped' : 'Response saved';
-        byId('capacity-next').disabled = false;
+        byId('capacity-save-state').textContent = capacityResponseStatus(response);
         persistDraft();
+        if (!response.answered || wasAnswered) return;
+        byId('capacity-save-state').textContent = response.completion === 'skipped' ? 'Skipped · opening next position…' : 'Saved · opening next position…';
+        const completedIndex = state.activeCapacityIndex;
+        window.setTimeout(() => {
+            if (state.activeCapacityIndex !== completedIndex || !state.capacityResponses[position.id]?.answered) return;
+            if (state.activeCapacityIndex < ASSESSMENT_POSITIONS.length - 1) {
+                state.activeCapacityIndex += 1;
+                renderCapacityList();
+                renderCapacityPosition();
+                persistDraft();
+            } else {
+                showReportScreen();
+            }
+        }, 220);
     }
 
     function activeTest() {
@@ -1531,392 +1846,127 @@ export function createDiagnosisWorkflow(controller) {
 
     function movementPositionRecords() {
         return ALL_CAPACITY_POSITIONS.map((position, index) => ({
-            sequence: index + 1,
+            sequence: index < MODERATE_CAPACITY_POSITIONS.length ? index + 1 : null,
             id: position.id,
-            section: index < MODERATE_CAPACITY_POSITIONS.length ? 'progressive-movement' : 'discrimination',
+            executionMode: index < MODERATE_CAPACITY_POSITIONS.length ? 'person_attempted' : 'model_only',
             name: position.name,
             instruction: position.instruction,
             coordinatesDegrees: position.coordinates,
-            observation: {
-                answered: Boolean(state.capacityResponses[position.id].answered),
-                result: state.capacityResponses[position.id].result,
-                painScore: finiteOrNull(state.capacityResponses[position.id].painScore),
-                perceivedWeaknessScore: finiteOrNull(state.capacityResponses[position.id].weaknessScore),
-                painLocation: state.capacityResponses[position.id].painLocation || null,
-                notes: state.capacityResponses[position.id].notes || null
-            },
+            rawObservation: { ...state.capacityResponses[position.id] },
             modelEstimate: summarizeCapacityModel(position)
         }));
     }
 
-    function mean(values) {
-        return values.length ? values.reduce((total, value) => total + value, 0) / values.length : null;
-    }
-
-    function movementMuscleAnalysis(records) {
-        const modeled = records.filter((record) => record.observation.result !== 'not_tested' && record.modelEstimate.available);
-        if (!modeled.length) return { modeledPositionCount: 0, muscles: [], painRanking: [], weaknessRanking: [], overallRanking: [] };
-        const names = modeled[0].modelEstimate.muscles.map((muscle) => muscle.name);
-        const rows = names.map((name) => {
-            const samples = modeled.map((record) => ({
-                record,
-                muscle: record.modelEstimate.muscles.find((muscle) => muscle.name === name)
-            })).filter((sample) => sample.muscle);
-            const pain = samples.filter((sample) => sample.record.observation.result === 'pain_limited' || (sample.record.observation.painScore ?? 0) > 0);
-            const noPain = samples.filter((sample) => sample.record.observation.result !== 'pain_limited' && (sample.record.observation.painScore ?? 0) === 0);
-            const weakness = samples.filter((sample) => sample.record.observation.result === 'unable' || (sample.record.observation.perceivedWeaknessScore ?? 0) > 0);
-            const noWeakness = samples.filter((sample) => sample.record.observation.result === 'able' && (sample.record.observation.perceivedWeaknessScore ?? 0) === 0);
-            const painMean = mean(pain.map((sample) => sample.muscle.activation));
-            const noPainMean = mean(noPain.map((sample) => sample.muscle.activation));
-            const weaknessMean = mean(weakness.map((sample) => sample.muscle.activation));
-            const noWeaknessMean = mean(noWeakness.map((sample) => sample.muscle.activation));
-            return {
-                name,
-                modeledSamples: samples.length,
-                overallMeanActivation: mean(samples.map((sample) => sample.muscle.activation)),
-                overallPeakActivation: Math.max(...samples.map((sample) => sample.muscle.activation)),
-                painAssociatedSamples: pain.length,
-                painAssociatedMeanActivation: painMean,
-                painAssociationDelta: Number.isFinite(painMean) && Number.isFinite(noPainMean) ? painMean - noPainMean : null,
-                weaknessAssociatedSamples: weakness.length,
-                weaknessAssociatedMeanActivation: weaknessMean,
-                weaknessAssociationDelta: Number.isFinite(weaknessMean) && Number.isFinite(noWeaknessMean) ? weaknessMean - noWeaknessMean : null,
-                overallMeanActiveActuatorForceN: mean(samples.map((sample) => sample.muscle.activeActuatorForceN).filter(Number.isFinite))
-            };
-        });
-        const rank = (field, sampleField) => [...rows].filter((row) => row[sampleField] > 0 && Number.isFinite(row[field])).sort((a, b) => b[field] - a[field]).slice(0, 10);
-        return {
-            modeledPositionCount: modeled.length,
-            muscles: rows,
-            overallRanking: [...rows].sort((a, b) => b.overallMeanActivation - a.overallMeanActivation).slice(0, 10),
-            painRanking: rank('painAssociatedMeanActivation', 'painAssociatedSamples'),
-            weaknessRanking: rank('weaknessAssociatedMeanActivation', 'weaknessAssociatedSamples')
-        };
-    }
-
-    function movementPatternSummary(records) {
-        const recorded = records.filter((record) => record.observation.result !== 'not_tested');
-        const familyName = (record) => {
-            if (record.id === 'M1') return 'Baseline';
-            const name = record.name.toLowerCase();
-            if (name.includes('forward')) return 'Forward elevation';
-            if (name.includes('diagonal')) return 'Diagonal/scaption elevation';
-            if (name.includes('side') || name.includes('rear-plane')) return 'Lateral/rear-plane elevation';
-            if (name.includes('rotation')) return 'Shoulder rotation';
-            if (name.includes('elbow')) return 'Elbow motion';
-            if (name.includes('forearm')) return 'Forearm rotation';
-            return 'Baseline/combined posture';
-        };
-        const families = {};
-        const locations = {};
-        for (const record of recorded) {
-            const family = familyName(record);
-            families[family] ??= { recorded: 0, painAssociated: 0, weaknessAssociated: 0, meanPainScore: null, meanWeaknessScore: null, painScores: [], weaknessScores: [] };
-            const entry = families[family];
-            entry.recorded += 1;
-            if (record.observation.result === 'pain_limited' || (record.observation.painScore ?? 0) > 0) entry.painAssociated += 1;
-            if (record.observation.result === 'unable' || (record.observation.perceivedWeaknessScore ?? 0) > 0) entry.weaknessAssociated += 1;
-            if (Number.isFinite(record.observation.painScore)) entry.painScores.push(record.observation.painScore);
-            if (Number.isFinite(record.observation.perceivedWeaknessScore)) entry.weaknessScores.push(record.observation.perceivedWeaknessScore);
-            if (record.observation.painLocation) locations[record.observation.painLocation] = (locations[record.observation.painLocation] ?? 0) + 1;
-        }
-        for (const entry of Object.values(families)) {
-            entry.meanPainScore = mean(entry.painScores);
-            entry.meanWeaknessScore = mean(entry.weaknessScores);
-            delete entry.painScores;
-            delete entry.weaknessScores;
-        }
-        return {
-            recordedPositionCount: recorded.length,
-            families,
-            painLocations: Object.entries(locations).map(([location, count]) => ({ location, count })).sort((a, b) => b.count - a.count || a.location.localeCompare(b.location))
-        };
-    }
-
     function buildReport() {
-        const classification = classifyPattern();
-        const timestamp = new Date().toISOString();
-        const tests = DIAGNOSIS_TESTS.map((test) => ({
-            id: test.id,
-            name: test.name,
-            observation: test.id === 0 ? null : observationSummary(test.id),
-            modelRun: state.runs[test.id] ?? null,
-            modelApplicability: test.model.kind,
-            modelLimitation: test.model.reason ?? null
-        }));
-        const painful = tests.filter((test) => test.observation?.pain === 'yes');
-        const unreachable = tests.filter((test) => ['no', 'partly'].includes(test.observation?.reached));
-        const movementPositions = movementPositionRecords();
-        const movementAnalysis = movementMuscleAnalysis(movementPositions);
-        const movementPatterns = movementPatternSummary(movementPositions);
-        return {
-            schema: 'mobl-arms-biomechanical-observation-report',
-            schemaVersion: 4,
-            generatedAt: timestamp,
-            framing: 'Biomechanical hypothesis generator; not a medical diagnosis or treatment recommendation.',
+        const model = controller.getModel() ?? {};
+        const result = buildReportV5({
+            assessmentId: state.assessmentId,
             testedSide: state.testedSide,
-            modelSide: state.testedSide === 'left' ? 'right-model-visually-mirrored' : 'right',
-            redFlags: selectedRedFlags(),
             safetyReviewed: state.safetyReviewed,
-            intake: { ...state.intake },
-            summary: {
-                pattern: classification,
-                painfulTests: painful.map((test) => ({ id: test.id, name: test.name, score: test.observation.painScore, onsetAngleDegrees: test.observation.painOnsetAngleDegrees })),
-                unreachableTests: unreachable.map((test) => ({ id: test.id, name: test.name, reached: test.observation.reached, maxReportedAngleDegrees: test.observation.maxReportedAngleDegrees }))
-            },
-            tests,
-            modelInterpretation: {
-                activation: 'Generic model control from 0–1. Quasi-static path indices integrate independently solved postures over normalized path progress, not time.',
-                controlFloor: 0.01,
-                activeActuatorForce: 'When present: generic-model linearized active actuator force in newtons; passive muscle-fiber force and external loads excluded.',
-                jointReaction: 'Unavailable.',
-                missingMuscles: 'Trapezius and serratus anterior are not represented as independent actuators in this model.',
-                leftRight: 'Mirror mode is visual only; model-derived biological side asymmetry is unavailable.'
-            },
+            redFlags: selectedRedFlags(),
+            intake: state.intake,
+            positionRecords: movementPositionRecords(),
             model: {
-                id: controller.getModel()?.id ?? null,
-                name: controller.getModel()?.name ?? null,
-                scope: controller.getModel()?.scope ?? null,
-                source: controller.getModel()?.source ?? null
+                id: model.id ?? null,
+                name: model.name ?? null,
+                scope: model.scope ?? null,
+                source: model.source ?? null,
+                solverConfigurationId: model.solverConfigurationId ?? null,
+                appCommit: model.appCommit ?? null
             },
-            capacityScreen: {
-                status: 'research-only-unvalidated',
-                protocol: 'One 25-position assessment: eighteen progressive movement positions followed by seven discrimination positions. Only the discrimination section has exact complete-capacity-loss model signatures.',
-                positions: movementPositions,
-                numericMuscleAnalysis: movementAnalysis,
-                movementPatternSummary: movementPatterns,
-                moderateResponses: MODERATE_CAPACITY_POSITIONS.map((position) => ({
-                    id: position.id,
-                    coordinates: position.coordinates,
-                    result: state.capacityResponses[position.id].result,
-                    notes: state.capacityResponses[position.id].notes || null
-                })),
-                advancedResponses: ADVANCED_CAPACITY_POSITIONS.map((position) => ({
-                    id: position.id,
-                    coordinates: position.coordinates,
-                    result: state.capacityResponses[position.id].result,
-                    notes: state.capacityResponses[position.id].notes || null
-                })),
-                rankedCompatiblePatterns: capacityRanking(),
-                inseparableClass: ['Brachialis', 'Brachioradialis', 'Teres major', 'No modeled capacity loss'],
-                limitations: [
-                    'Across all 39 exact moderate-posture simulations, complete loss of any one modeled target group did not cause mechanical inability; other modeled muscles compensated.',
-                    'No independent one-error-correcting panel exists under the tested gravity-only protocol.',
-                    'Unable/able is a user observation and is not equivalent to modeled complete muscle-capacity loss.',
-                    'The screen does not identify pain, injury, or diagnosis.'
-                ]
-            },
-            limitations: [
-                'No single shoulder movement or model ratio identifies the painful tissue.',
-                'Predictions are generic and not measured from the observed person.',
-                'Resistance, support, and assistance are not modeled unless measured external loads are implemented.',
-                'Pain, weakness, movement quality, and reach are user observations rather than sensor measurements.',
-                'Static optimization uses an assumed recruitment objective and does not reproduce dynamic neuromuscular control.'
-            ]
-        };
+            capacityLossCompatibility: capacityRanking(),
+            syntheticData: false,
+            legacySymptomAssessment: state.legacySymptomAssessment
+        });
+        state.reportAnnex = result.technicalAnnex;
+        return result.report;
     }
 
     function renderReport(report) {
-        const host = byId('diagnosis-report-content');
-        const observations = report.tests.filter((test) => test.observation);
-        const completed = observations.filter((test) => test.observation.status === 'completed').length;
-        const painful = report.summary.painfulTests;
-        const unavailable = report.tests.filter((test) => ['unavailable', 'none'].includes(test.modelApplicability)).length;
-        const painfulModeled = report.tests.filter((test) => test.observation?.pain === 'yes' && test.modelRun?.metrics);
-        const otherSide = report.tests.find((test) => test.id === 14)?.observation;
-        const capacityResponses = report.capacityScreen?.advancedResponses ?? [];
-        const capacityCompleted = capacityResponses.filter((item) => ['able', 'unable'].includes(item.result)).length;
-        const capacityRanking = report.capacityScreen?.rankedCompatiblePatterns ?? [];
-        const capacityCompatible = capacityRanking.filter((item) => item.compatible);
-        const capacityDisplay = capacityCompatible.length ? capacityCompatible : capacityRanking.slice(0, 5);
-        const movementPositions = report.capacityScreen?.positions ?? [];
-        const movementRecorded = movementPositions.filter((position) => position.observation.result !== 'not_tested');
-        const movementModeled = movementRecorded.filter((position) => position.modelEstimate.available);
-        const movementAnalysis = report.capacityScreen?.numericMuscleAnalysis ?? {};
-        const movementPatterns = report.capacityScreen?.movementPatternSummary ?? { families: {}, painLocations: [] };
-        const painPositions = movementRecorded.filter((position) => position.observation.result === 'pain_limited' || (position.observation.painScore ?? 0) > 0);
-        const weaknessPositions = movementRecorded.filter((position) => position.observation.result === 'unable' || (position.observation.perceivedWeaknessScore ?? 0) > 0);
-        const associationRows = (rows, meanField, deltaField) => rows?.length
-            ? `<ol>${rows.slice(0, 8).map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · mean ${formatMetric(row[meanField])}${Number.isFinite(row[deltaField]) ? ` · contrast ${row[deltaField] >= 0 ? '+' : ''}${formatMetric(row[deltaField])}` : ''}</li>`).join('')}</ol>`
-            : '<p>Insufficient contrasting observations for a numeric ranking.</p>';
-        host.innerHTML = `
-            <div class="diagnosis-report-summary">
-                <div><span>Pattern</span><strong>${escapeHtml(report.summary.pattern.category)}</strong></div>
-                <div><span>Pattern clarity</span><strong>${escapeHtml(report.summary.pattern.clarity)}</strong></div>
-                <div><span>Observation coverage</span><strong>${completed}/${observations.length} tests completed</strong></div>
-            </div>
-            <p><strong>Not a diagnosis.</strong> ${escapeHtml(report.summary.pattern.statement)}</p>
-            <h3>Reasons</h3>
-            <ul>${report.summary.pattern.reasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join('')}</ul>
-            <h3>Safety screen</h3>
-            ${report.redFlags.length
-                ? `<ul>${report.redFlags.map((flag) => `<li>${escapeHtml(flag.label)}</li>`).join('')}</ul>`
-                : `<p>${report.safetyReviewed ? 'Reviewed; no warning item was selected.' : 'Not reviewed.'}</p>`}
-            <h3>Recorded observations</h3>
-            <div class="diagnosis-report-table-wrap"><table>
-                <thead><tr><th>Test</th><th>Status</th><th>Reached</th><th>Pain</th><th>Onset</th><th>Movement difference</th><th>Model reference</th></tr></thead>
-                <tbody>${observations.map((test) => `<tr>
-                    <td>T${test.id} · ${escapeHtml(test.name)}</td>
-                    <td>${escapeHtml(test.observation.status)}</td>
-                    <td>${escapeHtml(test.observation.reached)}${Number.isFinite(test.observation.maxReportedAngleDegrees) ? ` · ${test.observation.maxReportedAngleDegrees}°` : ''}</td>
-                    <td>${escapeHtml(test.observation.pain)}${Number.isFinite(test.observation.painScore) ? ` · ${test.observation.painScore}/10` : ''}</td>
-                    <td>${Number.isFinite(test.observation.painOnsetAngleDegrees) ? `${test.observation.painOnsetAngleDegrees}°` : '—'}</td>
-                    <td>${escapeHtml(test.observation.visibleMovementDifference)}</td>
-                    <td>${test.modelRun?.metrics ? `${test.modelRun.metrics.validSamples}/${test.modelRun.metrics.attemptedSamples} valid` : escapeHtml(test.modelLimitation || 'Not run')}</td>
-                </tr>`).join('')}</tbody>
-            </table></div>
-            <h3>Model estimates for painful tests</h3>
-            ${painfulModeled.length ? painfulModeled.map((test) => {
-                const metrics = test.modelRun.metrics;
-                return `<section class="diagnosis-report-model-test">
-                    <h4>T${test.id} · ${escapeHtml(test.name)}</h4>
-                    <p>${metrics.validSamples}/${metrics.attemptedSamples} validated generic-model postures. DELT2 peak ${formatMetric(metrics.peakActivation.DELT2)}; DELT2 path demand index ${formatMetric(metrics.normalizedActivationPathIntegral.DELT2)}; DELT2/SUPSP index ${formatMetric(metrics.ratios.delt2ToSupraspinatus, 2)}. These ratios have no diagnostic cutoff.</p>
-                    <p><strong>Peak activation:</strong> ${metrics.topPeak.map(([name, value]) => `${escapeHtml(name)} ${formatMetric(value)}`).join(' · ')}</p>
-                    <p><strong>Path demand:</strong> ${metrics.topPath.map(([name, value]) => `${escapeHtml(name)} ${formatMetric(value)}`).join(' · ')}</p>
-                    <p><strong>Active actuator force:</strong> ${metrics.activeActuatorForceAvailable ? metrics.topForce.map(([name, value]) => `${escapeHtml(name)} ${formatMetric(value, 1)} N`).join(' · ') : 'Unavailable'}.</p>
-                </section>`;
-            }).join('') : '<p>No painful test has a validated model reference.</p>'}
-            <h3>Other-side comparison</h3>
-            <p>${otherSide?.status === 'completed'
-                ? `Recorded as observations only: reached ${escapeHtml(otherSide.reached)}, pain ${escapeHtml(otherSide.pain)}${Number.isFinite(otherSide.painScore) ? ` (${otherSide.painScore}/10)` : ''}${Number.isFinite(otherSide.maxReportedAngleDegrees) ? `, maximum reported angle ${otherSide.maxReportedAngleDegrees}°` : ''}.`
-                : 'Not completed. Visual mirroring cannot calculate biological side asymmetry.'}</p>
-            <h3>Research capacity screen</h3>
-            <p>${capacityCompleted}/7 discrimination positions have an informative able/unable observation. ${capacityCompleted
-                ? (capacityCompatible.length ? 'Compatible modeled patterns are shown below.' : 'No exact modeled pattern is compatible; the closest patterns are shown below.')
-                : 'The screen was not completed.'}</p>
-            ${capacityDisplay.length ? `<ol>${capacityDisplay.map((item) => `<li><strong>${escapeHtml(item.name)}</strong> · ${item.contradictions} contradiction(s) across ${item.compared} comparable observation(s)</li>`).join('')}</ol>` : ''}
-            <p><strong>Research-only result.</strong> This compares observations with complete modeled capacity loss under gravity only. It does not identify pain, injury, or diagnosis. Brachialis, brachioradialis, teres major, and no modeled capacity loss are inseparable in this screen.</p>
-            <h3>25-position movement assessment</h3>
-            <p>${movementRecorded.length}/25 positions recorded; ${movementModeled.length} have a validated generic-model activation vector. ${painPositions.length} pain-associated and ${weaknessPositions.length} weakness-associated positions were recorded.</p>
-            <div class="diagnosis-report-table-wrap"><table>
-                <thead><tr><th>Position</th><th>Section</th><th>Result</th><th>Pain</th><th>Weakness</th><th>Location</th><th>Top model activations</th></tr></thead>
-                <tbody>${movementRecorded.map((position) => `<tr>
-                    <td>${position.sequence}. ${escapeHtml(position.name)}</td>
-                    <td>${position.section === 'discrimination' ? 'Discrimination' : 'Progressive movement'}</td>
-                    <td>${escapeHtml(position.observation.result)}</td>
-                    <td>${Number.isFinite(position.observation.painScore) ? `${position.observation.painScore}/10` : '—'}</td>
-                    <td>${Number.isFinite(position.observation.perceivedWeaknessScore) ? `${position.observation.perceivedWeaknessScore}/10` : '—'}</td>
-                    <td>${escapeHtml(position.observation.painLocation || '—')}</td>
-                    <td>${position.modelEstimate.available ? position.modelEstimate.topActivation.map((muscle) => `${escapeHtml(muscle.name)} ${formatMetric(muscle.activation)}`).join(' · ') : escapeHtml(position.modelEstimate.reason)}</td>
-                </tr>`).join('')}</tbody>
-            </table></div>
-            <h3>Pain-associated model activation</h3>
-            <p>Ranked by generic-model mean activation in pain-associated positions, with the contrast against recorded painless positions where available. This is association, not localization of the pain source.</p>
-            ${associationRows(movementAnalysis.painRanking, 'painAssociatedMeanActivation', 'painAssociationDelta')}
-            <h3>Weakness-associated model activation</h3>
-            <p>Ranked by generic-model mean activation in weakness-associated positions, with the contrast against reached/held positions where available. This does not establish impaired muscle capacity.</p>
-            ${associationRows(movementAnalysis.weaknessRanking, 'weaknessAssociatedMeanActivation', 'weaknessAssociationDelta')}
-            <h3>Movement-family pattern</h3>
-            ${Object.keys(movementPatterns.families).length ? `<div class="diagnosis-report-table-wrap"><table><thead><tr><th>Movement family</th><th>Recorded</th><th>Pain-associated</th><th>Weakness-associated</th><th>Mean pain</th><th>Mean weakness</th></tr></thead><tbody>${Object.entries(movementPatterns.families).map(([name, item]) => `<tr><td>${escapeHtml(name)}</td><td>${item.recorded}</td><td>${item.painAssociated}</td><td>${item.weaknessAssociated}</td><td>${Number.isFinite(item.meanPainScore) ? `${formatMetric(item.meanPainScore, 1)}/10` : '—'}</td><td>${Number.isFinite(item.meanWeaknessScore) ? `${formatMetric(item.meanWeaknessScore, 1)}/10` : '—'}</td></tr>`).join('')}</tbody></table></div>` : '<p>No movement-family observations recorded.</p>'}
-            <p><strong>Pain locations:</strong> ${movementPatterns.painLocations?.length ? movementPatterns.painLocations.map((item) => `${escapeHtml(item.location)} (${item.count})`).join(' · ') : 'None recorded'}.</p>
-            <h3>Overall modeled demand</h3>
-            ${movementAnalysis.overallRanking?.length ? `<ol>${movementAnalysis.overallRanking.slice(0, 10).map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · mean activation ${formatMetric(row.overallMeanActivation)} · peak ${formatMetric(row.overallPeakActivation)}</li>`).join('')}</ol>` : '<p>No validated position activation vectors were captured.</p>'}
-            <p><strong>Biomechanical hypotheses for clinical review:</strong> compare the movements and locations that reproduce symptoms, their pain and perceived-weakness scores, and the generic-model muscles active in those postures. High activation is not proof of injury; compensation, referred pain, non-muscle tissues, and pain inhibition remain possible.</p>
-            <h3>Boundaries</h3>
-            <p>${painful.length} painful movement(s) recorded. Model demand was deliberately unavailable for ${unavailable} test(s) where resistance, support, assistance, safety, or visual mirroring would make the current calculation misleading.</p>
-            <ul>${report.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-        byId('diagnosis-report-time').textContent = new Date(report.generatedAt).toLocaleString();
-        byId('diagnosis-report').classList.remove('hidden');
-        byId('diagnosis-copy-json').disabled = false;
-        byId('diagnosis-download-json').disabled = false;
-        byId('capacity-copy-json').disabled = false;
-        byId('capacity-download-json').disabled = false;
+        renderMovementReport(report);
     }
-
     function renderMovementReport(report) {
         const host = byId('diagnosis-report-content');
-        const positions = report.capacityScreen.positions;
-        const recorded = positions.filter((position) => position.observation.result !== 'not_tested');
-        const modeled = recorded.filter((position) => position.modelEstimate.available);
-        const painPositions = recorded.filter((position) => position.observation.result === 'pain_limited' || (position.observation.painScore ?? 0) > 0);
-        const weaknessPositions = recorded.filter((position) => position.observation.result === 'unable' || (position.observation.perceivedWeaknessScore ?? 0) > 0);
-        const analysis = report.capacityScreen.numericMuscleAnalysis;
-        const patterns = report.capacityScreen.movementPatternSummary;
-        const discriminationCompleted = report.capacityScreen.advancedResponses.filter((item) => ['able', 'unable'].includes(item.result)).length;
-        const compatible = report.capacityScreen.rankedCompatiblePatterns.filter((item) => item.compatible);
-        const discriminationDisplay = compatible.length ? compatible : report.capacityScreen.rankedCompatiblePatterns.slice(0, 5);
-        const intake = report.intake ?? {};
-        const intakeLabel = (value) => escapeHtml(String(value ?? '—').replaceAll('_', ' '));
-        const resultLabel = (result) => ({
-            able: 'Reached and held',
-            unable: 'Unable / marked weakness',
-            pain_limited: 'Stopped because of pain',
-            uncertain: 'Uncertain / stopped',
-            not_tested: 'Not tested'
-        }[result] ?? result);
-        const ranking = (rows, meanField, deltaField) => rows?.length
-            ? `<ol>${rows.slice(0, 10).map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · mean activation ${formatMetric(row[meanField])}${Number.isFinite(row[deltaField]) ? ` · contrast ${row[deltaField] >= 0 ? '+' : ''}${formatMetric(row[deltaField])}` : ''}</li>`).join('')}</ol>`
-            : '<p>Insufficient contrasting observations for a numeric ranking.</p>';
+        const trials = (report.trials ?? []).filter((trial) => trial.includeInHumanProtocol);
+        const attempted = trials.filter((trial) => trial.observation?.attempted);
+        const quality = report.dataQuality ?? {};
+        const associations = report.analyses?.symptomAssociations ?? {};
+        const label = (value) => escapeHtml(String(value ?? '—').replaceAll('_', ' '));
+        const stateLabel = (symptom) => ({ positive: 'Yes', recorded_zero: 'No', not_recorded: 'Not recorded' }[symptom?.state] ?? label(symptom?.state));
+        const scoreLabel = (symptom) => symptom?.state === 'recorded_zero'
+            ? '0/10'
+            : Number.isFinite(symptom?.score) ? `${symptom.score}/10` : '—';
+        const ranking = (association, kind) => {
+            if (!association?.computable) return `<p><strong>Not computable.</strong> ${escapeHtml(association?.notComputableReason || `Required ${kind} observations were not recorded.`)}</p>`;
+            return `<ol>${association.ranking.slice(0, 8).map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · model-control contrast ${row.associationContrast >= 0 ? '+' : ''}${formatMetric(row.associationContrast)} · evidence ${row.supportingTrialIds.map(escapeHtml).join(', ')} · comparison ${row.comparisonTrialIds.map(escapeHtml).join(', ')}</li>`).join('')}</ol>`;
+        };
+        const comparisonRows = (report.matchedComparisons ?? []).filter((comparison) => comparison.observationsComplete);
+        const reportStatus = ({ insufficient_data: 'Insufficient data', interpretable: 'Interpretable observations', conflicting: 'Conflicting observations' })[quality.interpretabilityStatus] || 'Data status unavailable';
         host.innerHTML = `
             <div class="diagnosis-report-summary">
-                <div><span>Positions recorded</span><strong>${recorded.length}/25</strong></div>
-                <div><span>Pain-associated</span><strong>${painPositions.length}</strong></div>
-                <div><span>Weakness-associated</span><strong>${weaknessPositions.length}</strong></div>
-                <div><span>Model vectors</span><strong>${modeled.length}/25</strong></div>
+                <div><span>Data status</span><strong>${escapeHtml(reportStatus)}</strong></div>
+                <div><span>Postures attempted</span><strong>${attempted.length}/${quality.requiredTrialCount ?? trials.length}</strong></div>
+                <div><span>Pain answered</span><strong>${quality.painAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
+                <div><span>Weakness answered</span><strong>${quality.weaknessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
+                <div><span>Stiffness answered</span><strong>${quality.stiffnessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
             </div>
-            <p><strong>Biomechanical assessment report—not a diagnosis.</strong> This report combines recorded observations with generic MoBL-ARMS activation estimates for the exact postures. It supports hypothesis generation for qualified clinical review; it does not determine which tissue is painful or injured.</p>
-            <h3>Patient and pain context</h3>
+            <p><strong>${escapeHtml(report.summary?.statement || 'No interpretation is available.')}</strong></p>
+            <p>Assessment ID: <code>${escapeHtml(report.assessment?.assessmentId || '—')}</code>. This main report is deidentified. Names, email addresses, and cities remain only in the local patient record.</p>
+            ${quality.warnings?.length ? `<h3>Data-quality warnings</h3><ul>${quality.warnings.map((warning) => `<li>${escapeHtml(warning.trialId ? `${warning.trialId}: ${warning.message}` : warning.message)}</li>`).join('')}</ul>` : ''}
+            ${quality.missingRequiredFields?.length ? `<details><summary>Missing required observations (${quality.missingRequiredFields.length})</summary><p>${quality.missingRequiredFields.map(escapeHtml).join(' · ')}</p></details>` : ''}
+            <h3>Assessment context</h3>
             <div class="diagnosis-report-table-wrap"><table><tbody>
-                <tr><th>Name</th><td>${escapeHtml(intake.name || '—')}</td><th>Age</th><td>${Number.isFinite(intake.ageYears) ? intake.ageYears : '—'}</td></tr>
-                <tr><th>Gender</th><td>${intakeLabel(intake.gender)}</td><th>Assessed arm</th><td>${intakeLabel(intake.assessedArm)}</td></tr>
-                <tr><th>Height / weight</th><td>${Number.isFinite(intake.heightCm) ? `${intake.heightCm} cm` : '—'} / ${Number.isFinite(intake.weightKg) ? `${intake.weightKg} kg` : '—'}</td><th>City</th><td>${escapeHtml(intake.city || '—')}</td></tr>
-                <tr><th>Email</th><td colspan="3">${escapeHtml(intake.email || '—')}</td></tr>
-                <tr><th>Pain duration</th><td>${intakeLabel(intake.painDuration)}</td><th>Onset</th><td>${intakeLabel(intake.painOnset)}</td></tr>
-                <tr><th>Pain now / worst</th><td>${Number.isFinite(intake.painNow) ? `${intake.painNow}/10` : '—'} / ${Number.isFinite(intake.painWorst) ? `${intake.painWorst}/10` : '—'}</td><th>Main location</th><td>${intakeLabel(intake.primaryPainLocation)}</td></tr>
-                <tr><th>Other features</th><td colspan="3">${[
-                    intake.painAtRest ? 'Pain at rest' : '', intake.nightPain ? 'Sleep disturbance' : '', intake.radiatingPain ? 'Radiating pain' : '', intake.clickingInstability ? 'Clicking/catching/instability' : ''
-                ].filter(Boolean).map(escapeHtml).join(' · ') || 'None selected'}</td></tr>
-                ${intake.onsetDetails ? `<tr><th>Onset details</th><td colspan="3">${escapeHtml(intake.onsetDetails)}</td></tr>` : ''}
-                ${intake.aggravatingRelieving ? `<tr><th>Worse / better</th><td colspan="3">${escapeHtml(intake.aggravatingRelieving)}</td></tr>` : ''}
-                ${intake.relevantHistory ? `<tr><th>Relevant history</th><td colspan="3">${escapeHtml(intake.relevantHistory)}</td></tr>` : ''}
+                <tr><th>Age</th><td>${Number.isFinite(report.intake?.ageYears) ? report.intake.ageYears : '—'}</td><th>Gender</th><td>${label(report.intake?.gender)}</td></tr>
+                <tr><th>Assessed side</th><td>${label(report.intake?.assessedSide)}</td><th>Height / weight</th><td>${Number.isFinite(report.intake?.heightCm) ? `${report.intake.heightCm} cm` : '—'} / ${Number.isFinite(report.intake?.weightKg) ? `${report.intake.weightKg} kg` : '—'}</td></tr>
+                <tr><th>Symptom duration</th><td>${label(report.intake?.symptomDuration)}</td><th>Onset</th><td>${label(report.intake?.symptomOnset)}</td></tr>
+                <tr><th>Safety screen</th><td colspan="3">${report.safety?.positiveFlags?.length ? `${report.safety.positiveFlags.length} warning item(s) selected` : report.safety?.reviewed ? 'Reviewed; no warning item selected' : 'Not reviewed'}</td></tr>
             </tbody></table></div>
-            <h3>Safety</h3>
-            ${report.redFlags.length
-                ? `<ul>${report.redFlags.map((flag) => `<li>${escapeHtml(flag.label)}</li>`).join('')}</ul>`
-                : `<p>${report.safetyReviewed ? 'Safety screen reviewed; no warning item was selected.' : 'Safety screen not reviewed.'}</p>`}
-            <h3>Position results and model estimates</h3>
-            ${recorded.length ? `<div class="diagnosis-report-table-wrap"><table>
-                <thead><tr><th>Position and description</th><th>Result</th><th>Pain</th><th>Weakness</th><th>Location</th><th>Numeric model reference</th></tr></thead>
-                <tbody>${recorded.map((position) => `<tr>
-                    <td><strong>${position.sequence}. ${escapeHtml(position.name)}</strong><br><small>${escapeHtml(position.instruction)}</small></td>
-                    <td>${escapeHtml(resultLabel(position.observation.result))}</td>
-                    <td>${Number.isFinite(position.observation.painScore) ? `${position.observation.painScore}/10` : '—'}</td>
-                    <td>${Number.isFinite(position.observation.perceivedWeaknessScore) ? `${position.observation.perceivedWeaknessScore}/10` : '—'}</td>
-                    <td>${escapeHtml(position.observation.painLocation || '—')}${position.observation.notes ? `<br><small>${escapeHtml(position.observation.notes)}</small>` : ''}</td>
-                    <td>${position.modelEstimate.available
-                        ? `<strong>Activation:</strong> ${position.modelEstimate.topActivation.map((muscle) => `${escapeHtml(muscle.name)} ${formatMetric(muscle.activation)}`).join(' · ')}<br><small><strong>Active actuator estimate:</strong> ${position.modelEstimate.topActiveActuatorForceN.map((muscle) => `${escapeHtml(muscle.name)} ${formatMetric(muscle.activeActuatorForceN, 1)} N`).join(' · ')}</small>`
-                        : escapeHtml(position.modelEstimate.reason)}</td>
+            <h3>Recorded posture observations</h3>
+            <div class="diagnosis-report-table-wrap"><table>
+                <thead><tr><th>Posture</th><th>Completion</th><th>Pain</th><th>Weakness</th><th>Stiffness</th><th>Compensation</th><th>Notes</th><th>Generic model reference</th></tr></thead>
+                <tbody>${trials.map((trial) => `<tr>
+                    <td><strong>${escapeHtml(trial.id)} · ${escapeHtml(trial.name)}</strong></td>
+                    <td>${label(trial.observation.completion)}${trial.observation.limitingFactors?.length ? ` · ${trial.observation.limitingFactors.map(label).join(', ')}` : ''}</td>
+                    <td>${stateLabel(trial.observation.pain)}${trial.observation.pain.state !== 'not_recorded' ? ` · ${scoreLabel(trial.observation.pain)}` : ''}</td>
+                    <td>${stateLabel(trial.observation.weakness)}${trial.observation.weakness.state !== 'not_recorded' ? ` · ${scoreLabel(trial.observation.weakness)}` : ''}</td>
+                    <td>${stateLabel(trial.observation.stiffness)}</td>
+                    <td>${stateLabel(trial.observation.compensation)}</td>
+                    <td>${escapeHtml(trial.observation.notes || '—')}</td>
+                    <td>${trial.modelReference?.available
+                        ? trial.modelReference.topRelevantPredictedControls.slice(0, 3).map((muscle) => `${escapeHtml(muscle.name)} ${formatMetric(muscle.predictedModelControl)}`).join(' · ')
+                        : escapeHtml(trial.modelReference?.notComputableReason || 'Unavailable')}</td>
                 </tr>`).join('')}</tbody>
-            </table></div>` : '<p>No movement positions have been recorded.</p>'}
-            <h3>Pain-associated generic-model activation</h3>
-            <p>Ranked by mean activation in positions associated with reported pain. The contrast compares those positions with recorded painless positions where available.</p>
-            ${ranking(analysis.painRanking, 'painAssociatedMeanActivation', 'painAssociationDelta')}
-            <h3>Weakness-associated generic-model activation</h3>
-            <p>Ranked by mean activation in positions associated with perceived weakness. The contrast compares those positions with reached/held, zero-weakness positions where available.</p>
-            ${ranking(analysis.weaknessRanking, 'weaknessAssociatedMeanActivation', 'weaknessAssociationDelta')}
-            <h3>Movement-family summary</h3>
-            ${Object.keys(patterns.families).length ? `<div class="diagnosis-report-table-wrap"><table><thead><tr><th>Movement family</th><th>Recorded</th><th>Pain-associated</th><th>Weakness-associated</th><th>Mean pain</th><th>Mean weakness</th></tr></thead><tbody>${Object.entries(patterns.families).map(([name, item]) => `<tr><td>${escapeHtml(name)}</td><td>${item.recorded}</td><td>${item.painAssociated}</td><td>${item.weaknessAssociated}</td><td>${Number.isFinite(item.meanPainScore) ? `${formatMetric(item.meanPainScore, 1)}/10` : '—'}</td><td>${Number.isFinite(item.meanWeaknessScore) ? `${formatMetric(item.meanWeaknessScore, 1)}/10` : '—'}</td></tr>`).join('')}</tbody></table></div>` : '<p>No movement-family observations recorded.</p>'}
-            <p><strong>Pain locations:</strong> ${patterns.painLocations.length ? patterns.painLocations.map((item) => `${escapeHtml(item.location)} (${item.count})`).join(' · ') : 'None recorded'}.</p>
-            <h3>Overall modeled muscle demand</h3>
-            ${analysis.overallRanking.length ? `<ol>${analysis.overallRanking.map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · mean activation ${formatMetric(row.overallMeanActivation)} · peak ${formatMetric(row.overallPeakActivation)} · mean active actuator estimate ${formatMetric(row.overallMeanActiveActuatorForceN, 1)} N</li>`).join('')}</ol>` : '<p>No modeled positions recorded.</p>'}
-            <h3>Discrimination-position comparison</h3>
-            <p>${discriminationCompleted}/7 discrimination positions contribute an able/unable observation. Pain-limited and uncertain positions are excluded from this binary comparison.</p>
-            ${discriminationCompleted ? `<ol>${discriminationDisplay.map((item) => `<li><strong>${escapeHtml(item.name)}</strong> · ${item.contradictions} contradiction(s) across ${item.compared} comparable observation(s)</li>`).join('')}</ol>` : '<p>No experimental capacity-loss signature comparison is available.</p>'}
-            <h3>Hypotheses and limits for clinical review</h3>
-            <ul>
-                <li>Review muscles with high activation in symptom-associated positions only as biomechanical demand hypotheses—not as identified pain generators.</li>
-                <li>Give greater weight to a positive pain/weakness contrast than to high activation that is also present in symptom-free positions.</li>
-                <li>Consider compensation, pain inhibition, referred pain, tendons, joints, nerves, and other non-muscle tissues.</li>
-                <li>The complete 50-muscle vectors, forces, coordinates, observations, provenance, and limitations are retained in the downloadable JSON.</li>
-            </ul>
-            <p><strong>Required boundary:</strong> this generic, gravity-only, no-external-load model is not clinically validated and cannot diagnose or treat a patient.</p>`;
-        byId('diagnosis-report-title').textContent = '25-position biomechanical assessment';
+            </table></div>
+            <h3>Matched posture comparisons</h3>
+            <p>Each comparison changes one principal posture variable while keeping the listed protocol variables fixed. Numeric symptom deltas appear only when explicit scores are present.</p>
+            ${comparisonRows.length ? `<div class="diagnosis-report-table-wrap"><table><thead><tr><th>Comparison</th><th>Trials</th><th>Changed variable</th><th>Pain Δ</th><th>Weakness Δ</th><th>Status</th></tr></thead><tbody>${comparisonRows.map((comparison) => `<tr>
+                <td>${escapeHtml(comparison.name)}</td><td>${comparison.trialIds.map(escapeHtml).join(' → ')}</td><td>${label(comparison.changedVariable)}</td>
+                <td>${Number.isFinite(comparison.observationDelta.painScore) ? `${comparison.observationDelta.painScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.painScore, 1)}` : '—'}</td>
+                <td>${Number.isFinite(comparison.observationDelta.weaknessScore) ? `${comparison.observationDelta.weaknessScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.weaknessScore, 1)}` : '—'}</td>
+                <td>${escapeHtml(comparison.observationDelta.notComputableReason || 'Complete')}</td>
+            </tr>`).join('')}</tbody></table></div>` : '<p>No matched comparison has complete observations.</p>'}
+            <h3>Pain-linked generic model demand</h3>
+            ${ranking(associations.pain, 'pain')}
+            <h3>Weakness-linked generic model demand</h3>
+            ${ranking(associations.weakness, 'weakness')}
+            <h3>Protocol demand—not symptom evidence</h3>
+            <p>This ranking describes which muscles the moderate posture protocol demands in the generic model. It does not identify a painful or impaired muscle.</p>
+            ${report.analyses?.protocolDemandRanking?.length ? `<ol>${report.analyses.protocolDemandRanking.slice(0, 8).map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · mean predicted model control ${formatMetric(row.meanPredictedModelControl)} · peak ${formatMetric(row.peakPredictedModelControl)}</li>`).join('')}</ol>` : '<p>No validated reference vectors are available.</p>'}
+            <h3>Model coverage and limitations</h3>
+            <p><strong>Scapular-control coverage:</strong> trapezius and serratus anterior are not independent actuators in this model. Shoulder-hiking or scapular compensation therefore cannot be interpreted from the model reference.</p>
+            <ul>${(report.limitations ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+            <p><strong>Research separation:</strong> extreme D1–D7 postures and capacity-loss compatibility are model-only material in the separate technical annex. They are excluded from this human protocol and every symptom association.</p>`;
+        byId('diagnosis-report-title').textContent = 'Biomechanical observation report';
         byId('diagnosis-report-time').textContent = new Date(report.generatedAt).toLocaleString();
         byId('diagnosis-report').classList.remove('hidden');
         byId('diagnosis-copy-json').disabled = false;
         byId('diagnosis-download-json').disabled = false;
         byId('capacity-copy-json').disabled = false;
         byId('capacity-download-json').disabled = false;
+        byId('diagnosis-copy-json').textContent = 'Copy deidentified report';
+        byId('diagnosis-download-json').textContent = 'Download deidentified report';
+        byId('capacity-copy-json').textContent = 'Copy report + technical annex';
+        byId('capacity-download-json').textContent = 'Download report + technical annex';
     }
 
     function generateReport(view = 'all') {
@@ -1928,21 +1978,25 @@ export function createDiagnosisWorkflow(controller) {
 
     async function copyJson(buttonId = 'diagnosis-copy-json') {
         if (!state.report) return;
-        const text = JSON.stringify(state.report, null, 2);
+        const full = buttonId === 'capacity-copy-json';
+        const payload = full ? fullReportExport(state.report, state.reportAnnex) : mainReportExport(state.report);
+        const text = JSON.stringify(payload, null, 2);
         await navigator.clipboard.writeText(text);
         const button = byId(buttonId);
         button.textContent = 'Copied';
-        const original = buttonId === 'capacity-copy-json' ? 'Copy full JSON' : 'Copy JSON';
+        const original = full ? 'Copy report + technical annex' : 'Copy deidentified report';
         window.setTimeout(() => { button.textContent = original; }, 1400);
     }
 
-    function downloadJson() {
+    function downloadJson(full = false) {
         if (!state.report) return;
-        const blob = new Blob([JSON.stringify(state.report, null, 2)], { type: 'application/json' });
+        const payload = full ? fullReportExport(state.report, state.reportAnnex) : mainReportExport(state.report);
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `mobl-arms-biomechanical-assessment-${new Date().toISOString().replaceAll(':', '-')}.json`;
+        const assessmentId = state.report.assessment?.assessmentId ?? 'assessment';
+        link.download = full ? `${assessmentId}-report-and-technical-annex.json` : `${assessmentId}-deidentified-report.json`;
         link.click();
         URL.revokeObjectURL(url);
     }
@@ -1962,6 +2016,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('explorer-workspace').classList.add('hidden');
         byId('diagnosis-workspace').classList.remove('hidden');
         document.body.classList.add('diagnosis-active');
+        byId('mirror-view').hidden = true;
         controller.setMirroredView(state.testedSide === 'left');
         window.requestAnimationFrame(controller.resizeViewer);
         if (state.phase === 'report' && state.intakeCompleted) showReportScreen();
@@ -1981,6 +2036,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-workspace').classList.add('hidden');
         byId('explorer-workspace').classList.remove('hidden');
         document.body.classList.remove('diagnosis-active');
+        byId('mirror-view').hidden = false;
         window.requestAnimationFrame(controller.resizeViewer);
     }
 
@@ -2045,22 +2101,12 @@ export function createDiagnosisWorkflow(controller) {
             persistDraft();
         }
     });
-    byId('capacity-next').addEventListener('click', () => {
-        if (state.activeCapacityIndex < ALL_CAPACITY_POSITIONS.length - 1) {
-            state.activeCapacityIndex += 1;
-            renderCapacityList();
-            renderCapacityPosition();
-            persistDraft();
-        } else {
-            showReportScreen();
-        }
-    });
     byId('diagnosis-run-model').addEventListener('click', runModel);
     byId('diagnosis-generate-report').addEventListener('click', () => generateReport('all'));
     byId('diagnosis-copy-json').addEventListener('click', () => copyJson().catch(() => {}));
-    byId('diagnosis-download-json').addEventListener('click', downloadJson);
+    byId('diagnosis-download-json').addEventListener('click', () => downloadJson(false));
     byId('capacity-copy-json').addEventListener('click', () => copyJson('capacity-copy-json').catch(() => {}));
-    byId('capacity-download-json').addEventListener('click', downloadJson);
+    byId('capacity-download-json').addEventListener('click', () => downloadJson(true));
     byId('diagnosis-new-assessment').addEventListener('click', restartAssessment);
     byId('app-dialog-cancel').addEventListener('click', closeAppDialog);
     byId('app-dialog-backdrop').addEventListener('click', closeAppDialog);

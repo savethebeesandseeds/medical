@@ -17,6 +17,7 @@
                     <p class="eyebrow">Upper-limb research tool</p>
                     <h1>Waajacu's Medical</h1>
                     <p class="intro">Movement assessment and muscle activation.</p>
+                    <a class="full-body-link" href="/full-body.html">Explore the full-body model <span aria-hidden="true">&rarr;</span></a>
                 </div>
             </div>
             <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
@@ -34,8 +35,17 @@
         </aside>
 
         <nav class="app-tabs" role="tablist" aria-label="Application sections">
-            <button id="tab-explorer" class="active" type="button" role="tab" aria-selected="true" aria-controls="explorer-workspace"><span>Explorer</span><small>Posture and activation</small></button>
-            <button id="tab-diagnosis" type="button" role="tab" aria-selected="false" aria-controls="diagnosis-workspace"><span>Diagnosis</span><small>Guided assessment</small></button>
+            <button id="tab-explorer" class="active" type="button" role="tab" aria-selected="true" aria-controls="explorer-workspace">
+                <span class="app-tab-copy"><span>Explorer</span><small>Posture and activation</small></span>
+                <canvas class="preset-thumbnail app-tab-visual app-tab-thumbnail" width="104" height="104" data-thumbnail-preset="hand-to-mouth" aria-hidden="true"></canvas>
+            </button>
+            <button id="tab-diagnosis" type="button" role="tab" aria-selected="false" aria-controls="diagnosis-workspace">
+                <span class="app-tab-copy"><span>Diagnosis</span><small>Guided assessment</small></span>
+                <svg class="app-tab-visual diagnosis-tab-icon" viewBox="0 0 80 80" aria-hidden="true">
+                    <rect x="12" y="8" width="56" height="64" rx="3" />
+                    <path d="M29 8V5h22v3M21 27l4 4 7-8M38 27h20M21 43l4 4 7-8M38 43h20M21 59l4 4 7-8M38 59h20" />
+                </svg>
+            </button>
         </nav>
 
         <section id="explorer-workspace" class="workspace" role="tabpanel" aria-labelledby="tab-explorer">
@@ -78,7 +88,8 @@
                         <div class="scene-actions" role="group" aria-label="View actions">
                             <button id="mirror-view" class="scene-action-button" type="button" aria-label="Mirror left" aria-pressed="false" data-tooltip="Mirror left">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 3v18M9 7 4 12l5 5V7Zm6 0 5 5-5 5V7Z" />
+                                    <path d="M12 3v18" stroke-dasharray="1.5 2" />
+                                    <path d="M9 6H5v12h4M15 6h4v12h-4M8 9l-3 3 3 3M16 9l3 3-3 3" />
                                 </svg>
                             </button>
                             <details id="viewer-download-menu" class="viewer-download-menu">
@@ -104,14 +115,28 @@
                                         <strong>High-resolution transparent</strong>
                                         <span>Transparent, 2x size</span>
                                     </button>
+                                    <span class="viewer-download-section">With activation data</span>
+                                    <button type="button" data-viewer-download data-scale="1" data-transparent="false" data-include-activation="true">
+                                        <strong>PNG with activation table</strong>
+                                        <span>Scale and all 50 muscles</span>
+                                    </button>
+                                    <button type="button" data-viewer-download data-scale="2" data-transparent="false" data-include-activation="true">
+                                        <strong>High-resolution with table</strong>
+                                        <span>Scale and all 50 muscles, 2x</span>
+                                    </button>
                                     <p id="viewer-download-status" class="viewer-download-status" aria-live="polite"></p>
                                 </div>
                             </details>
                             <button id="reset-view" class="scene-action-button" type="button" aria-label="Reset view" data-tooltip="Reset view">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M20 11a8 8 0 1 1-2.35-5.65M20 4v7h-7" />
+                                    <path d="M7.4 5.4A8 8 0 1 1 4.7 14" />
+                                    <path d="M8 10 4 6l4-4" />
                                 </svg>
                             </button>
+                        </div>
+                        <div id="capacity-view-loading" class="capacity-view-loading hidden" role="status" aria-live="polite">
+                            <span aria-hidden="true"></span>
+                            <strong>Loading posture…</strong>
                         </div>
                         <div id="geometry-legend" class="scene-legend" aria-label="Viewer legend">
                             <span><i class="bone-key"></i>Model geometry</span>
@@ -362,7 +387,20 @@
                         </div>
                     </section>
 
-                    <p class="diagnosis-intake-privacy"><strong>Local browser storage:</strong> details and finished reports are saved here for resume and history. They are not sent to a patient-record server. Anyone using this browser profile can view them.</p>
+                    <section class="diagnosis-privacy-consent" aria-labelledby="diagnosis-privacy-title">
+                        <details>
+                            <summary id="diagnosis-privacy-title">Privacy policy</summary>
+                            <div>
+                                <p><strong>No server collection.</strong> Waajacu's Medical does not send the information entered here to us or to a patient-record server. We do not receive, analyse, sell, or share it.</p>
+                                <p><strong>No cookies.</strong> This application does not use cookies or advertising trackers.</p>
+                                <p><strong>Local storage.</strong> To resume unfinished work and show diagnosis records, the browser stores form entries and completed reports on this device. Anyone using this browser profile may be able to view them. Delete individual reports with their Delete button, or remove all saved information by clearing this site's browser data.</p>
+                            </div>
+                        </details>
+                        <label class="diagnosis-privacy-check">
+                            <input name="privacyAccepted" type="checkbox" required>
+                            <span>I have read and understand the privacy policy and local-storage notice. *</span>
+                        </label>
+                    </section>
                     <div class="diagnosis-intake-actions">
                         <button id="diagnosis-intake-back" class="quiet-button" type="button">Back to safety</button>
                         <span id="diagnosis-intake-state" role="status">Complete the required fields.</span>
@@ -377,7 +415,7 @@
                         <p class="eyebrow">Single assessment</p>
                         <h2>Shoulder movement assessment</h2>
                     </div>
-                    <span class="diagnosis-assessment-summary">25 postures · one response each</span>
+                    <span class="diagnosis-assessment-summary">18 positions · completion, symptoms, and movement quality</span>
                     <button id="diagnosis-restart" class="quiet-button" type="button">Restart</button>
                 </header>
 
@@ -414,7 +452,7 @@
                     </section>
                     <section id="capacity-instructions" class="diagnosis-instructions capacity-instructions panel diagnosis-capacity-only hidden" aria-labelledby="capacity-position-title">
                         <div class="diagnosis-test-heading">
-                            <span id="capacity-position-id" class="diagnosis-test-id">Progressive 1 of 25</span>
+                            <span id="capacity-position-id" class="diagnosis-test-id">Position 1 of 18</span>
                             <h2 id="capacity-position-title">Movement position</h2>
                         </div>
                         <p><strong>Reference posture—not a prescribed exercise.</strong> <span id="capacity-position-instruction">Do not attempt it if it is uncomfortable or unsuitable.</span></p>
@@ -422,7 +460,6 @@
                         <div class="capacity-position-actions">
                             <button id="capacity-previous" class="quiet-button" type="button">Previous</button>
                             <span id="capacity-save-state" role="status">Select a response in the assessment record</span>
-                            <button id="capacity-next" class="primary-button" type="button">Next position</button>
                         </div>
                     </section>
                     <div id="diagnosis-viewer-slot" class="diagnosis-viewer-slot"></div>
@@ -432,12 +469,12 @@
                 <div id="diagnosis-stop-warning" class="diagnosis-stop-warning hidden" role="alert"></div>
                 <ol id="diagnosis-test-list" class="diagnosis-test-list diagnosis-standard-only"></ol>
                 <div id="capacity-screen-intro" class="diagnosis-capacity-only hidden">
-                    <strong>25 postures</strong>
-                    <p>18 progressive, then 7 discrimination postures. Stop if a posture is unsafe or uncomfortable.</p>
+                    <strong>18-position observation sequence</strong>
+                    <p>Record completion, pain, perceived weakness, stiffness, and compensation separately. Future positions unlock in order.</p>
                 </div>
                 <div class="capacity-record-wrap diagnosis-capacity-only hidden">
                     <table class="capacity-record-table">
-                        <thead><tr><th scope="col">Position</th><th scope="col">Done</th><th scope="col">Pain</th><th scope="col">Weak</th><th scope="col">Unsure</th><th scope="col">Skip</th><th scope="col">Comments</th></tr></thead>
+                        <thead><tr><th scope="col">Position</th><th scope="col">Completion</th><th scope="col">Pain</th><th scope="col">Weakness</th><th scope="col">Stiffness</th><th scope="col">Compensation</th><th scope="col">Notes</th></tr></thead>
                         <tbody id="capacity-position-list"></tbody>
                     </table>
                 </div>
@@ -449,8 +486,6 @@
                     <span>Generates hypotheses and limitations—not a medical diagnosis.</span>
                 </div>
                 <button id="diagnosis-generate-report" class="primary-button" type="button">Generate report</button>
-                <button id="diagnosis-copy-json" class="quiet-button" type="button" disabled>Copy JSON</button>
-                <button id="diagnosis-download-json" class="quiet-button" type="button" disabled>Download JSON</button>
             </div>
 
             </div>
@@ -463,6 +498,8 @@
                     </div>
                     <div class="diagnosis-report-screen-actions">
                         <button id="diagnosis-report-back" class="quiet-button" type="button">Back to assessment</button>
+                        <button id="diagnosis-copy-json" class="quiet-button" type="button" disabled>Copy deidentified report</button>
+                        <button id="diagnosis-download-json" class="quiet-button" type="button" disabled>Download deidentified report</button>
                         <button id="capacity-copy-json" class="quiet-button" type="button" disabled>Copy full JSON</button>
                         <button id="capacity-download-json" class="quiet-button" type="button" disabled>Download full JSON</button>
                         <button id="diagnosis-report-restart" class="quiet-button" type="button">Restart</button>
@@ -478,7 +515,7 @@
                             <img src="/waajacu_medical.png" width="42" height="42" alt="">
                             <div>
                                 <span class="diagnosis-report-brand-name">Waajacu's Medical</span>
-                                <h2 id="diagnosis-report-title">25-position biomechanical assessment</h2>
+                                <h2 id="diagnosis-report-title">Movement observation report</h2>
                             </div>
                         </div>
                         <span id="diagnosis-report-time"></span>
@@ -515,6 +552,7 @@
                 <p><strong>Movement screens:</strong> the default moderate set uses 18 progressive postures from a 39-position exact search; all 39 intact postures passed the model quality gates. Complete modeled loss of any single target group remained mechanically feasible throughout this moderate set because other muscles compensated, so it records movement difficulty but does not calculate a muscle signature. The separate seven-position advanced set was selected from 444 baseline-valid gravity-only postures for noiseless model separation only. It is extreme, has no independent error-correcting panel, is not clinically validated, and does not identify a painful or injured tissue.</p>
                 <p><strong>Force output:</strong> when a static posture passes every quality gate, <code>activeActuatorForceN</code> is a generic, pose-linearized active actuator estimate. It excludes passive muscle-fiber force and external hand loads and is not measured patient force. Shoulder joint reaction is not calculated.</p>
                 <p><strong>Model coverage:</strong> trapezius and serratus anterior are not independent muscle actuators in this model; scapular and clavicular motion follows authored coupling constraints. Resisted, supported, and assisted tests require measured external loads before model demand can be interpreted.</p>
+                <p><strong>Full-body preview:</strong> the separate <a href="/full-body.html">MS-Human-700 viewer</a> displays an Apache-2.0-licensed model in its authored default pose. It does not supply anatomy, motion, activation, or diagnostic results to this upper-limb workflow.</p>
                 <p><strong>Compatibility:</strong> <span id="runtime-note">Loading model inventory…</span></p>
                 <p><strong>Integrity:</strong> <span id="model-hash">Model: checking…</span><br><span id="benchmark-hash">Reach8 states: checking…</span></p>
                 <p><strong>Runtime:</strong> <span id="gpu-note">GPU access: checking…</span></p>

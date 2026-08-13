@@ -1,4 +1,5 @@
 <mujoco>
+  <!-- Modified locally on 2026-08-12: corrected five LTpT_T12_l lateral signs copied from the right path. See SOURCE.md. -->
   <geom name="IL_at_brim_l" class="wrap" size="0.0549 0.05" pos="-0.071 -0.065 -0.0756"
     quat="0.874257 0.193832 0.0376181 0.443495" type="cylinder" mass="0"/>
   <geom name="IL_at_brim_r" class="wrap" size="0.0549 0.05" pos="-0.071 -0.065 0.0756"
@@ -234,7 +235,7 @@
     <site name="LTpT_T9_l-P1" pos="-0.176727 0.026835 -0.007056"/>
     <site name="LTpT_T10_l-P1" pos="-0.175367 0.024561 -0.017776"/>
     <site name="LTpT_T11_l-P1" pos="-0.168557 0.030709 -0.031096"/>
-    <site name="LTpT_T12_l-P1" pos="-0.155667 0.0488 0.034986"/>
+    <site name="LTpT_T12_l-P1" pos="-0.155667 0.0488 -0.034986"/>
     <site name="LTpT_R7_l-P1" pos="-0.142227 0.06051 -0.007336"/>
     <site name="LTpT_R8_l-P1" pos="-0.153807 0.05025 -0.007426"/>
     <site name="LTpT_R9_l-P1" pos="-0.176727 0.02684 -0.007056"/>
@@ -382,7 +383,7 @@
         <site name="LTpT_T9_l-P2" pos="-0.075878 0.016511 -0.032588"/>
         <site name="LTpT_T10_l-P2" pos="-0.075878 0.016511 -0.037669"/>
         <site name="LTpT_T11_l-P2" pos="-0.076037 0.015542 -0.047466"/>
-        <site name="LTpT_T12_l-P2" pos="-0.076037 0.015542 0.050766"/>
+        <site name="LTpT_T12_l-P2" pos="-0.076037 0.015542 -0.050766"/>
         <site name="LTpT_R4_l-P1" pos="-0.075178 0.005633 -0.02772"/>
         <site name="LTpT_R5_l-P1" pos="-0.076653 0.002462 -0.024589"/>
         <site name="LTpT_R7_l-P2" pos="-0.075734 0.01739 -0.03286"/>
@@ -454,7 +455,7 @@
           <site name="LTpT_T9_l-P3" pos="-0.062996 0.025219 -0.02116"/>
           <site name="LTpT_T10_l-P3" pos="-0.062605 0.025335 -0.025804"/>
           <site name="LTpT_T11_l-P3" pos="-0.066805 0.025452 -0.032509"/>
-          <site name="LTpT_T12_l-P3" pos="-0.065822 0.025872 0.035279"/>
+          <site name="LTpT_T12_l-P3" pos="-0.065822 0.025872 -0.035279"/>
           <site name="LTpT_R6_l-P2" pos="-0.06323 0.026148 -0.021927"/>
           <site name="LTpT_R7_l-P3" pos="-0.062554 0.025469 -0.024193"/>
           <site name="LTpT_R8_l-P3" pos="-0.062627 0.024807 -0.027662"/>
@@ -555,7 +556,7 @@
             <site name="LTpT_T9_l-P4" pos="-0.05497 0.023432 -0.014755"/>
             <site name="LTpT_T10_l-P4" pos="-0.054321 0.023149 -0.01853"/>
             <site name="LTpT_T11_l-P4" pos="-0.056244 0.023701 -0.02311"/>
-            <site name="LTpT_T12_l-P4" pos="-0.055802 0.024202 0.025671"/>
+            <site name="LTpT_T12_l-P4" pos="-0.055802 0.024202 -0.025671"/>
             <site name="LTpT_R4_l-P2" pos="-0.055696 0.025703 -0.014201"/>
             <site name="LTpT_R5_l-P2" pos="-0.057099 0.025249 -0.017143"/>
             <site name="LTpT_R6_l-P3" pos="-0.053894 0.024088 -0.017005"/>
@@ -650,7 +651,7 @@
                 <site name="LTpT_T3_l-P3" pos="-0.037983 0.02786 -0.001147"/>
                 <site name="LTpT_T4_l-P3" pos="-0.037983 0.02786 -0.002381"/>
                 <site name="LTpT_T5_l-P3" pos="-0.037983 0.02786 -0.004336"/>
-                <site name="LTpT_T12_l-P5" pos="-0.037997 0.029167 0.010198"/>
+                <site name="LTpT_T12_l-P5" pos="-0.037997 0.029167 -0.010198"/>
                 <site name="QL_ant_I_2-T12_r-P2" pos="0.003259 0.009318 0.025605"/>
                 <site name="QL_ant_I_3-T12_r-P2" pos="0.003259 0.009318 0.025605"/>
                 <site name="QL_ant_I_2-T12_l-P2" pos="0.003259 0.009318 -0.025605"/>

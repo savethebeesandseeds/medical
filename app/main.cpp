@@ -370,11 +370,14 @@ std::string readFile(const std::filesystem::path& path) {
 
 std::string mimeType(const std::filesystem::path& path) {
     const std::string extension = path.extension().string();
+    if (path.filename() == "LICENSE") return "text/plain; charset=utf-8";
     if (extension == ".html") return "text/html; charset=utf-8";
     if (extension == ".js") return "text/javascript; charset=utf-8";
     if (extension == ".css") return "text/css; charset=utf-8";
+    if (extension == ".json") return "application/json; charset=utf-8";
     if (extension == ".png") return "image/png";
     if (extension == ".svg") return "image/svg+xml";
+    if (extension == ".wasm") return "application/wasm";
     if (extension == ".vtp") return "application/xml; charset=utf-8";
     if (extension == ".txt" || extension == ".md") {
         return "text/plain; charset=utf-8";
@@ -2190,10 +2193,33 @@ HttpResponse routeRequest(const std::string& method, const std::string& target,
         std::filesystem::path resolved;
         if (path == "/" || path == "/index.html") {
             resolved = webRoot / "index.html";
+        } else if (path == "/full-body.html") {
+            resolved = webRoot / "full-body.html";
+        } else if (path == "/full-body.js") {
+            resolved = webRoot / "full-body.js";
+        } else if (path == "/full-body.css") {
+            resolved = webRoot / "full-body.css";
+        } else if (path == "/models/ms_human_700/default-pose.json") {
+            resolved = webRoot / "models" / "ms_human_700" /
+                "default-pose.json";
+        } else if (path == "/models/ms_human_700/default-pose.meshbin") {
+            resolved = webRoot / "models" / "ms_human_700" /
+                "default-pose.meshbin";
+        } else if (path == "/models/ms_human_700/right-arm.json") {
+            resolved = webRoot / "models" / "ms_human_700" / "right-arm.json";
+        } else if (path == "/models/ms_human_700/right-arm.meshbin") {
+            resolved = webRoot / "models" / "ms_human_700" / "right-arm.meshbin";
+        } else if (path == "/models/ms_human_700/right-arm-runtime.mjb") {
+            resolved = webRoot / "models" / "ms_human_700" / "right-arm-runtime.mjb";
+        } else if (path == "/models/ms_human_700/LICENSE") {
+            resolved = webRoot.parent_path() / "models" / "ms_human_700" /
+                "LICENSE";
         } else if (path == "/app.js") {
             resolved = webRoot / "app.js";
         } else if (path == "/diagnosis.js") {
             resolved = webRoot / "diagnosis.js";
+        } else if (path == "/report-v5.js") {
+            resolved = webRoot / "report-v5.js";
         } else if (path == "/movement-reference.js") {
             resolved = webRoot / "movement-reference.js";
         } else if (path == "/styles.css") {
@@ -2204,6 +2230,12 @@ HttpResponse routeRequest(const std::string& method, const std::string& target,
             resolved = webRoot / "vendor/three.module.min.js";
         } else if (path == "/vendor/three.core.min.js") {
             resolved = webRoot / "vendor/three.core.min.js";
+        } else if (path == "/vendor/mujoco.js") {
+            resolved = webRoot / "vendor/mujoco.js";
+        } else if (path == "/vendor/mujoco.wasm") {
+            resolved = webRoot / "vendor/mujoco.wasm";
+        } else if (path == "/vendor/MUJOCO_LICENSE.txt") {
+            resolved = webRoot / "vendor/MUJOCO_LICENSE.txt";
         } else if (path == "/LICENSE") {
             resolved = webRoot.parent_path() / "LICENSE";
         } else if (path == "/THIRD_PARTY_NOTICES.md") {
@@ -2271,7 +2303,16 @@ void handleClient(int clientFd, const std::filesystem::path& webRoot,
     headers << "Content-Length: " << response.body.size() << "\r\n";
     headers << "Cache-Control: no-store\r\n";
     headers << "X-Content-Type-Options: nosniff\r\n";
-    headers << "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self';\r\n";
+    const std::string requestPath = target.substr(0, target.find('?'));
+    if (requestPath == "/full-body.html") {
+        // The pinned, self-hosted Emscripten MuJoCo module requires both
+        // WebAssembly compilation and a generated-function bootstrap. Keep
+        // this exception scoped to the prototype document; no remote script
+        // origins are permitted.
+        headers << "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self'; img-src 'self';\r\n";
+    } else {
+        headers << "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self';\r\n";
+    }
     headers << "Connection: close\r\n\r\n";
     sendAll(clientFd, headers.str());
     sendAll(clientFd, response.body);

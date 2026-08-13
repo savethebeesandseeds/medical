@@ -1,5 +1,5 @@
 import * as THREE from '/vendor/three.module.min.js';
-import { createDiagnosisWorkflow } from '/diagnosis.js';
+import { createDiagnosisWorkflow, MOBL_ARMS_ROTATION_SIGN } from '/diagnosis.js';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -131,14 +131,14 @@ const POSE_PRESETS = {
     },
     'hand-to-mouth': {
         elv_angle: 90, shoulder_elv: 35, shoulder_rot: 0,
-        elbow_flexion: 120, pro_sup: -45, deviation: 0, flexion: 0
+        elbow_flexion: 120, pro_sup: MOBL_ARMS_ROTATION_SIGN.forearmSupination * 45, deviation: 0, flexion: 0
     },
     'cross-body-reach': {
         elv_angle: 130, shoulder_elv: 90, shoulder_rot: 0,
         elbow_flexion: 30, pro_sup: 0, deviation: 0, flexion: 0
     },
     'hand-behind-head': {
-        elv_angle: 30, shoulder_elv: 120, shoulder_rot: -45,
+        elv_angle: 30, shoulder_elv: 120, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderExternal * 45,
         elbow_flexion: 120, pro_sup: 0, deviation: 0, flexion: 0
     },
     'high-forward-reach': {
@@ -158,19 +158,19 @@ const POSE_PRESETS = {
         elbow_flexion: 0, pro_sup: 0, deviation: 0, flexion: 0
     },
     'scaption-ir': {
-        elv_angle: 30, shoulder_elv: 90, shoulder_rot: 45,
+        elv_angle: 30, shoulder_elv: 90, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderInternal * 45,
         elbow_flexion: 0, pro_sup: 0, deviation: 0, flexion: 0
     },
     'external-side': {
-        elv_angle: 0, shoulder_elv: 0, shoulder_rot: -45,
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderExternal * 45,
         elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 0
     },
     'internal-side': {
-        elv_angle: 0, shoulder_elv: 0, shoulder_rot: 45,
+        elv_angle: 0, shoulder_elv: 0, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderInternal * 45,
         elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 0
     },
     'rotation-90-90': {
-        elv_angle: 0, shoulder_elv: 90, shoulder_rot: -45,
+        elv_angle: 0, shoulder_elv: 90, shoulder_rot: MOBL_ARMS_ROTATION_SIGN.shoulderExternal * 45,
         elbow_flexion: 90, pro_sup: 0, deviation: 0, flexion: 0
     },
     'elbow-90': {
@@ -179,7 +179,7 @@ const POSE_PRESETS = {
     },
     'elbow-supinated': {
         elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
-        elbow_flexion: 90, pro_sup: -60, deviation: 0, flexion: 0
+        elbow_flexion: 90, pro_sup: MOBL_ARMS_ROTATION_SIGN.forearmSupination * 60, deviation: 0, flexion: 0
     },
     'elbow-120': {
         elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
@@ -187,7 +187,7 @@ const POSE_PRESETS = {
     },
     'forearm-pronated': {
         elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
-        elbow_flexion: 90, pro_sup: 60, deviation: 0, flexion: 0
+        elbow_flexion: 90, pro_sup: MOBL_ARMS_ROTATION_SIGN.forearmPronation * 60, deviation: 0, flexion: 0
     },
     'wrist-extension-30': {
         elv_angle: 0, shoulder_elv: 0, shoulder_rot: 0,
@@ -346,11 +346,12 @@ function toggleMirroredView() {
     setMirroredView(!app.mirrored);
 }
 
-function viewerImageFilename({ transparent, scale }) {
+function viewerImageFilename({ transparent, scale, includeActivation }) {
     const side = app.mirrored ? 'left-mirrored' : 'right';
     const source = app.mode === 'benchmark' ? 'reach8-movement' : 'static-posture';
     const background = transparent ? 'transparent' : 'background';
-    return `waajacu-upper-limb-${side}-${source}-${background}-${scale}x.png`;
+    const activation = includeActivation ? '-activation-table' : '';
+    return `waajacu-upper-limb-${side}-${source}-${background}${activation}-${scale}x.png`;
 }
 
 function canvasToPngBlob(canvas) {
@@ -362,7 +363,111 @@ function canvasToPngBlob(canvas) {
     });
 }
 
-async function downloadViewerImage({ transparent, scale }) {
+function drawActivationExportOverlay(context, pixelScale, sourceWidth, sourceHeight) {
+    const muscles = hasCompleteActivationData(app.state)
+        ? [...app.state.muscles]
+            .filter((muscle) => Number.isFinite(muscle.activation))
+            .sort((left, right) => right.activation - left.activation)
+        : [];
+    const panelX = 12;
+    const panelY = 12;
+    const panelWidth = Math.min(300, sourceWidth - 24);
+    const availableHeight = Math.max(sourceHeight - 24, 120);
+    const headerHeight = 55;
+    const rowHeight = muscles.length
+        ? Math.max(8.5, Math.min(13, (availableHeight - headerHeight - 10) / muscles.length))
+        : 0;
+    const panelHeight = Math.min(
+        availableHeight,
+        headerHeight + Math.max(muscles.length * rowHeight, 34) + 10
+    );
+    const nameWidth = 72;
+    const valueWidth = 35;
+    const barX = panelX + 8 + nameWidth;
+    const barWidth = panelWidth - nameWidth - valueWidth - 23;
+
+    context.save();
+    context.scale(pixelScale, pixelScale);
+    context.fillStyle = 'rgba(250, 252, 251, 0.90)';
+    context.strokeStyle = 'rgba(104, 120, 114, 0.48)';
+    context.lineWidth = 1;
+    context.fillRect(panelX, panelY, panelWidth, panelHeight);
+    context.strokeRect(panelX + 0.5, panelY + 0.5, panelWidth - 1, panelHeight - 1);
+
+    context.fillStyle = '#17201d';
+    context.font = '700 10px system-ui, sans-serif';
+    context.textBaseline = 'middle';
+    context.fillText('Activation scale', panelX + 8, panelY + 12);
+    context.fillStyle = '#5d6864';
+    context.font = '8px system-ui, sans-serif';
+    context.textAlign = 'right';
+    context.fillText('0-1', panelX + panelWidth - 8, panelY + 12);
+
+    const rampX = panelX + 8;
+    const rampY = panelY + 21;
+    const rampWidth = panelWidth - 16;
+    const rampHeight = 6;
+    for (let index = 0; index < rampWidth; index += 1) {
+        context.fillStyle = activationColor(index / Math.max(rampWidth - 1, 1)).getStyle();
+        context.fillRect(rampX + index, rampY, 1, rampHeight);
+    }
+    context.strokeStyle = 'rgba(44, 53, 68, 0.28)';
+    context.strokeRect(rampX + 0.5, rampY + 0.5, rampWidth - 1, rampHeight - 1);
+    context.fillStyle = '#5d6864';
+    context.font = '7px system-ui, sans-serif';
+    context.textAlign = 'left';
+    context.fillText('0', rampX, panelY + 34);
+    context.textAlign = 'center';
+    context.fillText('0.5', rampX + rampWidth / 2, panelY + 34);
+    context.textAlign = 'right';
+    context.fillText('1', rampX + rampWidth, panelY + 34);
+    context.textAlign = 'left';
+    context.fillText('Nonlinear scale - numeric values remain 0-1', rampX, panelY + 45);
+
+    if (!muscles.length) {
+        context.fillStyle = '#5d6864';
+        context.font = '9px system-ui, sans-serif';
+        context.fillText('No validated activation result.', panelX + 8, panelY + 72);
+        context.restore();
+        return;
+    }
+
+    const fontSize = Math.max(7, Math.min(9.5, rowHeight - 2));
+    context.font = `600 ${fontSize}px system-ui, sans-serif`;
+    muscles.forEach((muscle, index) => {
+        const rowY = panelY + headerHeight + index * rowHeight;
+        if (index % 2 === 0) {
+            context.fillStyle = 'rgba(225, 232, 229, 0.34)';
+            context.fillRect(panelX + 4, rowY, panelWidth - 8, rowHeight);
+        }
+        context.fillStyle = '#17201d';
+        context.textAlign = 'left';
+        context.fillText(muscle.name, panelX + 8, rowY + rowHeight / 2);
+
+        const trackY = rowY + Math.max((rowHeight - 5) / 2, 1);
+        context.fillStyle = 'rgba(237, 240, 238, 0.78)';
+        context.fillRect(barX, trackY, barWidth, 5);
+        context.strokeStyle = 'rgba(157, 170, 164, 0.55)';
+        context.strokeRect(barX + 0.5, trackY + 0.5, barWidth - 1, 4);
+        context.fillStyle = activationColor(muscle.activation).getStyle();
+        context.fillRect(
+            barX,
+            trackY,
+            Math.max(1, barWidth * THREE.MathUtils.clamp(muscle.activation, 0, 1)),
+            5
+        );
+        context.fillStyle = '#17201d';
+        context.textAlign = 'right';
+        context.fillText(
+            muscle.activation.toFixed(3),
+            panelX + panelWidth - 8,
+            rowY + rowHeight / 2
+        );
+    });
+    context.restore();
+}
+
+async function downloadViewerImage({ transparent, scale, includeActivation = false }) {
     if (viewerExporting) return;
     viewerExporting = true;
 
@@ -401,12 +506,27 @@ async function downloadViewerImage({ transparent, scale }) {
         if (transparent) grid.visible = false;
         exportRenderer.render(scene, exportCamera);
         grid.visible = gridWasVisible;
-        const blob = await canvasToPngBlob(exportRenderer.domElement);
+        let imageCanvas = exportRenderer.domElement;
+        if (includeActivation) {
+            const composite = document.createElement('canvas');
+            composite.width = width;
+            composite.height = height;
+            const context = composite.getContext('2d');
+            context.drawImage(exportRenderer.domElement, 0, 0, width, height);
+            drawActivationExportOverlay(
+                context,
+                width / Math.max(sceneHost.clientWidth, 1),
+                sceneHost.clientWidth,
+                sceneHost.clientHeight
+            );
+            imageCanvas = composite;
+        }
+        const blob = await canvasToPngBlob(imageCanvas);
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = viewerImageFilename({ transparent, scale });
+        link.download = viewerImageFilename({ transparent, scale, includeActivation });
         document.body.append(link);
         link.click();
         link.remove();
@@ -438,7 +558,7 @@ function fitCameraToModel() {
     const size = bounds.getSize(new THREE.Vector3());
     bounds.getCenter(cameraTarget);
     cameraAimOffset.set(0, 0, 0);
-    orbitRadius = Math.max(size.length() * 1.05, 0.65);
+    orbitRadius = Math.max(size.length() * 1.5, 0.9);
     camera.near = Math.max(orbitRadius / 500, 0.001);
     camera.far = Math.max(orbitRadius * 20, 10);
     camera.updateProjectionMatrix();
@@ -641,8 +761,10 @@ async function renderPresetThumbnails() {
             thumbnailCamera.updateProjectionMatrix();
             thumbnailRenderer.render(thumbnailScene, thumbnailCamera);
 
-            const target = document.querySelector(`[data-preset="${name}"] .preset-thumbnail`);
-            if (target) {
+            const targets = document.querySelectorAll(
+                `[data-preset="${name}"] .preset-thumbnail, [data-thumbnail-preset="${name}"]`
+            );
+            for (const target of targets) {
                 const context = target.getContext('2d');
                 context.clearRect(0, 0, target.width, target.height);
                 context.drawImage(thumbnailRenderer.domElement, 0, 0, target.width, target.height);
@@ -1750,6 +1872,7 @@ diagnosisWorkflow = createDiagnosisWorkflow({
     getModel: () => app.model,
     getSelectedMuscle: () => $('#muscle-select')?.value || 'BIClong',
     setMirroredView,
+    resetView,
     neutralizeActivation: neutralizeDisplayedActivation,
     enterDiagnosis: enterDiagnosisWorkspace,
     leaveDiagnosis: leaveDiagnosisWorkspace,
@@ -1762,7 +1885,8 @@ document.querySelectorAll('[data-viewer-download]').forEach((button) => {
     button.addEventListener('click', () => {
         downloadViewerImage({
             scale: Number(button.dataset.scale),
-            transparent: button.dataset.transparent === 'true'
+            transparent: button.dataset.transparent === 'true',
+            includeActivation: button.dataset.includeActivation === 'true'
         });
     });
 });

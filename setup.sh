@@ -141,6 +141,14 @@ fi
 
 THREE_JS="${PROJECT_ROOT}/public/vendor/three.module.min.js"
 THREE_CORE_JS="${PROJECT_ROOT}/public/vendor/three.core.min.js"
+MUJOCO_WASM_VERSION="3.10.0"
+MUJOCO_WASM_JS="${PROJECT_ROOT}/public/vendor/mujoco.js"
+MUJOCO_WASM_BINARY="${PROJECT_ROOT}/public/vendor/mujoco.wasm"
+MUJOCO_WASM_LICENSE="${PROJECT_ROOT}/public/vendor/MUJOCO_LICENSE.txt"
+MUJOCO_WASM_ARCHIVE_SHA512="13593416215fd6f5513e466dab658a598d03ec3606277046400126ba9d87db45244c33968ff266c860ea7fd225b37450ad6c4210e1cc768f55b4405fca651df6"
+MUJOCO_WASM_JS_SHA256="45e8e0e1617c19fbf7f00b36a6a72d1c0c980c0a4f38523e04f0641e8fbab7b9"
+MUJOCO_WASM_BINARY_SHA256="832597ae0a0e306c97ed43d2a9bbca033cf3e547eced410fb9011d87a68d4207"
+MUJOCO_WASM_LICENSE_SHA256="cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
 if [[ ! -s "${THREE_JS}" ]]; then
     curl --fail --location --retry 3 \
         https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js \
@@ -151,6 +159,39 @@ if [[ ! -s "${THREE_CORE_JS}" ]]; then
         https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.core.min.js \
         --output "${THREE_CORE_JS}"
 fi
+if [[ ! -s "${MUJOCO_WASM_JS}" || ! -s "${MUJOCO_WASM_BINARY}" ]]; then
+    MUJOCO_WASM_ARCHIVE="/tmp/mujoco-${MUJOCO_WASM_VERSION}.tgz"
+    MUJOCO_WASM_EXTRACT="$(mktemp -d)"
+    curl --fail --location --retry 3 \
+        "https://registry.npmjs.org/@mujoco/mujoco/-/mujoco-${MUJOCO_WASM_VERSION}.tgz" \
+        --output "${MUJOCO_WASM_ARCHIVE}"
+    printf '%s  %s\n' "${MUJOCO_WASM_ARCHIVE_SHA512}" "${MUJOCO_WASM_ARCHIVE}" \
+        | sha512sum --check --strict
+    tar -xzf "${MUJOCO_WASM_ARCHIVE}" -C "${MUJOCO_WASM_EXTRACT}" \
+        package/mujoco.js package/mujoco.wasm
+    install -m 0644 "${MUJOCO_WASM_EXTRACT}/package/mujoco.js" "${MUJOCO_WASM_JS}"
+    install -m 0644 "${MUJOCO_WASM_EXTRACT}/package/mujoco.wasm" "${MUJOCO_WASM_BINARY}"
+    rm -rf "${MUJOCO_WASM_EXTRACT}"
+fi
+printf '%s  %s\n' "${MUJOCO_WASM_JS_SHA256}" "${MUJOCO_WASM_JS}" \
+    | sha256sum --check --strict
+printf '%s  %s\n' "${MUJOCO_WASM_BINARY_SHA256}" "${MUJOCO_WASM_BINARY}" \
+    | sha256sum --check --strict
+if [[ ! -s "${MUJOCO_WASM_LICENSE}" ]]; then
+    curl --fail --location --retry 3 \
+        "https://raw.githubusercontent.com/google-deepmind/mujoco/${MUJOCO_WASM_VERSION}/LICENSE" \
+        --output "${MUJOCO_WASM_LICENSE}"
+fi
+printf '%s  %s\n' "${MUJOCO_WASM_LICENSE_SHA256}" "${MUJOCO_WASM_LICENSE}" \
+    | sha256sum --check --strict
+
+for arm_asset in right-arm.json right-arm.meshbin right-arm-runtime.mjb; do
+    if [[ ! -s "${PROJECT_ROOT}/public/models/ms_human_700/${arm_asset}" ]]; then
+        printf 'Generated MS-Human right-arm asset is missing: %s\n' "${arm_asset}" >&2
+        printf 'Regenerate it with tools/export_ms_human_arm.py and MuJoCo 3.10.0.\n' >&2
+        exit 1
+    fi
+done
 
 cmake -S "${PROJECT_ROOT}/app" -B "${APP_BUILD_DIR}" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \

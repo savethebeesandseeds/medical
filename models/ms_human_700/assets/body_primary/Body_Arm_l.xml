@@ -1,4 +1,5 @@
 <mujoco>
+  <!-- Modified locally on 2026-08-12: corrected the EDCL_l-P1 lateral sign to mirror EDCL_r. See SOURCE.md. -->
   <body name="clavicle_l" pos="0 0 -0.0335" quat="0.991445 0 0.130526 0">
     <inertial pos="-0.0115467 0.00621419 -0.0517053" quat="0.809547 0.163015 0.0483356 0.561893" mass="0.147"
       diaginertia="0.000230006 0.000225734 8.20026e-06"/>
@@ -225,7 +226,7 @@
                 <site name="PT_l-P1" pos="0.0036 -0.2759 0.0365"/>
                 <site name="FDSL_l-P1" pos="0.00421 -0.27598 0.03864"/>
                 <site name="FDSR_l-P1" pos="0.00479 -0.2788 0.03731"/>
-                <site name="EDCL_l-P1" pos="-0.0004 -0.28831 0.0187"/>
+                <site name="EDCL_l-P1" pos="-0.0004 -0.28831 -0.0187"/>
                 <site name="EDCR_l-P1" pos="-0.00156 -0.28936 -0.01782"/>
                 <site name="EDCM_l-P1" pos="0.00051 -0.28984 -0.01949"/>
                 <site name="EDCI_l-P1" pos="0.00065 -0.28898 -0.01869"/>
