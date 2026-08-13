@@ -13,7 +13,7 @@ const paths = Object.freeze({
 });
 const expected = Object.freeze({
   metadata: 'e6d169bdc2edeed3e846d7ccbe03d7ef68968fb2f715c61f4b892bfa85307a46',
-  manifest: '94180b72f4efcb877bcbad8a9b9cdf6bc51a2604d463c817ebd8cf722924628a',
+  manifest: 'f6406c25bbb82593c96a639efa020bea758abae77d385f00ab6d16e7c6ce8005',
   geometry: '5054f8ff61ca45db638bd36729f1ed71100fd889c58a60d219c673a3162f03ea',
   runtime: '40b75b5583aeb5f20cbda668c4b7e035109dab97175ce30b368551a204e98e1d',
   content: '3c2929b7c385dca29f8b3ae21d9834b482c2ad5bccaa303d6692111950fd39c4'

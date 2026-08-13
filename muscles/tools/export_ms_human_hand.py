@@ -254,6 +254,11 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def write_text_lf(path: Path, value: str) -> None:
+    with path.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(value)
+
+
 def main() -> None:
     repository = Path(__file__).resolve().parents[1]
     model_path = repository / "models" / "ms_human_700" / "MS-Human-700-Manipulation.xml"
@@ -330,7 +335,7 @@ def main() -> None:
         "source": {"package": "MS-Human-700 manipulation variant", "sourceOfTruth": "https://github.com/LNSGroup/MS-Human-700", "commit": SOURCE_COMMIT, "sourceTreeSha256": source_hash, "sourceFileCount": source_count, "modelLicense": "Apache-2.0", "runtimeLicense": "Apache-2.0", "mujocoVersion": mujoco.__version__, "localCorrections": ["The same documented source-tree corrections used by the primary profile are present."]},
         "validation": {"runtimeGeoms": runtime.ngeom, "runtimeMeshes": runtime.nmesh, "handBodies": len(hand_bodies), "handMuscles": len(muscles), "handCoordinates": len(coordinates)},
     }
-    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    write_text_lf(metadata_path, json.dumps(metadata, ensure_ascii=False, separators=(",", ":")))
 
     runtime_hash = sha256(runtime_path)
     geometry_hash = sha256(geometry_path)
@@ -359,7 +364,7 @@ def main() -> None:
     }
     content_digest = hashlib.sha256(json.dumps(canonical(manifest_without_digest), ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
     manifest = {**manifest_without_digest, "contentDigestSha256": content_digest}
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_text_lf(manifest_path, json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({"metadataSha256": sha256(metadata_path), "manifestSha256": sha256(manifest_path), "manifestContentDigest": content_digest, "geometrySha256": geometry_hash, "runtimeSha256": runtime_hash, "coordinates": len(coordinates), "muscles": len(muscles), "handBodies": len(hand_bodies), "geoms": len(geoms), "vertices": vertex_count, "triangles": triangle_count}, indent=2))
 
 

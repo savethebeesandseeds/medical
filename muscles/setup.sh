@@ -86,7 +86,7 @@ printf '%s  %s\n' \
     "485e389aebe640687974a719ed7adf176c637617afc0800387b4fa5860c0da4e" \
     "${WEB_ROOT}/models/ms_human_700/body-regions.json" | sha256sum --check --strict
 printf '%s  %s\n' \
-    "94180b72f4efcb877bcbad8a9b9cdf6bc51a2604d463c817ebd8cf722924628a" \
+    "f6406c25bbb82593c96a639efa020bea758abae77d385f00ab6d16e7c6ce8005" \
     "${WEB_ROOT}/models/ms_human_700/hand-region.json" | sha256sum --check --strict
 printf '%s  %s\n' \
     "4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e" \
