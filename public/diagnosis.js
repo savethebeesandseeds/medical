@@ -213,8 +213,19 @@ export function createDiagnosisWorkflow(controller) {
         phase: 'safety',
         draftUpdatedAt: null,
         viewingSavedReport: false,
-        dialogAction: null
+        dialogAction: null,
+        dialogReturnFocus: null
     };
+
+    function recordCode(assessmentId = state.assessmentId) {
+        const source = String(assessmentId ?? '');
+        let hash = 0x811c9dc5;
+        for (let index = 0; index < source.length; index += 1) {
+            hash ^= source.charCodeAt(index);
+            hash = Math.imul(hash, 0x01000193);
+        }
+        return (hash & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+    }
 
     function readStoredJson(key, fallback) {
         if (state.storageMode !== 'device') return fallback;
@@ -411,11 +422,8 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function reportPatientKey(intake = {}) {
-        const email = String(intake.email ?? '').trim().toLowerCase();
-        if (email) return `email:${email}`;
-        const name = String(intake.name ?? '').trim().toLowerCase();
-        const city = String(intake.city ?? '').trim().toLowerCase();
-        return name || city ? `name:${name}|city:${city}` : null;
+        const recordLabel = String(intake.name ?? '').trim().toLowerCase();
+        return recordLabel ? `label:${recordLabel}` : null;
     }
 
     function archiveReport(report) {
@@ -443,24 +451,30 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function closeAppDialog() {
+        const returnFocus = state.dialogReturnFocus;
         state.dialogAction = null;
+        state.dialogReturnFocus = null;
         byId('app-dialog').classList.add('hidden');
         byId('app-dialog').querySelector('.app-dialog-card').classList.remove('danger');
+        for (const element of document.querySelectorAll('main > :not(#app-dialog)')) element.inert = false;
+        if (returnFocus?.isConnected) returnFocus.focus();
     }
 
     function showAppDialog({ title, message, confirmLabel = 'Confirm', danger = false, onConfirm }) {
+        state.dialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         state.dialogAction = onConfirm;
         byId('app-dialog-title').textContent = title;
         byId('app-dialog-message').textContent = message;
         byId('app-dialog-confirm').textContent = confirmLabel;
         byId('app-dialog').querySelector('.app-dialog-card').classList.toggle('danger', danger);
+        for (const element of document.querySelectorAll('main > :not(#app-dialog)')) element.inert = true;
         byId('app-dialog').classList.remove('hidden');
         byId('app-dialog-cancel').focus();
     }
 
     function importPatientDetails(entry) {
         const prior = entry.patient ?? entry.report.intake ?? {};
-        const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'assessedArm', 'email', 'city'];
+        const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'assessedArm'];
         for (const field of demographics) state.intake[field] = prior[field] ?? '';
         state.intakeCompleted = false;
         fillIntakeForm(state.intake);
@@ -493,22 +507,23 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-new-assessment').disabled = !state.storageMode;
         if (!state.storageMode) {
             draftState.textContent = 'Choose how this tab should handle assessment data';
-            privacy.textContent = 'No health information has been loaded or saved. Choose session-only or device storage below before beginning.';
+            privacy.textContent = 'No assessment data has been loaded or saved. Choose a storage option below to begin.';
         } else if (state.storageMode === 'session') {
             draftState.textContent = state.protocolMigrationNotice ?? (state.draftUpdatedAt
                 ? `${patient}${answered} of ${ASSESSMENT_POSITIONS.length} positions kept in this tab`
-                : 'Session-only · no unfinished assessment');
-            privacy.textContent = 'Session-only: unfinished work and completed reports are held in memory for this tab and disappear when it is closed or reloaded. Previously saved device records are not loaded.';
-            if (activeStorageNotice) activeStorageNotice.innerHTML = '<strong>Session only.</strong> Answers and completed reports remain in memory in this tab and disappear when it is closed or reloaded. Previously saved device records are not loaded or changed.';
+                : 'Session only · no unfinished assessment');
+            privacy.textContent = 'Session only: answers and reports stay in this tab and disappear when it closes or reloads. Existing device records remain untouched.';
+            if (activeStorageNotice) activeStorageNotice.innerHTML = '<strong>Session only.</strong> Answers and reports stay in this tab and disappear when it closes or reloads. Existing device records are not loaded or changed.';
         } else {
             draftState.textContent = state.protocolMigrationNotice ?? (state.draftUpdatedAt
                 ? `${patient}${answered} of ${ASSESSMENT_POSITIONS.length} positions saved on this device`
                 : 'Device storage · no unfinished assessment');
             privacy.textContent = state.deviceStorageError
-                ? 'Device storage is selected, but this browser did not allow the latest write. Current answers remain in this tab; download anything you need before closing it.'
-                : 'Device storage is enabled. Unfinished work and completed reports are stored in this browser profile until deleted.';
-            if (activeStorageNotice) activeStorageNotice.innerHTML = '<strong>Device storage.</strong> Form entries and completed reports are written to this browser profile. Anyone using this profile may be able to view them. Use Delete all local assessment data to remove them.';
+                ? 'Device storage is selected, but the latest save failed. Current answers remain available in this tab.'
+                : 'Device storage is enabled. Drafts and reports remain in this browser profile until deleted.';
+            if (activeStorageNotice) activeStorageNotice.innerHTML = '<strong>Device storage.</strong> Drafts and reports remain in this browser profile until deleted. Anyone using this profile may be able to view them.';
         }
+        draftState.textContent = `Record ${recordCode()} · ${draftState.textContent}`;
 
         const host = byId('diagnosis-saved-report-list');
         host.replaceChildren();
@@ -516,26 +531,28 @@ export function createDiagnosisWorkflow(controller) {
             const empty = document.createElement('p');
             empty.className = 'saved-report-empty';
             empty.textContent = !state.storageMode
-                ? 'Records stay unloaded until you choose a storage mode.'
+                ? 'Records remain unloaded until you choose a storage option.'
                 : state.storageMode === 'session'
-                    ? 'No reports have been generated in this tab.'
+                    ? 'No reports have been created in this tab.'
                     : 'No reports are saved in this browser profile.';
             host.append(empty);
             return;
         }
         const table = document.createElement('table');
         table.className = 'saved-report-table';
-        table.innerHTML = '<thead><tr><th>Optional identifier</th><th>Assessment date</th><th>Age</th><th>Arm</th><th>City</th><th>Actions</th></tr></thead>';
+        table.innerHTML = '<thead><tr><th>Record</th><th>Optional label</th><th>Assessment date</th><th>Age</th><th>Arm</th><th>Actions</th></tr></thead>';
         const body = document.createElement('tbody');
         for (const entry of reports) {
             const row = document.createElement('tr');
+            const codeCell = document.createElement('td');
+            codeCell.className = 'saved-report-code';
+            codeCell.textContent = recordCode(entry.report.assessment?.assessmentId || entry.id);
+            row.append(codeCell);
             const patientCell = document.createElement('td');
             patientCell.className = 'saved-report-patient';
             const patientName = document.createElement('strong');
-            patientName.textContent = entry.patient?.name || 'No name recorded';
-            const patientEmail = document.createElement('span');
-            patientEmail.textContent = entry.patient?.email || 'No email';
-            patientCell.append(patientName, patientEmail);
+            patientName.textContent = entry.patient?.name || 'No label provided';
+            patientCell.append(patientName);
             if (entry.report.assessment?.legacyModelRecord) {
                 const legacyLabel = document.createElement('span');
                 legacyLabel.textContent = 'Archived report from an earlier model or protocol';
@@ -545,8 +562,7 @@ export function createDiagnosisWorkflow(controller) {
             const values = [
                 new Date(entry.report.generatedAt).toLocaleString(),
                 Number.isFinite(entry.patient?.ageYears) ? String(entry.patient.ageYears) : '—',
-                entry.patient?.assessedArm || entry.report.assessment?.testedSide || '—',
-                entry.patient?.city || '—'
+                entry.patient?.assessedArm || entry.report.assessment?.testedSide || '—'
             ];
             for (const value of values) {
                 const cell = document.createElement('td');
@@ -558,7 +574,7 @@ export function createDiagnosisWorkflow(controller) {
             const use = document.createElement('button');
             use.type = 'button';
             use.className = 'quiet-button';
-            use.textContent = 'Import details';
+            use.textContent = 'Reuse details';
             use.addEventListener('click', () => importPatientDetails(entry));
             const view = document.createElement('button');
             view.type = 'button';
@@ -651,8 +667,6 @@ export function createDiagnosisWorkflow(controller) {
             heightCm: finiteOrNull(data.get('heightCm')),
             weightKg: finiteOrNull(data.get('weightKg')),
             assessedArm: String(data.get('assessedArm') ?? ''),
-            email: String(data.get('email') ?? '').trim(),
-            city: String(data.get('city') ?? '').trim(),
             painDuration: String(data.get('painDuration') ?? ''),
             painOnset: String(data.get('painOnset') ?? ''),
             painNow: finiteOrNull(data.get('painNow')),
@@ -691,6 +705,32 @@ export function createDiagnosisWorkflow(controller) {
         window.requestAnimationFrame(controller.resizeViewer);
     }
 
+    function intakeOptionLabel(fieldName, value) {
+        if (!value) return '—';
+        const option = byId('diagnosis-intake-form').querySelector(`[name="${fieldName}"] option[value="${CSS.escape(String(value))}"]`);
+        return option?.textContent?.trim() || String(value).replaceAll('_', ' ');
+    }
+
+    function renderAssessmentPatientHeader() {
+        const intake = state.intake ?? {};
+        const age = Number.isFinite(intake.ageYears) ? `${intake.ageYears} years` : '—';
+        const size = [
+            Number.isFinite(intake.heightCm) ? `${intake.heightCm} cm` : '',
+            Number.isFinite(intake.weightKg) ? `${intake.weightKg} kg` : ''
+        ].filter(Boolean).join(' / ') || '—';
+        const painNow = Number.isFinite(intake.painNow) ? intake.painNow : '—';
+        const painWorst = Number.isFinite(intake.painWorst) ? intake.painWorst : '—';
+        byId('diagnosis-patient-name').textContent = intake.name || 'No label provided';
+        byId('diagnosis-current-record-code').textContent = recordCode();
+        byId('diagnosis-patient-age').textContent = age;
+        byId('diagnosis-patient-gender').textContent = intakeOptionLabel('gender', intake.gender);
+        byId('diagnosis-patient-arm').textContent = intakeOptionLabel('assessedArm', intake.assessedArm);
+        byId('diagnosis-patient-size').textContent = size;
+        byId('diagnosis-patient-pain').textContent = `${painNow} / ${painWorst}`;
+        byId('diagnosis-patient-duration').textContent = intakeOptionLabel('painDuration', intake.painDuration);
+        byId('diagnosis-patient-location').textContent = intakeOptionLabel('primaryPainLocation', intake.primaryPainLocation);
+    }
+
     function showAssessment() {
         if (!state.safetyReviewed || selectedRedFlags().length) {
             showSafetyLanding();
@@ -708,6 +748,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.remove('hidden');
         byId('diagnosis-report-screen').classList.add('hidden');
+        renderAssessmentPatientHeader();
         renderCapacityList();
         renderCapacityPosition();
         persistDraft();
@@ -766,8 +807,7 @@ export function createDiagnosisWorkflow(controller) {
         clearDraft();
         setSide('right');
         renderCapacityList();
-        if (state.storageMode) showSafetyLanding();
-        else showStorageChoice();
+        showSafetyLanding();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -840,19 +880,23 @@ export function createDiagnosisWorkflow(controller) {
             compensation: 'Compensation'
         };
         const optionLabel = (field, value) => fieldOptions[field].find(([option]) => option === value)?.[1] ?? '—';
-        const responseSelect = (field, response, position) => {
-            const select = document.createElement('select');
-            select.className = 'capacity-record-select';
-            select.setAttribute('aria-label', `${fieldLabels[field]} for ${position.name}`);
-            for (const [value, label] of fieldOptions[field]) {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = label;
-                option.selected = response[field] === value;
-                select.append(option);
+        const responseChoices = (field, response, position) => {
+            const group = document.createElement('div');
+            group.className = `capacity-choice-group ${field === 'completion' ? 'completion' : ''}`;
+            group.setAttribute('role', 'group');
+            group.setAttribute('aria-label', `${fieldLabels[field]} for ${position.name}`);
+            for (const [value, label] of fieldOptions[field].filter(([optionValue]) => optionValue !== 'not_recorded')) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'capacity-choice-button';
+                button.classList.toggle('selected', response[field] === value);
+                button.setAttribute('aria-pressed', response[field] === value ? 'true' : 'false');
+                button.setAttribute('aria-label', `${label} ${fieldLabels[field].toLowerCase()} for ${position.name}`);
+                button.textContent = label;
+                button.addEventListener('click', () => updateCapacityResponse(field, value));
+                group.append(button);
             }
-            select.addEventListener('change', () => updateCapacityResponse(field, select.value));
-            return select;
+            return group;
         };
         const addDetailSelect = (host, { label, field, value, options, required = false }) => {
             const wrapper = document.createElement('label');
@@ -884,27 +928,6 @@ export function createDiagnosisWorkflow(controller) {
             const row = document.createElement('tr');
             row.classList.toggle('active', active);
             row.classList.toggle('locked', locked);
-            if (!locked) {
-                row.classList.add('clickable');
-                row.tabIndex = 0;
-                row.setAttribute('role', 'button');
-                row.setAttribute('aria-label', `Open ${position.name}`);
-                const openPosition = () => {
-                    state.activeCapacityIndex = index;
-                    renderCapacityList();
-                    renderCapacityPosition();
-                    persistDraft();
-                };
-                row.addEventListener('click', (event) => {
-                    if (event.target.closest('input, textarea, button, select, a')) return;
-                    openPosition();
-                });
-                row.addEventListener('keydown', (event) => {
-                    if (event.target !== row || !['Enter', ' '].includes(event.key)) return;
-                    event.preventDefault();
-                    openPosition();
-                });
-            }
             const positionCell = document.createElement('th');
             positionCell.scope = 'row';
             const positionButton = document.createElement('button');
@@ -913,7 +936,8 @@ export function createDiagnosisWorkflow(controller) {
             positionButton.disabled = locked;
             positionButton.setAttribute('aria-current', active ? 'step' : 'false');
             if (locked) positionButton.setAttribute('aria-label', `${position.name}, locked until the previous posture is completed`);
-            positionButton.innerHTML = `<span>${escapeHtml(position.id)}</span><strong>${escapeHtml(position.name)}</strong>`;
+            const progressLabel = response.answered ? (response.completion === 'skipped' ? 'Skipped' : 'Recorded') : locked ? 'Locked' : 'Next';
+            positionButton.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(position.name)}</strong><em>${progressLabel}</em>`;
             positionButton.addEventListener('click', () => {
                 state.activeCapacityIndex = index;
                 renderCapacityList();
@@ -924,8 +948,9 @@ export function createDiagnosisWorkflow(controller) {
             row.append(positionCell);
             ['completion', 'pain', 'weakness', 'stiffness', 'compensation'].forEach((field) => {
                 const cell = document.createElement('td');
+                cell.dataset.label = fieldLabels[field];
                 if (active) {
-                    cell.append(responseSelect(field, response, position));
+                    cell.append(responseChoices(field, response, position));
                 } else if (response[field] && response[field] !== 'not_recorded') {
                     const value = document.createElement('span');
                     value.className = 'capacity-record-value';
@@ -936,6 +961,7 @@ export function createDiagnosisWorkflow(controller) {
                 row.append(cell);
             });
             const commentsCell = document.createElement('td');
+            commentsCell.dataset.label = 'Notes';
             if (active) {
                 const notes = document.createElement('textarea');
                 notes.className = 'capacity-record-comments';
@@ -1122,6 +1148,52 @@ export function createDiagnosisWorkflow(controller) {
         return 'Record completion, pain, weakness, stiffness, and compensation';
     }
 
+    function scheduleCapacityAdvance(position, wasAnswered) {
+        const response = state.capacityResponses[position.id];
+        if (!response?.answered || wasAnswered) return;
+        byId('capacity-save-state').textContent = response.completion === 'skipped' ? 'Skipped · opening next position…' : 'Saved · opening next position…';
+        const completedIndex = state.activeCapacityIndex;
+        window.setTimeout(() => {
+            if (state.activeCapacityIndex !== completedIndex || !state.capacityResponses[position.id]?.answered) return;
+            if (state.activeCapacityIndex < ASSESSMENT_POSITIONS.length - 1) {
+                state.activeCapacityIndex += 1;
+                renderCapacityList();
+                renderCapacityPosition();
+                persistDraft();
+            } else {
+                showReportScreen();
+            }
+        }, 220);
+    }
+
+    function applyQuickCapacityResponse(mode) {
+        const position = ASSESSMENT_POSITIONS[state.activeCapacityIndex];
+        if (!position) return;
+        const previous = { ...emptyPositionResponse(), ...state.capacityResponses[position.id] };
+        const skipped = mode === 'skip';
+        const response = {
+            ...previous,
+            completion: skipped ? 'skipped' : 'full',
+            pain: skipped ? 'not_recorded' : 'no',
+            weakness: skipped ? 'not_recorded' : 'no',
+            stiffness: skipped ? 'not_recorded' : 'no',
+            compensation: skipped ? 'not_recorded' : 'no',
+            painScore: '',
+            painLocation: '',
+            weaknessScore: '',
+            limitingFactor: '',
+            compensationDetail: ''
+        };
+        response.answered = capacityResponseComplete(response);
+        response.result = derivePositionResult(response);
+        state.capacityResponses[position.id] = response;
+        state.report = null;
+        renderCapacityList();
+        byId('capacity-save-state').textContent = capacityResponseStatus(response);
+        persistDraft();
+        scheduleCapacityAdvance(position, previous.answered);
+    }
+
     function updateCapacityResponse(field, value) {
         const position = ASSESSMENT_POSITIONS[state.activeCapacityIndex];
         if (!position) return;
@@ -1153,20 +1225,7 @@ export function createDiagnosisWorkflow(controller) {
         renderCapacityList();
         byId('capacity-save-state').textContent = capacityResponseStatus(response);
         persistDraft();
-        if (!response.answered || wasAnswered) return;
-        byId('capacity-save-state').textContent = response.completion === 'skipped' ? 'Skipped · opening next position…' : 'Saved · opening next position…';
-        const completedIndex = state.activeCapacityIndex;
-        window.setTimeout(() => {
-            if (state.activeCapacityIndex !== completedIndex || !state.capacityResponses[position.id]?.answered) return;
-            if (state.activeCapacityIndex < ASSESSMENT_POSITIONS.length - 1) {
-                state.activeCapacityIndex += 1;
-                renderCapacityList();
-                renderCapacityPosition();
-                persistDraft();
-            } else {
-                showReportScreen();
-            }
-        }, 220);
+        scheduleCapacityAdvance(position, wasAnswered);
     }
 
     function selectedRedFlags() {
@@ -1245,7 +1304,7 @@ export function createDiagnosisWorkflow(controller) {
         const model = controller.getModel() ?? {};
         const expectedNames = modelMuscleNames(model);
         if (!completeStaticState(modelState, model)) {
-            return { available: false, reason: modelState?.staticHolding?.quality?.reason ?? 'Validated static model result not captured' };
+            return { available: false, reason: modelState?.staticHolding?.quality?.reason ?? 'Model reference unavailable for this posture' };
         }
         const returned = new Map((modelState.muscles ?? []).map((muscle) => [muscle.name, muscle]));
         const muscles = expectedNames.map((name) => {
@@ -1310,6 +1369,8 @@ export function createDiagnosisWorkflow(controller) {
             ? '0/10'
             : Number.isFinite(symptom?.score) ? `${symptom.score}/10` : '—';
         const comparisonRows = (report.matchedComparisons ?? []).filter((comparison) => comparison.observationsComplete);
+        const trialNames = new Map(trials.map((trial) => [trial.id, trial.name]));
+        const coordinateLabels = Object.fromEntries(Object.entries(CAPACITY_ANGLE_LABELS).map(([key, value]) => [key, value]));
         const reportStatus = ({
             incomplete_record: 'Incomplete record',
             complete_record: 'Complete record',
@@ -1323,10 +1384,10 @@ export function createDiagnosisWorkflow(controller) {
                 <div><span>Weakness answered</span><strong>${quality.weaknessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
                 <div><span>Stiffness answered</span><strong>${quality.stiffnessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
             </div>
-            <p><strong>${escapeHtml(report.summary?.statement || 'No interpretation is available.')}</strong></p>
-            <p>Assessment ID: <code>${escapeHtml(report.assessment?.assessmentId || '—')}</code>. This on-screen record includes exact optional demographics and observation notes. The privacy-reduced export removes notes and direct identifiers and bands age, height, and weight, but it is not guaranteed anonymous. Review every file before sharing. Direct identifiers remain only in the ${state.storageMode === 'device' ? 'browser-profile record' : 'current-tab record'} and the explicit full export.</p>
-            ${quality.warnings?.length ? `<h3>Data-quality warnings</h3><ul>${quality.warnings.map((warning) => `<li>${escapeHtml(warning.trialId ? `${warning.trialId}: ${warning.message}` : warning.message)}</li>`).join('')}</ul>` : ''}
-            ${quality.missingRequiredFields?.length ? `<details><summary>Missing required observations (${quality.missingRequiredFields.length})</summary><p>${quality.missingRequiredFields.map(escapeHtml).join(' · ')}</p></details>` : ''}
+            <p><strong>${escapeHtml(report.summary?.statement || 'No summary is available.')}</strong></p>
+            <p>This on-screen record includes exact optional demographics and observation notes. The reduced-detail export removes notes and direct identifiers and groups age, height, and weight into broad bands, but it is not guaranteed anonymous. Review every file before sharing. Direct identifiers remain only in the ${state.storageMode === 'device' ? 'browser-profile record' : 'current-tab record'} and the explicit full export.</p>
+            ${quality.warnings?.length ? `<h3>Data-quality warnings</h3><ul>${quality.warnings.map((warning) => `<li>${escapeHtml(warning.trialId ? `${trialNames.get(warning.trialId) || 'Position'}: ${warning.message}` : warning.message)}</li>`).join('')}</ul>` : ''}
+            ${quality.missingRequiredFields?.length ? `<details><summary>Missing required observations (${quality.missingRequiredFields.length})</summary><p>Complete the highlighted fields in the guided positions before treating this record as complete.</p></details>` : ''}
             <h3>Assessment context</h3>
             <div class="diagnosis-report-table-wrap"><table><tbody>
                 <tr><th>Age</th><td>${Number.isFinite(report.intake?.ageYears) ? report.intake.ageYears : '—'}</td><th>Gender</th><td>${label(report.intake?.gender)}</td></tr>
@@ -1338,7 +1399,7 @@ export function createDiagnosisWorkflow(controller) {
             <div class="diagnosis-report-table-wrap"><table>
                 <thead><tr><th>Posture</th><th>Completion</th><th>Pain</th><th>Weakness</th><th>Stiffness</th><th>Compensation</th><th>Notes</th><th>Generic model reference</th></tr></thead>
                 <tbody>${trials.map((trial) => `<tr>
-                    <td><strong>${escapeHtml(trial.id)} · ${escapeHtml(trial.name)}</strong></td>
+                    <td><strong>${escapeHtml(trial.name)}</strong></td>
                     <td>${label(trial.observation.completion)}${trial.observation.limitingFactors?.length ? ` · ${trial.observation.limitingFactors.map(label).join(', ')}` : ''}</td>
                     <td>${stateLabel(trial.observation.pain)}${trial.observation.pain.state !== 'not_recorded' ? ` · ${scoreLabel(trial.observation.pain)}` : ''}</td>
                     <td>${stateLabel(trial.observation.weakness)}${trial.observation.weakness.state !== 'not_recorded' ? ` · ${scoreLabel(trial.observation.weakness)}` : ''}</td>
@@ -1353,12 +1414,12 @@ export function createDiagnosisWorkflow(controller) {
             <h3>Matched posture comparisons</h3>
             <p>Each comparison changes one principal posture variable while keeping the listed protocol variables fixed. Numeric symptom deltas appear only when explicit scores are present.</p>
             ${comparisonRows.length ? `<div class="diagnosis-report-table-wrap"><table><thead><tr><th>Comparison</th><th>Trials</th><th>Changed variable</th><th>Pain Δ</th><th>Weakness Δ</th><th>Status</th></tr></thead><tbody>${comparisonRows.map((comparison) => `<tr>
-                <td>${escapeHtml(comparison.name)}</td><td>${comparison.trialIds.map(escapeHtml).join(' → ')}</td><td>${label(comparison.changedVariable)}</td>
+                <td>${escapeHtml(comparison.name)}</td><td>${comparison.trialIds.map((trialId) => escapeHtml(trialNames.get(trialId) || 'Position')).join(' → ')}</td><td>${escapeHtml(coordinateLabels[comparison.changedVariable] || String(comparison.changedVariable ?? '').replaceAll('_', ' '))}</td>
                 <td>${Number.isFinite(comparison.observationDelta.painScore) ? `${comparison.observationDelta.painScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.painScore, 1)}` : '—'}</td>
                 <td>${Number.isFinite(comparison.observationDelta.weaknessScore) ? `${comparison.observationDelta.weaknessScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.weaknessScore, 1)}` : '—'}</td>
                 <td>${escapeHtml(comparison.observationDelta.notComputableReason || 'Complete')}</td>
             </tr>`).join('')}</tbody></table></div>` : '<p>No matched comparison has complete observations.</p>'}
-            <h3>Protocol demand—not symptom evidence</h3>
+            <h3>Generic model reference</h3>
             <p>${escapeHtml(protocolDemand.statement || 'This summary uses only the generic model across protocol postures. It does not use participant symptoms and cannot identify a painful or impaired muscle.')}</p>
             ${protocolDemand.ranking?.length ? `<ol>${protocolDemand.ranking.slice(0, 8).map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · mean predicted model control ${formatMetric(row.meanPredictedModelControl)} · peak ${formatMetric(row.peakPredictedModelControl)}</li>`).join('')}</ol>` : '<p>No quality-gated generic model references are available.</p>'}
             <h3>Model coverage and limitations</h3>
@@ -1367,17 +1428,17 @@ export function createDiagnosisWorkflow(controller) {
                 ? `The static solve includes ${report.modelCoverage.scapularStabilizersIncluded.length} modeled trapezius, serratus-anterior, and related shoulder-girdle stabilizers. Their controls remain generic estimates and do not measure the observed person's scapular motion or compensation.`
                 : 'Independent scapular-stabilizer coverage was not recorded for this model result; do not infer shoulder-hiking or scapular compensation from it.'}</p>
             <ul>${(report.limitations ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-        byId('diagnosis-report-title').textContent = 'Biomechanical observation report';
+        byId('diagnosis-report-title').textContent = 'Movement observation report';
         byId('diagnosis-report-time').textContent = new Date(report.generatedAt).toLocaleString();
         byId('diagnosis-report').classList.remove('hidden');
         byId('diagnosis-copy-json').disabled = false;
         byId('diagnosis-download-json').disabled = false;
         byId('capacity-copy-json').disabled = false;
         byId('capacity-download-json').disabled = false;
-        byId('diagnosis-copy-json').textContent = 'Copy privacy-reduced report';
-        byId('diagnosis-download-json').textContent = 'Download privacy-reduced report';
-        byId('capacity-copy-json').textContent = 'Copy report + technical annex';
-        byId('capacity-download-json').textContent = 'Download report + technical annex';
+        byId('diagnosis-copy-json').textContent = 'Copy reduced-detail report';
+        byId('diagnosis-download-json').textContent = 'Download reduced-detail report';
+        byId('capacity-copy-json').textContent = 'Copy full report data';
+        byId('capacity-download-json').textContent = 'Download full report data';
     }
 
     async function copyJson(buttonId = 'diagnosis-copy-json') {
@@ -1388,7 +1449,7 @@ export function createDiagnosisWorkflow(controller) {
         await navigator.clipboard.writeText(text);
         const button = byId(buttonId);
         button.textContent = 'Copied';
-        const original = full ? 'Copy report + technical annex' : 'Copy privacy-reduced report';
+        const original = full ? 'Copy full report data' : 'Copy reduced-detail report';
         window.setTimeout(() => { button.textContent = original; }, 1400);
     }
 
@@ -1399,8 +1460,8 @@ export function createDiagnosisWorkflow(controller) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const assessmentId = state.report.assessment?.assessmentId ?? 'assessment';
-        link.download = full ? `${assessmentId}-report-and-technical-annex.json` : `${assessmentId}-privacy-reduced-report.json`;
+        const code = recordCode(state.report.assessment?.assessmentId);
+        link.download = full ? `waajacu-record-${code}-full.json` : `waajacu-record-${code}-reduced.json`;
         link.click();
         URL.revokeObjectURL(url);
     }
@@ -1415,8 +1476,10 @@ export function createDiagnosisWorkflow(controller) {
         controller.enterDiagnosis();
         byId('tab-explorer').classList.remove('active');
         byId('tab-explorer').setAttribute('aria-selected', 'false');
+        byId('tab-explorer').tabIndex = -1;
         byId('tab-diagnosis').classList.add('active');
         byId('tab-diagnosis').setAttribute('aria-selected', 'true');
+        byId('tab-diagnosis').tabIndex = 0;
         byId('explorer-workspace').classList.add('hidden');
         byId('diagnosis-workspace').classList.remove('hidden');
         document.body.classList.add('diagnosis-active');
@@ -1436,8 +1499,10 @@ export function createDiagnosisWorkflow(controller) {
         controller.leaveDiagnosis();
         byId('tab-diagnosis').classList.remove('active');
         byId('tab-diagnosis').setAttribute('aria-selected', 'false');
+        byId('tab-diagnosis').tabIndex = -1;
         byId('tab-explorer').classList.add('active');
         byId('tab-explorer').setAttribute('aria-selected', 'true');
+        byId('tab-explorer').tabIndex = 0;
         byId('diagnosis-workspace').classList.add('hidden');
         byId('explorer-workspace').classList.remove('hidden');
         document.body.classList.remove('diagnosis-active');
@@ -1461,6 +1526,18 @@ export function createDiagnosisWorkflow(controller) {
     byId('tab-explorer').addEventListener('click', leave);
     byId('diagnosis-use-session-storage').addEventListener('click', () => chooseStorageMode('session'));
     byId('diagnosis-use-device-storage').addEventListener('click', () => chooseStorageMode('device'));
+    document.querySelector('.app-tabs').addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        const tabs = [byId('tab-explorer'), byId('tab-diagnosis')];
+        const current = Math.max(0, tabs.indexOf(document.activeElement));
+        const next = event.key === 'Home' ? 0
+            : event.key === 'End' ? tabs.length - 1
+                : event.key === 'ArrowLeft' ? (current - 1 + tabs.length) % tabs.length
+                    : (current + 1) % tabs.length;
+        event.preventDefault();
+        tabs[next].click();
+        tabs[next].focus();
+    });
     byId('diagnosis-delete-all-data').addEventListener('click', requestDeleteAllLocalAssessmentData);
     byId('diagnosis-continue').addEventListener('click', () => {
         if (!safetyAnswersComplete()) return;
@@ -1481,7 +1558,7 @@ export function createDiagnosisWorkflow(controller) {
         readIntake();
         const stored = persistDraft();
         byId('diagnosis-intake-state').textContent = state.storageMode === 'device'
-            ? (stored ? 'Saved on this device.' : 'Could not save on this device; kept in this tab for now.')
+            ? (stored ? 'Saved on this device.' : 'Save failed; kept in this tab for now.')
             : 'Kept in this tab only.';
     });
     byId('diagnosis-intake-form').addEventListener('change', () => {
@@ -1509,6 +1586,8 @@ export function createDiagnosisWorkflow(controller) {
             persistDraft();
         }
     });
+    byId('capacity-no-symptoms').addEventListener('click', () => applyQuickCapacityResponse('full-no-symptoms'));
+    byId('capacity-skip-position').addEventListener('click', () => applyQuickCapacityResponse('skip'));
     byId('diagnosis-copy-json').addEventListener('click', () => copyJson().catch(() => {}));
     byId('diagnosis-download-json').addEventListener('click', () => downloadJson(false));
     byId('capacity-copy-json').addEventListener('click', () => copyJson('capacity-copy-json').catch(() => {}));
@@ -1522,7 +1601,25 @@ export function createDiagnosisWorkflow(controller) {
         action?.();
     });
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !byId('app-dialog').classList.contains('hidden')) closeAppDialog();
+        const dialog = byId('app-dialog');
+        if (dialog.classList.contains('hidden')) return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeAppDialog();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = [...dialog.querySelectorAll('.app-dialog-card button:not(:disabled)')];
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
     });
     fillIntakeForm(state.intake);
     updateSavedRecordsUi();

@@ -63,6 +63,7 @@ const app = {
     selectedMuscle: 'DELT1_r',
     pathView: 'all',
     activationPanelVisible: true,
+    activationRankingExpanded: false,
     musclePanelVisible: false,
     presetLibraryVisible: false,
     mirrored: false,
@@ -88,7 +89,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setClearColor(0xe8ece9, 1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.domElement.tabIndex = 0;
-renderer.domElement.setAttribute('role', 'img');
+renderer.domElement.setAttribute('role', 'application');
 renderer.domElement.setAttribute('aria-label', 'Interactive right-arm rendering of MS-Human-700. Drag or use arrow keys to rotate; scroll or use plus and minus to zoom.');
 sceneHost.append(renderer.domElement);
 
@@ -161,11 +162,11 @@ function handleFatalEngineError(error) {
     neutralizeDisplayedActivation();
     setPositionStatus(
         'unavailable',
-        'Browser model unavailable',
+        'Model unavailable',
         'The model worker stopped unexpectedly. Reload the page to start a fresh model session.'
     );
     $('#calculate-static').disabled = true;
-    showError(`The browser model stopped unexpectedly: ${error?.message || 'Unknown worker failure.'} Reload the page to continue.`);
+    showError(`The model stopped unexpectedly: ${error?.message || 'Unknown calculation failure.'} Reload the page to continue.`);
 }
 
 function setLoading(message, visible = true) {
@@ -404,7 +405,9 @@ function setMirroredView(mirrored) {
     button.setAttribute('aria-label', app.mirrored ? 'Show right' : 'Mirror left');
     button.dataset.tooltip = app.mirrored ? 'Show right' : 'Mirror left';
     setText('#viewer-title', app.mirrored ? 'Left display (mirrored right-arm calculation)' : 'Right upper limb');
-    setText('#viewer-instructions', app.mirrored ? 'Visual mirror only · right-arm calculation · drag to rotate · scroll to zoom' : 'Drag to rotate · scroll to zoom');
+    setText('#viewer-instructions', app.mirrored
+        ? 'Visual mirror only · right-arm calculation · drag or use arrow keys to rotate · scroll or use zoom buttons'
+        : 'Drag or use arrow keys to rotate · scroll or use zoom buttons');
     requestRender();
 }
 
@@ -614,7 +617,8 @@ function updateActivationRanking() {
     host.replaceChildren();
     if (!activationAvailable()) return;
     const ranked = [...app.state.muscles].sort((left, right) => right.activation - left.activation);
-    for (const muscle of ranked) {
+    const visible = app.activationRankingExpanded ? ranked : ranked.slice(0, 12);
+    for (const muscle of visible) {
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'activation-row';
@@ -628,6 +632,10 @@ function updateActivationRanking() {
         row.addEventListener('click', () => selectMuscle(muscle.name, 'focus'));
         host.append(row);
     }
+    const toggle = $('#toggle-all-activations');
+    toggle.classList.toggle('hidden', ranked.length <= 12);
+    toggle.textContent = app.activationRankingExpanded ? 'Show top 12' : `Show all ${ranked.length}`;
+    toggle.setAttribute('aria-expanded', String(app.activationRankingExpanded));
 }
 
 function neutralizeDisplayedActivation() {
@@ -635,6 +643,7 @@ function neutralizeDisplayedActivation() {
     $('#force-reading').classList.add('hidden');
     $('#activation-ranking').replaceChildren();
     $('#activation-ranking').classList.add('hidden');
+    $('#toggle-all-activations').classList.add('hidden');
     $('#activation-empty').classList.remove('hidden');
     setText('#activation-empty strong', 'Posture changed');
     setText('#activation-empty span', 'Activation will update after the static balance checks.');
@@ -679,16 +688,17 @@ function applyState(state) {
         const quality = state.staticHolding.quality;
         setText('#solver-residual', `${quality.maxGeneralizedForceEquilibriumResidual.toExponential(2)} N·m`);
         setText('#solver-reserve', quality.maxReserveTorqueNm < 0.001 ? `${quality.maxReserveTorqueNm.toExponential(2)} N·m` : `${quality.maxReserveTorqueNm.toFixed(4)} N·m`);
-        setPositionStatus('static', 'Static balance passed', `${state.muscles.length} modeled muscles · ${state.staticHolding.solver.durationMs.toFixed(0)} ms`);
-        $('#calculate-static').textContent = 'Recalculate';
+        setPositionStatus('static', 'Activation ready', 'Static balance checks passed.');
+        $('#calculate-static').classList.add('hidden');
     } else if (state.mode === 'static') {
         const reason = state.staticHolding?.quality?.reason || 'The posture did not pass the static balance checks.';
         setText('#activation-empty strong', 'Activation withheld');
         setText('#activation-empty span', reason);
         setPositionStatus('unavailable', 'Static balance unavailable', reason);
         $('#calculate-static').textContent = 'Try again';
+        $('#calculate-static').classList.remove('hidden');
     } else {
-        setPositionStatus('manual', 'Exact posture ready', 'Static activation is being calculated.');
+        setPositionStatus('manual', 'Posture ready', 'Calculating static activation.');
     }
     clearError();
     requestRender();
@@ -703,7 +713,7 @@ async function requestPose(coordinates = app.coordinates, selectedMuscle = app.s
         return state;
     } catch (error) {
         if (generation !== app.poseGeneration || error instanceof StaleRequestError || error?.name === 'StaleRequestError') return null;
-        showError(`The exact posture could not be calculated: ${error.message}`);
+        showError(`This posture could not be calculated: ${error.message}`);
         return null;
     }
 }
@@ -722,6 +732,8 @@ async function requestStaticHold(coordinates = app.coordinates, selectedMuscle =
         if (generation !== app.solveGeneration || error instanceof StaleRequestError || error?.name === 'StaleRequestError') return null;
         showError(`Static activation could not be calculated: ${error.message}`);
         setPositionStatus('unavailable', 'Static balance unavailable', error.message);
+        $('#calculate-static').textContent = 'Try again';
+        $('#calculate-static').classList.remove('hidden');
         return null;
     } finally {
         if (generation === app.solveGeneration) $('#calculate-static').disabled = false;
@@ -745,7 +757,7 @@ function updateInventory() {
     setText('#count-muscles', app.metadata.model.functionalMuscles);
     setText('#count-meshes', app.metadata.geometry.geoms.filter((geom) => geom.role === 'arm').length);
     setText('#runtime-note', `${app.metadata.model.runtime}; ${app.metadata.capabilities.calculationSide}-arm static posture only.`);
-    setText('#model-hash', `Runtime model SHA-256: ${app.metadata.identity.assetSha256.runtime}`);
+    setText('#model-hash', 'Model files verified in this browser.');
 }
 
 function rawPointToView(point) {
@@ -792,7 +804,7 @@ function drawActivationExportOverlay(context, pixelScale, sourceWidth, sourceHei
     context.fillStyle = '#5d6864';
     context.fillText(app.mirrored ? 'Mirrored display; calculation side remains right' : 'Right-arm calculation', x + 8, y + 31);
     if (!visibleRows.length) {
-        context.fillText('No validated activation result.', x + 8, y + 49);
+        context.fillText('No activation result available.', x + 8, y + 49);
         context.restore();
         return;
     }
@@ -919,6 +931,11 @@ function attachViewerInteraction() {
     });
 }
 
+function zoomView(factor) {
+    cameraState.radius = THREE.MathUtils.clamp(cameraState.radius * factor, MIN_CAMERA_RADIUS, MAX_CAMERA_RADIUS);
+    updateCamera();
+}
+
 function enterDiagnosisWorkspace() {
     const viewer = document.querySelector('.viewer-panel');
     const slot = $('#diagnosis-viewer-slot');
@@ -954,6 +971,8 @@ function leaveDiagnosisWorkspace() {
 
 function bindInterface() {
     $('#reset-view').addEventListener('click', resetView);
+    $('#zoom-in').addEventListener('click', () => zoomView(1 / 1.18));
+    $('#zoom-out').addEventListener('click', () => zoomView(1.18));
     $('#mirror-view').addEventListener('click', toggleMirroredView);
     $('#reset-pose').addEventListener('click', resetPose);
     $('#calculate-static').addEventListener('click', () => requestStaticHold());
@@ -962,6 +981,10 @@ function bindInterface() {
     $('#view-one-muscle').addEventListener('click', () => setPathView('one'));
     $('#muscle-select').addEventListener('change', () => selectMuscle($('#muscle-select').value));
     $('#toggle-activation-panel').addEventListener('click', () => { app.activationPanelVisible = !app.activationPanelVisible; syncViewerDrawers(); });
+    $('#toggle-all-activations').addEventListener('click', () => {
+        app.activationRankingExpanded = !app.activationRankingExpanded;
+        updateActivationRanking();
+    });
     $('#toggle-muscle-panel').addEventListener('click', () => { app.musclePanelVisible = !app.musclePanelVisible; syncViewerDrawers(); });
     $('#back-to-activations').addEventListener('click', () => setPathView('all'));
     $('#toggle-context').addEventListener('click', () => {
@@ -988,7 +1011,7 @@ async function initialize() {
     bindInterface();
     resizeRenderer();
     try {
-        setLoading('Loading the articulated MS-Human-700 model and browser solver…');
+        setLoading('Loading the model…');
         const [metadata, geometryResponse] = await Promise.all([
             app.engine.initialize(),
             fetch(GEOMETRY_URL, { cache: 'force-cache' })
@@ -1022,7 +1045,7 @@ async function initialize() {
         buildMuscleSelect();
         updateInventory();
         $('#server-status').className = 'server-status online';
-        $('#server-status span:last-child').textContent = 'Browser model ready';
+        $('#server-status span:last-child').textContent = 'Model ready · runs locally';
         app.diagnosis = createDiagnosisWorkflow({
             pose: (coordinates, selected) => app.engine.pose(coordinates, selected),
             staticHold: (coordinates, selected) => app.engine.staticHold(coordinates, selected),

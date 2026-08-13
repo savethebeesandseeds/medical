@@ -258,7 +258,7 @@ function compactModelReference(modelEstimate, targetPose, model = {}) {
             available: false,
             referenceOnly: true,
             subjectSpecificEstimate: false,
-            notComputableReason: modelEstimate?.reason || 'Validated static reference not available.'
+            notComputableReason: modelEstimate?.reason || 'Model reference unavailable for this posture.'
         };
     }
     const muscles = normalizeMuscles(modelEstimate, model);
@@ -497,7 +497,7 @@ function reportSummary(quality, trials) {
     if (quality.recordStatus === 'incomplete_record') {
         return {
             status: 'incomplete_record',
-            statement: `${quality.recordedTrialCount} reference posture result(s) were recorded, but required symptom or movement-quality observations are missing. This is an incomplete observation record.`,
+            statement: `${quality.recordedTrialCount} of ${quality.requiredTrialCount} positions were recorded. Required observations are missing, so this record is incomplete.`,
             painObservedTrialIds: observedTrialIds(trials, 'pain'),
             weaknessObservedTrialIds: observedTrialIds(trials, 'weakness')
         };
@@ -505,14 +505,14 @@ function reportSummary(quality, trials) {
     if (quality.recordStatus === 'conflicting_record') {
         return {
             status: 'conflicting_record',
-            statement: 'Some recorded fields conflict. Resolve the listed data-quality warnings before treating the observation record as complete.',
+            statement: 'Some recorded fields conflict. Review the listed warnings before treating this record as complete.',
             painObservedTrialIds: observedTrialIds(trials, 'pain'),
             weaknessObservedTrialIds: observedTrialIds(trials, 'weakness')
         };
     }
     return {
         status: 'complete_record',
-        statement: 'Required posture observations are explicit. This records what was reported during the protocol; it does not associate symptoms with muscles or identify a tissue diagnosis.',
+        statement: 'All required observations were recorded. This report describes the responses only; it does not identify a muscle or tissue diagnosis.',
         painObservedTrialIds: observedTrialIds(trials, 'pain'),
         weaknessObservedTrialIds: observedTrialIds(trials, 'weakness')
     };
@@ -543,14 +543,14 @@ export function buildReportV5({
         quality.recordStatus = 'incomplete_record';
         quality.warnings.push({
             code: 'assessment_protocol_identity_unverified',
-            message: 'The assessment protocol requires an explicit ID, version, and sha256 digest. Controlled-pair summaries and protocol demand references are disabled.'
+            message: 'This report’s assessment version could not be verified. Comparisons and model-reference summaries are unavailable.'
         });
     }
     if (migrationReason) {
         quality.recordStatus = 'incomplete_record';
         quality.warnings.push({
             code: 'assessment_protocol_migration_required',
-            message: 'Stored observations belong to an earlier or unverifiable assessment protocol. They were archived read-only and must not be treated as trials in the current panel.',
+            message: 'This archived report is shown for reference only. Earlier model results are not included.',
             reason: migrationReason
         });
     }
@@ -565,7 +565,7 @@ export function buildReportV5({
         ? [...model.coverage.missingIndependentActuators]
         : [];
     const legacyNotice = legacyModelRecord
-        ? 'This stored report predates the current model or assessment protocol. Human-entered observations were archived read-only; prior protocol mappings, model estimates, solver output, rankings, and references were removed.'
+        ? 'This archived report is shown for reference only. Earlier model results are not included.'
         : null;
     const limitations = [
         'No single shoulder movement, activation estimate, force estimate, or model ratio identifies the painful tissue.',
@@ -579,7 +579,7 @@ export function buildReportV5({
         'Left-side display is a visual mirror of a right-side model and does not estimate biological side asymmetry.'
     ];
     if (!protocolIdentity.identityVerified) {
-        limitations.push('Assessment protocol identity is incomplete; model comparisons and protocol-level interpretation are disabled.');
+        limitations.push('This report’s assessment version could not be verified, so comparisons and model-reference summaries are unavailable.');
     }
     if (legacyNotice) limitations.push(legacyNotice);
     const mainReport = {
@@ -603,7 +603,7 @@ export function buildReportV5({
             migrationRequired: Boolean(migrationReason),
             migrationReason
         },
-        framing: 'Structured posture-observation record with a separate generic biomechanical protocol reference; not a medical diagnosis or treatment recommendation.',
+        framing: 'Posture observations with a separate generic-model reference. Not a diagnosis or treatment recommendation.',
         dataQuality: quality,
         summary: reportSummary(quality, trials),
         safety: { reviewed: Boolean(safetyReviewed), positiveFlags: redFlags },
@@ -856,7 +856,7 @@ function applyScientificBoundary(report) {
         cleaned.summary = reportSummary(cleaned.dataQuality, cleaned.trials ?? []);
     }
     if (cleaned.framing?.includes('hypothesis generator')) {
-        cleaned.framing = 'Structured posture-observation record with a separate generic biomechanical protocol reference; not a medical diagnosis or treatment recommendation.';
+        cleaned.framing = 'Posture observations with a separate generic-model reference. Not a diagnosis or treatment recommendation.';
     }
     return cleaned;
 }

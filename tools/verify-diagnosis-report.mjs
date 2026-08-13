@@ -250,7 +250,7 @@ test('missing required observations produce an explicit insufficient-data result
     assert.equal(report.dataQuality.recordStatus, 'incomplete_record');
     assert.equal(report.dataQuality.interpretabilityStatus, undefined);
     assert.equal(report.summary.status, 'incomplete_record');
-    assert.match(report.summary.statement, /incomplete observation record/i);
+    assert.match(report.summary.statement, /record is incomplete/i);
     assert.ok(report.dataQuality.missingRequiredFields.includes('M4.pain'));
     assert.ok(report.dataQuality.missingRequiredFields.includes('M4.weakness'));
     assert.ok(report.dataQuality.missingRequiredFields.includes('M4.stiffness'));
@@ -477,7 +477,7 @@ test('version-4 migration retains human observations and strips all prior model 
     assert.equal(technicalAnnex.trialModels.every((trial) => trial.available === false && trial.muscles.length === 0), true);
     assert.equal(report.modelCoverage.modelId, 'legacy-model-evidence-removed');
     assert.equal(report.modelCoverage.legacyModelRecord, true);
-    assert.match(report.modelCoverage.legacyNotice, /model estimates, solver output, rankings, and references were removed/i);
+    assert.match(report.modelCoverage.legacyNotice, /earlier model results are not included/i);
     assert.equal(JSON.stringify(legacy), originalJson, 'Migration must not mutate a stored version-4 report');
 
     const priorV5 = structuredClone(build([record('M4', explicitObservation())]));
