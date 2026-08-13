@@ -1,0 +1,1331 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "MS_HUMAN_700_HAND_REGION_MANIFEST_V1",
+  "defaultRegionId": "right-hand",
+  "generatedAt": null,
+  "model": {
+    "modelId": "MS_HUMAN_700_RIGHT_HAND_STATIC_V1",
+    "name": "MS-Human-700",
+    "variant": "manipulation",
+    "sourceTreeSha256": "38815fed122d1beb61155f0afd85e72a52093111fcae183bbb273f2483291971",
+    "sourceCommit": "da76818e269b82289eba39808e2fb91d679d6994",
+    "mujocoVersion": "3.10.0",
+    "runtime": {
+      "url": "./models/ms_human_700/right-hand-runtime.mjb",
+      "sha256": "40b75b5583aeb5f20cbda668c4b7e035109dab97175ce30b368551a204e98e1d"
+    },
+    "geometry": {
+      "url": "./models/ms_human_700/right-hand.meshbin",
+      "sha256": "5054f8ff61ca45db638bd36729f1ed71100fd889c58a60d219c673a3162f03ea"
+    }
+  },
+  "compatibility": {},
+  "regions": [
+    {
+      "id": "right-hand",
+      "label": "Right hand",
+      "presentationName": "Right hand",
+      "description": "Detailed articulated right-hand profile from the MS-Human-700 manipulation variant.",
+      "area": "hand",
+      "laterality": "right",
+      "calculationSide": "right",
+      "status": "data-ready",
+      "activeBodyIds": [
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67
+      ],
+      "activeBodies": [
+        {
+          "bodyId": 43,
+          "name": "proximal_row",
+          "parentBodyId": 42
+        },
+        {
+          "bodyId": 44,
+          "name": "capitate",
+          "parentBodyId": 43
+        },
+        {
+          "bodyId": 45,
+          "name": "trapezium",
+          "parentBodyId": 44
+        },
+        {
+          "bodyId": 46,
+          "name": "firstmc1",
+          "parentBodyId": 45
+        },
+        {
+          "bodyId": 47,
+          "name": "firstmc",
+          "parentBodyId": 46
+        },
+        {
+          "bodyId": 48,
+          "name": "proximal_thumb",
+          "parentBodyId": 47
+        },
+        {
+          "bodyId": 49,
+          "name": "distal_thumb",
+          "parentBodyId": 48
+        },
+        {
+          "bodyId": 50,
+          "name": "trapezoid",
+          "parentBodyId": 44
+        },
+        {
+          "bodyId": 51,
+          "name": "hamate",
+          "parentBodyId": 44
+        },
+        {
+          "bodyId": 52,
+          "name": "secondmc",
+          "parentBodyId": 44
+        },
+        {
+          "bodyId": 53,
+          "name": "2proxph",
+          "parentBodyId": 52
+        },
+        {
+          "bodyId": 54,
+          "name": "2midph",
+          "parentBodyId": 53
+        },
+        {
+          "bodyId": 55,
+          "name": "2distph",
+          "parentBodyId": 54
+        },
+        {
+          "bodyId": 56,
+          "name": "thirdmc",
+          "parentBodyId": 44
+        },
+        {
+          "bodyId": 57,
+          "name": "3proxph",
+          "parentBodyId": 56
+        },
+        {
+          "bodyId": 58,
+          "name": "3midph",
+          "parentBodyId": 57
+        },
+        {
+          "bodyId": 59,
+          "name": "3distph",
+          "parentBodyId": 58
+        },
+        {
+          "bodyId": 60,
+          "name": "fourthmc",
+          "parentBodyId": 44
+        },
+        {
+          "bodyId": 61,
+          "name": "4proxph",
+          "parentBodyId": 60
+        },
+        {
+          "bodyId": 62,
+          "name": "4midph",
+          "parentBodyId": 61
+        },
+        {
+          "bodyId": 63,
+          "name": "4distph",
+          "parentBodyId": 62
+        },
+        {
+          "bodyId": 64,
+          "name": "fifthmc",
+          "parentBodyId": 44
+        },
+        {
+          "bodyId": 65,
+          "name": "5proxph",
+          "parentBodyId": 64
+        },
+        {
+          "bodyId": 66,
+          "name": "5midph",
+          "parentBodyId": 65
+        },
+        {
+          "bodyId": 67,
+          "name": "5distph",
+          "parentBodyId": 66
+        }
+      ],
+      "coordinates": [
+        {
+          "name": "deviation_r",
+          "engineName": "deviation_r",
+          "label": "Wrist deviation",
+          "jointId": 16,
+          "qposAddress": 16,
+          "dofAddress": 16,
+          "minimumDegrees": -9.7403,
+          "maximumDegrees": 24.6372,
+          "defaultDegrees": 2.2692,
+          "equalityDependents": [
+            {
+              "equalityId": 11,
+              "jointId": 18,
+              "name": "wrist_hand_r1_r"
+            }
+          ]
+        },
+        {
+          "name": "flexion_r",
+          "engineName": "flexion_r",
+          "label": "Wrist flexion",
+          "jointId": 17,
+          "qposAddress": 17,
+          "dofAddress": 17,
+          "minimumDegrees": -34.3775,
+          "maximumDegrees": 34.3775,
+          "defaultDegrees": -0.6287,
+          "equalityDependents": [
+            {
+              "equalityId": 12,
+              "jointId": 19,
+              "name": "wrist_hand_r3_r"
+            }
+          ]
+        },
+        {
+          "name": "cmc_flexion",
+          "engineName": "cmc_flexion",
+          "label": "Thumb base flexion",
+          "jointId": 20,
+          "qposAddress": 20,
+          "dofAddress": 20,
+          "minimumDegrees": -45.0,
+          "maximumDegrees": 15.0,
+          "defaultDegrees": 11.4202,
+          "equalityDependents": []
+        },
+        {
+          "name": "cmc_abduction",
+          "engineName": "cmc_abduction",
+          "label": "Thumb base abduction",
+          "jointId": 21,
+          "qposAddress": 21,
+          "dofAddress": 21,
+          "minimumDegrees": -25.0,
+          "maximumDegrees": 25.0,
+          "defaultDegrees": 23.1577,
+          "equalityDependents": []
+        },
+        {
+          "name": "mp_flexion",
+          "engineName": "mp_flexion",
+          "label": "Thumb knuckle flexion",
+          "jointId": 22,
+          "qposAddress": 22,
+          "dofAddress": 22,
+          "minimumDegrees": -40.0,
+          "maximumDegrees": 45.0,
+          "defaultDegrees": -9.9935,
+          "equalityDependents": []
+        },
+        {
+          "name": "ip_flexion",
+          "engineName": "ip_flexion",
+          "label": "Thumb tip flexion",
+          "jointId": 23,
+          "qposAddress": 23,
+          "dofAddress": 23,
+          "minimumDegrees": -25.0,
+          "maximumDegrees": 75.0002,
+          "defaultDegrees": -15.2446,
+          "equalityDependents": []
+        },
+        {
+          "name": "2mcp_abduction",
+          "engineName": "2mcp_abduction",
+          "label": "Index spread",
+          "jointId": 24,
+          "qposAddress": 24,
+          "dofAddress": 24,
+          "minimumDegrees": -15.0,
+          "maximumDegrees": 15.0,
+          "defaultDegrees": 9.8467,
+          "equalityDependents": []
+        },
+        {
+          "name": "2mcp_flexion",
+          "engineName": "2mcp_flexion",
+          "label": "Index knuckle flexion",
+          "jointId": 25,
+          "qposAddress": 25,
+          "dofAddress": 25,
+          "minimumDegrees": -45.0,
+          "maximumDegrees": 90.0002,
+          "defaultDegrees": 11.14,
+          "equalityDependents": []
+        },
+        {
+          "name": "2pm_flexion",
+          "engineName": "2pm_flexion",
+          "label": "Index middle-joint flexion",
+          "jointId": 26,
+          "qposAddress": 26,
+          "dofAddress": 26,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 100.0,
+          "defaultDegrees": 25.555,
+          "equalityDependents": []
+        },
+        {
+          "name": "2md_flexion",
+          "engineName": "2md_flexion",
+          "label": "Index tip-joint flexion",
+          "jointId": 27,
+          "qposAddress": 27,
+          "dofAddress": 27,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 79.9998,
+          "defaultDegrees": 15.0792,
+          "equalityDependents": []
+        },
+        {
+          "name": "3mcp_abduction",
+          "engineName": "3mcp_abduction",
+          "label": "Middle-finger spread",
+          "jointId": 28,
+          "qposAddress": 28,
+          "dofAddress": 28,
+          "minimumDegrees": -15.0,
+          "maximumDegrees": 15.0,
+          "defaultDegrees": -0.6648,
+          "equalityDependents": []
+        },
+        {
+          "name": "3mcp_flexion",
+          "engineName": "3mcp_flexion",
+          "label": "Middle knuckle flexion",
+          "jointId": 29,
+          "qposAddress": 29,
+          "dofAddress": 29,
+          "minimumDegrees": -45.0,
+          "maximumDegrees": 90.0002,
+          "defaultDegrees": 17.0302,
+          "equalityDependents": []
+        },
+        {
+          "name": "3pm_flexion",
+          "engineName": "3pm_flexion",
+          "label": "Middle middle-joint flexion",
+          "jointId": 30,
+          "qposAddress": 30,
+          "dofAddress": 30,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 100.0,
+          "defaultDegrees": 9.9981,
+          "equalityDependents": []
+        },
+        {
+          "name": "3md_flexion",
+          "engineName": "3md_flexion",
+          "label": "Middle tip-joint flexion",
+          "jointId": 31,
+          "qposAddress": 31,
+          "dofAddress": 31,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 79.9998,
+          "defaultDegrees": 15.997,
+          "equalityDependents": []
+        },
+        {
+          "name": "4cmc_flexion",
+          "engineName": "4cmc_flexion",
+          "label": "Ring-finger base flexion",
+          "jointId": 32,
+          "qposAddress": 32,
+          "dofAddress": 32,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 11.6425,
+          "defaultDegrees": 0.0137,
+          "equalityDependents": [
+            {
+              "equalityId": 13,
+              "jointId": 37,
+              "name": "CMC5_r1"
+            }
+          ]
+        },
+        {
+          "name": "4mcp_abduction",
+          "engineName": "4mcp_abduction",
+          "label": "Ring-finger spread",
+          "jointId": 33,
+          "qposAddress": 33,
+          "dofAddress": 33,
+          "minimumDegrees": -15.0,
+          "maximumDegrees": 15.0,
+          "defaultDegrees": -3.6415,
+          "equalityDependents": []
+        },
+        {
+          "name": "4mcp_flexion",
+          "engineName": "4mcp_flexion",
+          "label": "Ring knuckle flexion",
+          "jointId": 34,
+          "qposAddress": 34,
+          "dofAddress": 34,
+          "minimumDegrees": -45.0,
+          "maximumDegrees": 90.0002,
+          "defaultDegrees": 5.0478,
+          "equalityDependents": []
+        },
+        {
+          "name": "4pm_flexion",
+          "engineName": "4pm_flexion",
+          "label": "Ring middle-joint flexion",
+          "jointId": 35,
+          "qposAddress": 35,
+          "dofAddress": 35,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 100.0,
+          "defaultDegrees": 13.7682,
+          "equalityDependents": []
+        },
+        {
+          "name": "4md_flexion",
+          "engineName": "4md_flexion",
+          "label": "Ring tip-joint flexion",
+          "jointId": 36,
+          "qposAddress": 36,
+          "dofAddress": 36,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 79.9998,
+          "defaultDegrees": 19.1222,
+          "equalityDependents": []
+        },
+        {
+          "name": "5mcp_abduction",
+          "engineName": "5mcp_abduction",
+          "label": "Little-finger spread",
+          "jointId": 38,
+          "qposAddress": 38,
+          "dofAddress": 38,
+          "minimumDegrees": -15.0,
+          "maximumDegrees": 15.0,
+          "defaultDegrees": -5.891,
+          "equalityDependents": []
+        },
+        {
+          "name": "5mcp_flexion",
+          "engineName": "5mcp_flexion",
+          "label": "Little knuckle flexion",
+          "jointId": 39,
+          "qposAddress": 39,
+          "dofAddress": 39,
+          "minimumDegrees": -45.0,
+          "maximumDegrees": 90.0002,
+          "defaultDegrees": 0.2865,
+          "equalityDependents": []
+        },
+        {
+          "name": "5pm_flexion",
+          "engineName": "5pm_flexion",
+          "label": "Little middle-joint flexion",
+          "jointId": 40,
+          "qposAddress": 40,
+          "dofAddress": 40,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 100.0,
+          "defaultDegrees": 13.4975,
+          "equalityDependents": []
+        },
+        {
+          "name": "5md_flexion",
+          "engineName": "5md_flexion",
+          "label": "Little tip-joint flexion",
+          "jointId": 41,
+          "qposAddress": 41,
+          "dofAddress": 41,
+          "minimumDegrees": 0.0,
+          "maximumDegrees": 79.9998,
+          "defaultDegrees": 17.9966,
+          "equalityDependents": []
+        }
+      ],
+      "candidateMuscles": [
+        {
+          "actuatorId": 37,
+          "name": "ECRL",
+          "tendonId": 123,
+          "tendon": "ECRL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44
+          ]
+        },
+        {
+          "actuatorId": 38,
+          "name": "ECRB",
+          "tendonId": 124,
+          "tendon": "ECRB_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44
+          ]
+        },
+        {
+          "actuatorId": 39,
+          "name": "ECU",
+          "tendonId": 125,
+          "tendon": "ECU_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            41,
+            42,
+            44
+          ]
+        },
+        {
+          "actuatorId": 40,
+          "name": "FCR",
+          "tendonId": 126,
+          "tendon": "FCR_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44
+          ]
+        },
+        {
+          "actuatorId": 41,
+          "name": "FCU",
+          "tendonId": 127,
+          "tendon": "FCU_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44
+          ]
+        },
+        {
+          "actuatorId": 42,
+          "name": "PL",
+          "tendonId": 128,
+          "tendon": "PL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44,
+            56
+          ]
+        },
+        {
+          "actuatorId": 43,
+          "name": "FDSL",
+          "tendonId": 129,
+          "tendon": "FDSL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44,
+            60,
+            64,
+            65,
+            66
+          ]
+        },
+        {
+          "actuatorId": 44,
+          "name": "FDSR",
+          "tendonId": 130,
+          "tendon": "FDSR_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44,
+            56,
+            60,
+            61,
+            62
+          ]
+        },
+        {
+          "actuatorId": 45,
+          "name": "FDSM",
+          "tendonId": 131,
+          "tendon": "FDSM_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44,
+            56,
+            57,
+            58
+          ]
+        },
+        {
+          "actuatorId": 46,
+          "name": "FDSI",
+          "tendonId": 132,
+          "tendon": "FDSI_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            44,
+            52,
+            53,
+            54
+          ]
+        },
+        {
+          "actuatorId": 47,
+          "name": "FDPL",
+          "tendonId": 133,
+          "tendon": "FDPL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            41,
+            42,
+            43,
+            44,
+            60,
+            64,
+            65,
+            66,
+            67
+          ]
+        },
+        {
+          "actuatorId": 48,
+          "name": "FDPR",
+          "tendonId": 134,
+          "tendon": "FDPR_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            41,
+            42,
+            43,
+            44,
+            56,
+            60,
+            61,
+            62,
+            63
+          ]
+        },
+        {
+          "actuatorId": 49,
+          "name": "FDPM",
+          "tendonId": 135,
+          "tendon": "FDPM_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            41,
+            42,
+            43,
+            44,
+            56,
+            57,
+            58,
+            59
+          ]
+        },
+        {
+          "actuatorId": 50,
+          "name": "FDPI",
+          "tendonId": 136,
+          "tendon": "FDPI_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            41,
+            42,
+            43,
+            44,
+            52,
+            53,
+            54,
+            55
+          ]
+        },
+        {
+          "actuatorId": 51,
+          "name": "EDCL",
+          "tendonId": 137,
+          "tendon": "EDCL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            64,
+            65,
+            66,
+            67
+          ]
+        },
+        {
+          "actuatorId": 52,
+          "name": "EDCR",
+          "tendonId": 138,
+          "tendon": "EDCR_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            60,
+            61,
+            62,
+            63
+          ]
+        },
+        {
+          "actuatorId": 53,
+          "name": "EDCM",
+          "tendonId": 139,
+          "tendon": "EDCM_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            56,
+            57,
+            58,
+            59
+          ]
+        },
+        {
+          "actuatorId": 54,
+          "name": "EDCI",
+          "tendonId": 140,
+          "tendon": "EDCI_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            42,
+            43,
+            52,
+            53,
+            54,
+            55
+          ]
+        },
+        {
+          "actuatorId": 55,
+          "name": "EDM",
+          "tendonId": 141,
+          "tendon": "EDM_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            40,
+            41,
+            42,
+            43,
+            64,
+            65,
+            66,
+            67
+          ]
+        },
+        {
+          "actuatorId": 56,
+          "name": "EIP",
+          "tendonId": 142,
+          "tendon": "EIP_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            41,
+            42,
+            43,
+            52,
+            53,
+            54,
+            55
+          ]
+        },
+        {
+          "actuatorId": 57,
+          "name": "EPL",
+          "tendonId": 143,
+          "tendon": "EPL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            41,
+            42,
+            44,
+            45,
+            47,
+            48,
+            49
+          ]
+        },
+        {
+          "actuatorId": 58,
+          "name": "EPB",
+          "tendonId": 144,
+          "tendon": "EPB_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            42,
+            43,
+            46,
+            47,
+            48
+          ]
+        },
+        {
+          "actuatorId": 59,
+          "name": "FPL",
+          "tendonId": 145,
+          "tendon": "FPL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            42,
+            43,
+            44,
+            47,
+            48,
+            49
+          ]
+        },
+        {
+          "actuatorId": 60,
+          "name": "APL",
+          "tendonId": 146,
+          "tendon": "APL_tendon",
+          "group": "Wrist and digit mover",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            42,
+            43,
+            47
+          ]
+        },
+        {
+          "actuatorId": 61,
+          "name": "APB",
+          "tendonId": 147,
+          "tendon": "APB_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            44,
+            45,
+            48
+          ]
+        },
+        {
+          "actuatorId": 62,
+          "name": "FPB",
+          "tendonId": 148,
+          "tendon": "FPB_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            44,
+            45,
+            47,
+            48
+          ]
+        },
+        {
+          "actuatorId": 63,
+          "name": "OPP",
+          "tendonId": 149,
+          "tendon": "OPP_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            44,
+            47
+          ]
+        },
+        {
+          "actuatorId": 64,
+          "name": "ADPt",
+          "tendonId": 150,
+          "tendon": "ADPt_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            44,
+            48
+          ]
+        },
+        {
+          "actuatorId": 65,
+          "name": "ADPo",
+          "tendonId": 151,
+          "tendon": "ADPo_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            44,
+            48
+          ]
+        },
+        {
+          "actuatorId": 66,
+          "name": "ADM",
+          "tendonId": 152,
+          "tendon": "ADM_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            43,
+            64,
+            65
+          ]
+        },
+        {
+          "actuatorId": 67,
+          "name": "FDM",
+          "tendonId": 153,
+          "tendon": "FDM_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            51,
+            64,
+            65
+          ]
+        },
+        {
+          "actuatorId": 68,
+          "name": "ODM",
+          "tendonId": 154,
+          "tendon": "ODM_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            51,
+            64
+          ]
+        },
+        {
+          "actuatorId": 69,
+          "name": "1stPI",
+          "tendonId": 155,
+          "tendon": "1stPI_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            52,
+            53
+          ]
+        },
+        {
+          "actuatorId": 70,
+          "name": "2ndPI",
+          "tendonId": 156,
+          "tendon": "2ndPI_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            56,
+            60,
+            61
+          ]
+        },
+        {
+          "actuatorId": 71,
+          "name": "3rdPI",
+          "tendonId": 157,
+          "tendon": "3rdPI_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            64,
+            65
+          ]
+        },
+        {
+          "actuatorId": 72,
+          "name": "1stDI_MC1",
+          "tendonId": 158,
+          "tendon": "1stDI_MC1_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            47,
+            52,
+            53
+          ]
+        },
+        {
+          "actuatorId": 73,
+          "name": "1stDI_MC2",
+          "tendonId": 159,
+          "tendon": "1stDI_MC2_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            52,
+            53
+          ]
+        },
+        {
+          "actuatorId": 74,
+          "name": "2ndDI",
+          "tendonId": 160,
+          "tendon": "2ndDI_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            56,
+            57
+          ]
+        },
+        {
+          "actuatorId": 75,
+          "name": "3rdDI",
+          "tendonId": 161,
+          "tendon": "3rdDI_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            56,
+            57
+          ]
+        },
+        {
+          "actuatorId": 76,
+          "name": "4thDI",
+          "tendonId": 162,
+          "tendon": "4thDI_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            60,
+            61
+          ]
+        },
+        {
+          "actuatorId": 77,
+          "name": "LUML",
+          "tendonId": 163,
+          "tendon": "LUML_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            60,
+            64,
+            65
+          ]
+        },
+        {
+          "actuatorId": 78,
+          "name": "LUMR",
+          "tendonId": 164,
+          "tendon": "LUMR_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            56,
+            60,
+            61
+          ]
+        },
+        {
+          "actuatorId": 79,
+          "name": "LUMM",
+          "tendonId": 165,
+          "tendon": "LUMM_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            56,
+            57
+          ]
+        },
+        {
+          "actuatorId": 80,
+          "name": "LUMI",
+          "tendonId": 166,
+          "tendon": "LUMI_tendon",
+          "group": "Intrinsic hand",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            52,
+            53
+          ]
+        }
+      ],
+      "defaultSelectedMuscle": {
+        "actuatorId": 63,
+        "name": "OPP"
+      },
+      "presetGroups": [
+        {
+          "id": "whole-hand",
+          "label": "Whole-hand shapes",
+          "presets": [
+            {
+              "id": "authored",
+              "label": "Authored reference",
+              "description": "The source model's authored hand posture.",
+              "coordinates": {}
+            },
+            {
+              "id": "open",
+              "label": "Open hand",
+              "description": "An unloaded open-hand reference shape.",
+              "coordinates": {
+                "cmc_flexion": -10,
+                "cmc_abduction": 8,
+                "mp_flexion": 0,
+                "ip_flexion": 0,
+                "2mcp_flexion": 0,
+                "2pm_flexion": 0,
+                "2md_flexion": 0,
+                "3mcp_flexion": 0,
+                "3pm_flexion": 0,
+                "3md_flexion": 0,
+                "4cmc_flexion": 0,
+                "4mcp_flexion": 0,
+                "4pm_flexion": 0,
+                "4md_flexion": 0,
+                "5mcp_flexion": 0,
+                "5pm_flexion": 0,
+                "5md_flexion": 0
+              }
+            },
+            {
+              "id": "relaxed-curl",
+              "label": "Relaxed curl",
+              "description": "A gentle unloaded finger-curl reference shape.",
+              "coordinates": {
+                "cmc_flexion": 0,
+                "cmc_abduction": 5,
+                "mp_flexion": 10,
+                "ip_flexion": 15,
+                "2mcp_flexion": 20,
+                "2pm_flexion": 25,
+                "2md_flexion": 15,
+                "3mcp_flexion": 25,
+                "3pm_flexion": 30,
+                "3md_flexion": 18,
+                "4cmc_flexion": 3,
+                "4mcp_flexion": 28,
+                "4pm_flexion": 32,
+                "4md_flexion": 20,
+                "5mcp_flexion": 30,
+                "5pm_flexion": 35,
+                "5md_flexion": 22
+              }
+            },
+            {
+              "id": "loose-fist",
+              "label": "Loose fist shape",
+              "description": "An unloaded loose-fist shape; not a grip-force estimate.",
+              "coordinates": {
+                "cmc_flexion": 4,
+                "cmc_abduction": 0,
+                "mp_flexion": 18,
+                "ip_flexion": 25,
+                "2mcp_flexion": 35,
+                "2pm_flexion": 42,
+                "2md_flexion": 26,
+                "3mcp_flexion": 38,
+                "3pm_flexion": 45,
+                "3md_flexion": 28,
+                "4cmc_flexion": 4,
+                "4mcp_flexion": 40,
+                "4pm_flexion": 48,
+                "4md_flexion": 30,
+                "5mcp_flexion": 42,
+                "5pm_flexion": 50,
+                "5md_flexion": 32
+              }
+            },
+            {
+              "id": "spread",
+              "label": "Finger spread",
+              "description": "An unloaded finger-abduction reference shape.",
+              "coordinates": {
+                "cmc_flexion": -5,
+                "cmc_abduction": 12,
+                "2mcp_abduction": 12,
+                "3mcp_abduction": 5,
+                "4mcp_abduction": -5,
+                "5mcp_abduction": -12,
+                "2mcp_flexion": 0,
+                "3mcp_flexion": 0,
+                "4mcp_flexion": 0,
+                "5mcp_flexion": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "functional-shapes",
+          "label": "Functional shapes",
+          "presets": [
+            {
+              "id": "point",
+              "label": "Pointing shape",
+              "description": "Index extended with the other fingers curled; no external load.",
+              "coordinates": {
+                "cmc_flexion": 2,
+                "cmc_abduction": 5,
+                "mp_flexion": 12,
+                "ip_flexion": 18,
+                "2mcp_flexion": 0,
+                "2pm_flexion": 0,
+                "2md_flexion": 0,
+                "3mcp_flexion": 55,
+                "3pm_flexion": 70,
+                "3md_flexion": 45,
+                "4cmc_flexion": 6,
+                "4mcp_flexion": 60,
+                "4pm_flexion": 75,
+                "4md_flexion": 50,
+                "5mcp_flexion": 65,
+                "5pm_flexion": 78,
+                "5md_flexion": 52
+              }
+            },
+            {
+              "id": "opposition",
+              "label": "Thumb opposition",
+              "description": "Thumb opposition reference without object contact.",
+              "coordinates": {
+                "cmc_flexion": 12,
+                "cmc_abduction": -18,
+                "mp_flexion": 25,
+                "ip_flexion": 30,
+                "2mcp_flexion": 15,
+                "2pm_flexion": 20,
+                "2md_flexion": 10
+              }
+            },
+            {
+              "id": "pinch",
+              "label": "Pinch shape",
+              "description": "Thumb-to-index shape without contact or pinch-force estimation.",
+              "coordinates": {
+                "cmc_flexion": 12,
+                "cmc_abduction": -15,
+                "mp_flexion": 28,
+                "ip_flexion": 38,
+                "2mcp_flexion": 35,
+                "2pm_flexion": 45,
+                "2md_flexion": 25,
+                "3mcp_flexion": 18,
+                "3pm_flexion": 22,
+                "3md_flexion": 12,
+                "4cmc_flexion": 3,
+                "4mcp_flexion": 20,
+                "4pm_flexion": 25,
+                "4md_flexion": 15,
+                "5mcp_flexion": 22,
+                "5pm_flexion": 28,
+                "5md_flexion": 18
+              }
+            }
+          ]
+        }
+      ],
+      "assessment": {
+        "supported": false,
+        "reason": "No versioned hand assessment protocol is provided."
+      },
+      "semantics": {
+        "fixedSupport": "The radius/forearm and all non-selected model coordinates remain prescribed at the authored manipulation keyframe; their support reactions are not interpreted.",
+        "supportDescription": "The radius/forearm and all non-selected model coordinates remain prescribed at the authored manipulation keyframe. No object contact, grip target, or external load is applied.",
+        "equilibrium": "Static equilibrium is solved only for the selected wrist and finger coordinates.",
+        "externalLoad": "none",
+        "contact": "none",
+        "gravityMPerS2": [
+          0,
+          0,
+          -9.81
+        ],
+        "clinicalValidation": false,
+        "assumptions": [
+          "Generic, non-patient-specific MS-Human-700 manipulation anatomy and parameters.",
+          "Static posture: zero velocity and zero acceleration.",
+          "Gravity and model self-weight only; no object contact, grip target, or external force.",
+          "The forearm and all non-selected model coordinates are fixed support.",
+          "Authored passive muscle and joint forces are included.",
+          "Activations are withheld when equilibrium or reserve checks fail."
+        ],
+        "interpretationBoundary": "An unloaded hand-shape and muscle-demand estimate; not grip force, pinch force, tissue load, pain evidence, or diagnosis."
+      }
+    }
+  ],
+  "contentDigestSha256": "3c2929b7c385dca29f8b3ae21d9834b482c2ad5bccaa303d6692111950fd39c4"
+}

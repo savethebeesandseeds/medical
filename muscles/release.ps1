@@ -7,7 +7,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = $PSScriptRoot
-$GitSafeRoot = $ProjectRoot.Replace('\', '/')
+$GitRepositoryRoot = $ProjectRoot
+while (-not (Test-Path -LiteralPath (Join-Path $GitRepositoryRoot '.git'))) {
+    $Parent = Split-Path -Parent $GitRepositoryRoot
+    if ([string]::IsNullOrWhiteSpace($Parent) -or $Parent -eq $GitRepositoryRoot) {
+        throw "Could not find the Git repository containing $ProjectRoot"
+    }
+    $GitRepositoryRoot = $Parent
+}
+$GitSafeRoot = $GitRepositoryRoot.Replace('\', '/')
 $PublicRoot = Join-Path $ProjectRoot 'public'
 $BuildRoot = Join-Path $ProjectRoot 'build'
 $StagingRoot = Join-Path $BuildRoot 'waajacu-medical-static'
@@ -142,11 +150,16 @@ $DeployAllowlist = @(
     'diagnosis.js',
     'index.html',
     'LICENSE',
+    'models/ms_human_700/body-regions.json',
+    'models/ms_human_700/hand-region.json',
     'models/ms_human_700/LICENSE',
     'models/ms_human_700/README.md',
     'models/ms_human_700/right-arm.json',
     'models/ms_human_700/right-arm.meshbin',
     'models/ms_human_700/right-arm-runtime.mjb',
+    'models/ms_human_700/right-hand.json',
+    'models/ms_human_700/right-hand.meshbin',
+    'models/ms_human_700/right-hand-runtime.mjb',
     'models/ms_human_700/SOURCE.md',
     'ms-human-assessment-protocol.js',
     'ms-human-engine.js',
@@ -241,6 +254,12 @@ foreach ($RelativePath in @($DeployAllowlist | Where-Object { $_.EndsWith('.js',
 Write-Stage 'Validating the versioned MS-Human assessment protocol'
 Invoke-Node @((Join-Path $ProjectRoot 'tools\validate-ms-human-assessment-protocol.mjs'))
 
+Write-Stage 'Validating the deterministic MS-Human region manifest'
+Invoke-Node @((Join-Path $ProjectRoot 'tools\validate-ms-human-regions.mjs'))
+
+Write-Stage 'Validating the articulated MS-Human hand profile'
+Invoke-Node @((Join-Path $ProjectRoot 'tools\validate-ms-human-hand.mjs'))
+
 Write-Stage 'Running report, privacy, and migration tests'
 Invoke-Node @((Join-Path $ProjectRoot 'tools\verify-diagnosis-report.mjs'))
 
@@ -326,6 +345,8 @@ if ($Package) {
         Three = @($PayloadFiles | Where-Object { $_.relative -like 'vendor/three*' -or $_.relative -like 'vendor/THREE_*' })
     }
     Assert-True ((@($Groups.Values | ForEach-Object { $_ }).Count) -eq $PayloadFiles.Count) 'SBOM grouping did not cover the complete payload exactly once.'
+    Assert-True (@($Groups.Model | Where-Object relative -eq 'models/ms_human_700/body-regions.json').Count -eq 1) 'The regional manifest is missing from the MS-Human SBOM package scope.'
+    Assert-True (@($Groups.Model | Where-Object relative -eq 'models/ms_human_700/hand-region.json').Count -eq 1) 'The articulated-hand manifest is missing from the MS-Human SBOM package scope.'
 
     $Packages = @(
         [ordered]@{ name = "Waajacu's Medical"; SPDXID = 'SPDXRef-Package-App'; downloadLocation = 'NOASSERTION'; filesAnalyzed = $true; packageVerificationCode = [ordered]@{ packageVerificationCodeValue = Get-PackageVerificationCode $Groups.App }; licenseConcluded = 'MIT'; licenseDeclared = 'MIT'; copyrightText = 'Copyright (c) 2026 Waajacu''s Medical contributors'; primaryPackagePurpose = 'APPLICATION' },

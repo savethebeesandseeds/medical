@@ -35,7 +35,7 @@ function errorFromWorker(payload) {
 }
 
 /**
- * Message-based facade for the MS-Human right-arm runtime.
+ * Message-based facade for the MS-Human regional runtime.
  *
  * The worker exclusively owns MuJoCo, MjModel, and MjData. Calls that realize
  * or solve a posture supersede any older posture call immediately. The older
@@ -49,7 +49,7 @@ export class MsHumanEngine {
             : DEFAULT_WORKER_URL;
         this._workerOptions = {
             type: 'module',
-            name: options.workerName || 'ms-human-right-arm-engine'
+            name: options.workerName || 'ms-human-regional-engine'
         };
         this._onFatalError = typeof options.onFatalError === 'function'
             ? options.onFatalError
@@ -96,14 +96,14 @@ export class MsHumanEngine {
         return this._initializePromise;
     }
 
-    async pose(coordinates = {}, selectedMuscle = undefined) {
+    async pose(coordinates = {}, selectedMuscle = undefined, regionId = undefined) {
         await this.initialize();
-        return this._sendAnalysis('pose', { coordinates, selectedMuscle });
+        return this._sendAnalysis('pose', this._analysisPayload(coordinates, selectedMuscle, regionId));
     }
 
-    async staticHold(coordinates = {}, selectedMuscle = undefined) {
+    async staticHold(coordinates = {}, selectedMuscle = undefined, regionId = undefined) {
         await this.initialize();
-        return this._sendAnalysis('staticHold', { coordinates, selectedMuscle });
+        return this._sendAnalysis('staticHold', this._analysisPayload(coordinates, selectedMuscle, regionId));
     }
 
     async dispose() {
@@ -153,6 +153,26 @@ export class MsHumanEngine {
         const generation = this._analysisGeneration;
         this._rejectPendingAnalyses(new StaleRequestError());
         return this._send(action, payload, { analysis: true, generation });
+    }
+
+    _analysisPayload(coordinates, selectedMuscle, regionId) {
+        const requestObject = coordinates
+            && typeof coordinates === 'object'
+            && !Array.isArray(coordinates)
+            && (
+                Object.hasOwn(coordinates, 'coordinates')
+                || Object.hasOwn(coordinates, 'regionId')
+                || Object.hasOwn(coordinates, 'selectedMuscle')
+                || Object.hasOwn(coordinates, 'selectedMuscleId')
+            );
+        if (requestObject) {
+            return {
+                coordinates: coordinates.coordinates ?? {},
+                selectedMuscle: coordinates.selectedMuscle ?? coordinates.selectedMuscleId,
+                regionId: coordinates.regionId
+            };
+        }
+        return { coordinates, selectedMuscle, regionId };
     }
 
     _send(action, payload, flags = {}) {

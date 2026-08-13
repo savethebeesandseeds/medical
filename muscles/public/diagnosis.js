@@ -137,6 +137,8 @@ export function reportModelMetadata(model = {}) {
         source: model.source ?? null,
         modelLicense: model.modelLicense ?? model.source?.modelLicense ?? null,
         solverConfigurationId: model.solverConfigurationId ?? model.staticHold?.configurationId ?? null,
+        regionId: model.regionId ?? model.region?.id ?? null,
+        regionDigest: model.regionDigest ?? model.region?.digest ?? null,
         analysisType: model.analysisType ?? 'bounded_static_equilibrium',
         controlFloor: 0,
         functionalMuscleCount: model.functionalMuscleCount ?? model.model?.functionalMuscles ?? muscles.length,
@@ -162,6 +164,10 @@ export function completeStaticState(state, model = {}) {
         ?? model.staticHold?.configurationId;
     if (!expectedModelDigest || state.modelDigest !== expectedModelDigest ||
             !expectedSolverConfigId || state.solverConfigId !== expectedSolverConfigId) return false;
+    const expectedRegionId = model.regionId ?? model.region?.id;
+    const expectedRegionDigest = model.regionDigest ?? model.region?.digest;
+    if (expectedRegionId && state.regionId !== expectedRegionId) return false;
+    if (expectedRegionDigest && state.regionDigest !== expectedRegionDigest) return false;
 
     const expectedNames = modelMuscleNames(model);
     const expectedActuatorIds = modelActuatorIds(model);
@@ -202,7 +208,7 @@ export function createDiagnosisWorkflow(controller) {
         report: null,
         reportAnnex: null,
         reportStored: false,
-        storageMode: null,
+        storageMode: 'device',
         sessionReports: [],
         deviceStorageError: false,
         legacySymptomAssessment: null,
@@ -210,7 +216,7 @@ export function createDiagnosisWorkflow(controller) {
         previewGeneration: 0,
         capacityPreviewPromise: null,
         assessmentOpen: false,
-        phase: 'safety',
+        phase: 'privacy',
         draftUpdatedAt: null,
         viewingSavedReport: false,
         dialogAction: null,
@@ -334,9 +340,9 @@ export function createDiagnosisWorkflow(controller) {
             : (draft.protocolMigrationNotice ?? null);
         state.assessmentId = draft.assessmentId || createAssessmentId();
         state.assessmentOpen = Boolean(draft.assessmentOpen);
-        const restoredPhase = ['safety', 'intake', 'assessment', 'report'].includes(draft.phase) ? draft.phase : 'safety';
+        const restoredPhase = ['privacy', 'safety', 'intake', 'assessment', 'report'].includes(draft.phase) ? draft.phase : 'privacy';
         state.phase = !protocolMatches && restoredPhase === 'report'
-            ? (state.intakeCompleted ? 'assessment' : state.safetyReviewed ? 'intake' : 'safety')
+            ? (state.intakeCompleted ? 'assessment' : state.safetyReviewed ? 'intake' : 'privacy')
             : restoredPhase;
         state.draftUpdatedAt = draft.updatedAt ?? null;
         return true;
@@ -519,8 +525,8 @@ export function createDiagnosisWorkflow(controller) {
                 ? `${patient}${answered} of ${ASSESSMENT_POSITIONS.length} positions saved on this device`
                 : 'Device storage · no unfinished assessment');
             privacy.textContent = state.deviceStorageError
-                ? 'Device storage is selected, but the latest save failed. Current answers remain available in this tab.'
-                : 'Device storage is enabled. Drafts and reports remain in this browser profile until deleted.';
+                ? 'The latest device save failed. Current answers remain available in this tab.'
+                : 'Saved only in this browser profile. Clearing browser data removes these records.';
             if (activeStorageNotice) activeStorageNotice.innerHTML = '<strong>Device storage.</strong> Drafts and reports remain in this browser profile until deleted. Anyone using this profile may be able to view them.';
         }
         draftState.textContent = `Record ${recordCode()} · ${draftState.textContent}`;
@@ -540,51 +546,103 @@ export function createDiagnosisWorkflow(controller) {
         }
         const table = document.createElement('table');
         table.className = 'saved-report-table';
-        table.innerHTML = '<thead><tr><th>Record</th><th>Optional label</th><th>Assessment date</th><th>Age</th><th>Arm</th><th>Actions</th></tr></thead>';
+        table.innerHTML = '<thead><tr><th>Record</th><th>Participant</th><th>Assessment</th><th>Actions</th></tr></thead>';
         const body = document.createElement('tbody');
         for (const entry of reports) {
             const row = document.createElement('tr');
-            const codeCell = document.createElement('td');
-            codeCell.className = 'saved-report-code';
-            codeCell.textContent = recordCode(entry.report.assessment?.assessmentId || entry.id);
-            row.append(codeCell);
+            const reportCode = recordCode(entry.report.assessment?.assessmentId || entry.id);
+            const generatedDate = new Date(entry.report.generatedAt);
+            const validDate = !Number.isNaN(generatedDate.getTime());
+            const quality = entry.report.dataQuality ?? {};
+            const legacy = entry.report.assessment?.legacyModelRecord === true;
+            const statusText = legacy
+                ? 'Archived'
+                : quality.recordStatus === 'complete_record'
+                    ? 'Complete'
+                    : quality.recordStatus === 'conflicting_record'
+                        ? 'Review needed'
+                        : 'Incomplete';
+
+            const recordCell = document.createElement('td');
+            recordCell.className = 'saved-report-record';
+            recordCell.dataset.label = 'Record';
+            const code = document.createElement('strong');
+            code.className = 'saved-report-code';
+            code.textContent = reportCode;
+            const date = document.createElement('time');
+            if (validDate) date.dateTime = generatedDate.toISOString();
+            date.textContent = validDate
+                ? `${generatedDate.toLocaleDateString()} · ${generatedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                : 'Date unavailable';
+            const status = document.createElement('span');
+            status.className = `saved-report-status ${statusText.toLowerCase().replaceAll(' ', '-')}`;
+            status.textContent = statusText;
+            recordCell.append(code, date, status);
+            row.append(recordCell);
+
             const patientCell = document.createElement('td');
             patientCell.className = 'saved-report-patient';
+            patientCell.dataset.label = 'Participant';
             const patientName = document.createElement('strong');
             patientName.textContent = entry.patient?.name || 'No label provided';
             patientCell.append(patientName);
-            if (entry.report.assessment?.legacyModelRecord) {
+            const patientMeta = document.createElement('span');
+            patientMeta.textContent = [
+                Number.isFinite(entry.patient?.ageYears) ? `${entry.patient.ageYears} years` : null,
+                entry.patient?.gender || null
+            ].filter(Boolean).join(' · ') || 'Profile not recorded';
+            patientCell.append(patientMeta);
+            const measures = [
+                Number.isFinite(entry.patient?.heightCm) ? `${entry.patient.heightCm} cm` : null,
+                Number.isFinite(entry.patient?.weightKg) ? `${entry.patient.weightKg} kg` : null
+            ].filter(Boolean).join(' · ');
+            if (measures) {
+                const measureMeta = document.createElement('span');
+                measureMeta.textContent = measures;
+                patientCell.append(measureMeta);
+            }
+            if (legacy) {
                 const legacyLabel = document.createElement('span');
                 legacyLabel.textContent = 'Archived report from an earlier model or protocol';
                 patientCell.append(legacyLabel);
             }
             row.append(patientCell);
-            const values = [
-                new Date(entry.report.generatedAt).toLocaleString(),
-                Number.isFinite(entry.patient?.ageYears) ? String(entry.patient.ageYears) : '—',
-                entry.patient?.assessedArm || entry.report.assessment?.testedSide || '—'
-            ];
-            for (const value of values) {
-                const cell = document.createElement('td');
-                cell.textContent = value;
-                row.append(cell);
-            }
+
+            const assessmentCell = document.createElement('td');
+            assessmentCell.className = 'saved-report-assessment';
+            assessmentCell.dataset.label = 'Assessment';
+            const arm = entry.patient?.assessedArm || entry.report.assessment?.testedSide;
+            const armValue = document.createElement('strong');
+            armValue.textContent = arm ? `${arm.charAt(0).toUpperCase()}${arm.slice(1)} arm` : 'Arm not recorded';
+            const progress = document.createElement('span');
+            const recorded = Number.isFinite(quality.recordedTrialCount) ? quality.recordedTrialCount : null;
+            const required = Number.isFinite(quality.requiredTrialCount) ? quality.requiredTrialCount : null;
+            progress.textContent = recorded !== null && required !== null
+                ? `${recorded} of ${required} positions recorded`
+                : 'Position count unavailable';
+            assessmentCell.append(armValue, progress);
+            row.append(assessmentCell);
+
             const actions = document.createElement('td');
             actions.className = 'saved-report-actions';
+            actions.dataset.label = 'Actions';
             const use = document.createElement('button');
             use.type = 'button';
-            use.className = 'quiet-button';
-            use.textContent = 'Reuse details';
+            use.className = 'saved-report-action reuse';
+            use.textContent = 'Use details';
+            use.setAttribute('aria-label', `Use participant details from record ${reportCode}`);
             use.addEventListener('click', () => importPatientDetails(entry));
             const view = document.createElement('button');
             view.type = 'button';
-            view.className = 'quiet-button';
-            view.textContent = 'View';
+            view.className = 'saved-report-action open';
+            view.textContent = 'Open report';
+            view.setAttribute('aria-label', `Open report ${reportCode}`);
             view.addEventListener('click', () => showSavedReport(entry));
             const remove = document.createElement('button');
             remove.type = 'button';
-            remove.className = 'quiet-button';
+            remove.className = 'saved-report-action delete';
             remove.textContent = 'Delete';
+            remove.setAttribute('aria-label', `Delete report ${reportCode}`);
             remove.addEventListener('click', () => {
                 showAppDialog({
                     title: 'Delete assessment report?',
@@ -594,35 +652,12 @@ export function createDiagnosisWorkflow(controller) {
                     onConfirm: () => removeSavedReport(entry)
                 });
             });
-            actions.append(use, view, remove);
+            actions.append(view, use, remove);
             row.append(actions);
             body.append(row);
         }
         table.append(body);
         host.append(table);
-    }
-
-    function showStorageChoice() {
-        cancelPreview();
-        byId('diagnosis-storage-choice').classList.remove('hidden');
-        byId('diagnosis-safety-landing').classList.add('hidden');
-        byId('diagnosis-intake').classList.add('hidden');
-        byId('diagnosis-assessment').classList.add('hidden');
-        byId('diagnosis-report-screen').classList.add('hidden');
-        updateSavedRecordsUi();
-        window.requestAnimationFrame(controller.resizeViewer);
-    }
-
-    function chooseStorageMode(mode) {
-        if (state.storageMode) return;
-        state.storageMode = mode === 'device' ? 'device' : 'session';
-        if (state.storageMode === 'device') restoreDraft();
-        fillIntakeForm(state.intake);
-        updateSavedRecordsUi();
-        if (state.phase === 'report' && state.intakeCompleted) showReportScreen();
-        else if (state.phase === 'assessment' && state.intakeCompleted) showAssessment();
-        else if (state.phase === 'intake' && state.safetyReviewed) showIntake();
-        else showSafetyLanding();
     }
 
     function showSavedReport(entry) {
@@ -631,14 +666,29 @@ export function createDiagnosisWorkflow(controller) {
         state.reportStored = true;
         state.report = entry.report;
         state.reportAnnex = entry.technicalAnnex ?? null;
-        byId('diagnosis-storage-choice').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.remove('hidden');
+        byId('diagnosis-privacy-overview').classList.add('hidden');
+        byId('diagnosis-start').classList.add('hidden');
         byId('diagnosis-report-back').textContent = 'Back';
         renderMovementReport(state.report);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showPrivacyLanding() {
+        cancelPreview();
+        state.assessmentOpen = false;
+        state.phase = 'privacy';
+        state.viewingSavedReport = false;
+        byId('diagnosis-privacy-overview').classList.remove('hidden');
+        byId('diagnosis-start').classList.remove('hidden');
+        byId('diagnosis-safety-landing').classList.add('hidden');
+        byId('diagnosis-intake').classList.add('hidden');
+        byId('diagnosis-assessment').classList.add('hidden');
+        byId('diagnosis-report-screen').classList.add('hidden');
+        window.requestAnimationFrame(controller.resizeViewer);
     }
 
     function showSafetyLanding() {
@@ -646,7 +696,8 @@ export function createDiagnosisWorkflow(controller) {
         state.assessmentOpen = false;
         state.phase = 'safety';
         state.viewingSavedReport = false;
-        byId('diagnosis-storage-choice').classList.add('hidden');
+        byId('diagnosis-privacy-overview').classList.add('hidden');
+        byId('diagnosis-start').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.remove('hidden');
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
@@ -678,7 +729,8 @@ export function createDiagnosisWorkflow(controller) {
             clickingInstability: data.has('clickingInstability'),
             onsetDetails: String(data.get('onsetDetails') ?? '').trim(),
             aggravatingRelieving: String(data.get('aggravatingRelieving') ?? '').trim(),
-            relevantHistory: String(data.get('relevantHistory') ?? '').trim()
+            relevantHistory: String(data.get('relevantHistory') ?? '').trim(),
+            privacyAccepted: data.has('privacyAccepted')
         };
         state.report = null;
     }
@@ -692,7 +744,8 @@ export function createDiagnosisWorkflow(controller) {
         state.assessmentOpen = false;
         state.phase = 'intake';
         state.viewingSavedReport = false;
-        byId('diagnosis-storage-choice').classList.add('hidden');
+        byId('diagnosis-privacy-overview').classList.add('hidden');
+        byId('diagnosis-start').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.remove('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
@@ -700,7 +753,7 @@ export function createDiagnosisWorkflow(controller) {
         fillIntakeForm(state.intake);
         byId('diagnosis-intake-state').textContent = state.intakeCompleted
             ? (state.storageMode === 'device' ? 'Details saved on this device. Review or continue.' : 'Details kept in this tab. Review or continue.')
-            : 'Complete the required pain-history fields and assessed arm.';
+            : 'Complete the required patient details, pain history, and privacy acceptance.';
         persistDraft();
         window.requestAnimationFrame(controller.resizeViewer);
     }
@@ -743,7 +796,7 @@ export function createDiagnosisWorkflow(controller) {
         state.assessmentOpen = true;
         state.phase = 'assessment';
         state.viewingSavedReport = false;
-        byId('diagnosis-storage-choice').classList.add('hidden');
+        byId('diagnosis-privacy-overview').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.remove('hidden');
@@ -763,7 +816,7 @@ export function createDiagnosisWorkflow(controller) {
         state.phase = 'report';
         state.viewingSavedReport = false;
         state.report = buildReport();
-        byId('diagnosis-storage-choice').classList.add('hidden');
+        byId('diagnosis-privacy-overview').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
@@ -807,7 +860,7 @@ export function createDiagnosisWorkflow(controller) {
         clearDraft();
         setSide('right');
         renderCapacityList();
-        showSafetyLanding();
+        showPrivacyLanding();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -888,7 +941,7 @@ export function createDiagnosisWorkflow(controller) {
             for (const [value, label] of fieldOptions[field].filter(([optionValue]) => optionValue !== 'not_recorded')) {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = 'capacity-choice-button';
+                button.className = `capacity-choice-button choice-${field} value-${value}`;
                 button.classList.toggle('selected', response[field] === value);
                 button.setAttribute('aria-pressed', response[field] === value ? 'true' : 'false');
                 button.setAttribute('aria-label', `${label} ${fieldLabels[field].toLowerCase()} for ${position.name}`);
@@ -1242,7 +1295,7 @@ export function createDiagnosisWorkflow(controller) {
         const complete = safetyAnswersComplete();
         const button = byId('diagnosis-continue');
         button.disabled = !complete;
-        button.textContent = flags.length ? 'Record warnings and stop' : 'Continue to assessment details';
+        button.textContent = flags.length ? 'Record warnings and stop' : 'Continue';
         if (!complete) {
             byId('diagnosis-safety-state').textContent = `${answered} of ${RED_FLAGS.length} answered · complete every row`;
         } else if (state.safetyReviewed) {
@@ -1486,11 +1539,11 @@ export function createDiagnosisWorkflow(controller) {
         byId('mirror-view').hidden = true;
         controller.setMirroredView(state.testedSide === 'left');
         window.requestAnimationFrame(controller.resizeViewer);
-        if (!state.storageMode) showStorageChoice();
-        else if (state.phase === 'report' && state.intakeCompleted) showReportScreen();
+        if (state.phase === 'report' && state.intakeCompleted) showReportScreen();
         else if (state.phase === 'assessment' && state.intakeCompleted) showAssessment();
         else if (state.phase === 'intake' && state.safetyReviewed) showIntake();
-        else showSafetyLanding();
+        else if (state.phase === 'safety') showSafetyLanding();
+        else showPrivacyLanding();
     }
 
     function leave() {
@@ -1524,8 +1577,6 @@ export function createDiagnosisWorkflow(controller) {
 
     byId('tab-diagnosis').addEventListener('click', enter);
     byId('tab-explorer').addEventListener('click', leave);
-    byId('diagnosis-use-session-storage').addEventListener('click', () => chooseStorageMode('session'));
-    byId('diagnosis-use-device-storage').addEventListener('click', () => chooseStorageMode('device'));
     document.querySelector('.app-tabs').addEventListener('keydown', (event) => {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         const tabs = [byId('tab-explorer'), byId('tab-diagnosis')];
@@ -1539,6 +1590,7 @@ export function createDiagnosisWorkflow(controller) {
         tabs[next].focus();
     });
     byId('diagnosis-delete-all-data').addEventListener('click', requestDeleteAllLocalAssessmentData);
+    byId('diagnosis-start').addEventListener('click', showSafetyLanding);
     byId('diagnosis-continue').addEventListener('click', () => {
         if (!safetyAnswersComplete()) return;
         state.safetyReviewed = true;
@@ -1621,6 +1673,7 @@ export function createDiagnosisWorkflow(controller) {
             first.focus();
         }
     });
+    restoreDraft();
     fillIntakeForm(state.intake);
     updateSavedRecordsUi();
     renderSafetyForm();

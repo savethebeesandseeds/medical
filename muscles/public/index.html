@@ -14,10 +14,9 @@
             <div class="app-brand">
                 <img class="app-logo" src="./waajacu_medical.png" width="90" height="90" alt="">
                 <div class="app-brand-copy">
-                    <p class="eyebrow">Upper-limb research tool</p>
+                    <p class="eyebrow">Biomechanics research tool</p>
                     <h1>Waajacu's Medical</h1>
-                    <p class="intro">Explore upper-limb posture and modeled muscle activation.</p>
-                    <a class="full-body-link" href="#model-information">About the model <span aria-hidden="true">&darr;</span></a>
+                    <p class="intro">Explore regional posture and modeled muscle activation.</p>
                 </div>
             </div>
             <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
@@ -37,10 +36,10 @@
         <nav class="app-tabs" role="tablist" aria-label="Application sections">
             <button id="tab-explorer" class="active" type="button" role="tab" aria-selected="true" aria-controls="explorer-workspace" tabindex="0">
                 <span class="app-tab-copy"><span>Explorer</span><small>Posture and activation</small></span>
-                <canvas class="preset-thumbnail app-tab-visual app-tab-thumbnail" width="104" height="104" data-thumbnail-preset="hand-to-mouth" aria-hidden="true"></canvas>
+                <canvas class="preset-thumbnail app-tab-visual app-tab-thumbnail" width="104" height="104" data-thumbnail-region="right-upper-limb" data-thumbnail-preset="hand-to-mouth" aria-hidden="true"></canvas>
             </button>
             <button id="tab-diagnosis" type="button" role="tab" aria-selected="false" aria-controls="diagnosis-workspace" tabindex="-1">
-                <span class="app-tab-copy"><span>Assessment</span><small>Guided observation</small></span>
+                <span class="app-tab-copy"><span>Assessment</span><small>Right upper-limb observation</small></span>
                 <svg class="app-tab-visual diagnosis-tab-icon" viewBox="0 0 80 80" aria-hidden="true">
                     <rect x="12" y="8" width="56" height="64" rx="3" />
                     <path d="M29 8V5h22v3M21 27l4 4 7-8M38 27h20M21 43l4 4 7-8M38 43h20M21 59l4 4 7-8M38 59h20" />
@@ -53,28 +52,9 @@
                 <header class="panel-header viewer-header">
                     <div>
                         <h2 id="viewer-title">Right upper limb</h2>
-                        <p id="viewer-instructions">Drag or use arrow keys to rotate · scroll or use zoom buttons</p>
+                        <p id="viewer-instructions">Click a muscle to inspect · left-drag to rotate · right-drag to move · scroll to zoom</p>
                     </div>
                 </header>
-
-                <div class="viewer-toolbar" aria-label="Viewer controls">
-                    <div class="toolbar-group source-group">
-                        <span id="analysis-source-title" class="toolbar-label">Geometry</span>
-                        <div class="source-controls">
-                            <div class="mode-switch compact model-layer-switch" role="group" aria-labelledby="analysis-source-title">
-                                <button id="toggle-context" class="mode-button active" type="button" aria-pressed="true">Whole-body context</button>
-                                <button id="toggle-long-origins" class="mode-button" type="button" aria-pressed="false">Long muscle origins</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="toolbar-group">
-                        <span class="toolbar-label">Muscle paths</span>
-                        <div class="path-view-switch" role="group" aria-label="Muscle path view">
-                            <button id="view-all-muscles" class="active" type="button" aria-pressed="true">All paths</button>
-                            <button id="view-one-muscle" type="button" aria-pressed="false">Inspect one</button>
-                        </div>
-                    </div>
-                </div>
 
                 <div class="viewer-stage">
                     <div class="scene-wrap">
@@ -86,7 +66,7 @@
                             <button id="zoom-out" class="scene-action-button" type="button" aria-label="Zoom out" data-tooltip="Zoom out">
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
                             </button>
-                            <button id="mirror-view" class="scene-action-button" type="button" aria-label="Mirror left" aria-pressed="false" data-tooltip="Mirror left">
+                            <button id="mirror-view" class="scene-action-button" type="button" aria-label="Mirror display — calculation unchanged" aria-pressed="false" data-tooltip="Mirror display — calculation unchanged">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M12 3v18" stroke-dasharray="1.5 2" />
                                     <path d="M9 6H5v12h4M15 6h4v12h-4M8 9l-3 3 3 3M16 9l3 3-3 3" />
@@ -139,9 +119,9 @@
                             <strong>Loading posture…</strong>
                         </div>
                         <div id="geometry-legend" class="scene-legend" aria-label="Viewer legend">
-                            <span><i class="bone-key"></i>Arm geometry</span>
+                            <span><i class="bone-key"></i><span id="active-region-legend">Focused region</span></span>
                             <span><i class="context-key"></i>Whole-body context</span>
-                            <span><i class="path-key"></i>Muscle paths</span>
+                            <span><i class="path-key"></i><span id="muscle-rendering-legend">Anatomical bodies</span></span>
                             <span id="selected-path-legend" class="hidden"><i class="selected-key"></i>Selected</span>
                         </div>
                         <section id="capacity-angle-overlay" class="capacity-angle-overlay" aria-label="Position angles">
@@ -173,7 +153,10 @@
 
                         <section id="muscle-panel" class="viewer-drawer muscle-panel hidden" aria-labelledby="muscle-title">
                             <header class="section-header drawer-header muscle-drawer-header">
-                                <h2 id="muscle-title">Details</h2>
+                                <div class="muscle-heading">
+                                    <h2 id="muscle-title">Details</h2>
+                                    <small id="muscle-model-id">Model ID</small>
+                                </div>
                                 <select id="muscle-select" aria-label="Selected muscle"></select>
                                 <button id="toggle-muscle-panel" class="text-button" type="button" aria-controls="muscle-panel-content" aria-expanded="true">Hide</button>
                                 <button id="back-to-activations" class="text-button muscle-back-button" type="button">← Back to all activations</button>
@@ -209,6 +192,33 @@
                     </div>
 
                     <aside id="pose-panel" class="pose-dock" aria-labelledby="pose-title">
+                        <section class="region-picker" aria-label="Regional model controls">
+                            <label id="region-picker-title" for="focus-region">Body region</label>
+                            <select id="focus-region" aria-describedby="region-scope" disabled></select>
+                            <p id="region-scope">Loading available regions…</p>
+                            <p id="region-support-note" class="region-support-note"></p>
+                        </section>
+                        <section id="back-presentation-controls" class="region-presentation-controls hidden" aria-label="Back and trunk presentation">
+                            <div class="presentation-control-row">
+                                <span>View</span>
+                                <div class="segmented-control" role="group" aria-label="Back viewing direction">
+                                    <button type="button" data-region-view="back" aria-pressed="true">Back</button>
+                                    <button type="button" data-region-view="front" aria-pressed="false">Front</button>
+                                    <button type="button" data-region-view="side" aria-pressed="false">Side</button>
+                                </div>
+                            </div>
+                            <label class="presentation-control-row" for="back-muscle-filter">
+                                <span>Muscles</span>
+                                <select id="back-muscle-filter">
+                                    <option value="back">Back overview</option>
+                                    <option value="extensors">Spinal extensors</option>
+                                    <option value="multifidus">Multifidus</option>
+                                    <option value="ql">Quadratus lumborum</option>
+                                    <option value="core">Abdominals & deep core</option>
+                                    <option value="overview">General overview</option>
+                                </select>
+                            </label>
+                        </section>
                         <header class="pose-dock-header">
                             <h2 id="pose-title">Posture</h2>
                             <div id="position-status" class="position-status manual" role="status" aria-live="polite">
@@ -221,63 +231,41 @@
                                     <path d="M3.5 5.5c2.8-.7 5.6-.2 8 1.5v12c-2.4-1.7-5.2-2.2-8-1.5zM20.5 5.5c-2.8-.7-5.6-.2-8 1.5v12c2.4-1.7 5.2-2.2 8-1.5z"/>
                                 </svg>
                                 <span>Presets</span>
-                                <small>21</small>
+                                <small id="preset-count">—</small>
                             </button>
                         </header>
+                        <div class="pose-viewer-controls" aria-label="Viewer controls">
+                            <div class="toolbar-group source-group">
+                                <span id="analysis-source-title" class="toolbar-label">Geometry</span>
+                                <div class="source-controls">
+                                    <div class="layer-toggle-list" role="group" aria-labelledby="analysis-source-title">
+                                        <button id="toggle-context" class="layer-toggle active" type="button" aria-pressed="true">Body context</button>
+                                        <button id="toggle-long-origins" class="layer-toggle" type="button" aria-pressed="false">Extended paths</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="toolbar-group">
+                                <span class="toolbar-label">Muscle view</span>
+                                <div class="path-view-switch" role="group" aria-label="Muscle rendering style">
+                                    <button id="render-anatomical-bodies" class="active" type="button" aria-pressed="true">Anatomical</button>
+                                    <button id="render-path-lines" type="button" aria-pressed="false">Path lines</button>
+                                </div>
+                            </div>
+                            <div class="toolbar-group">
+                                <span class="toolbar-label">Muscles</span>
+                                <div class="path-view-switch" role="group" aria-label="Muscle path view">
+                                    <button id="view-all-muscles" class="active" type="button" aria-pressed="true">All paths</button>
+                                    <button id="view-one-muscle" type="button" aria-pressed="false">Inspect one</button>
+                                </div>
+                            </div>
+                        </div>
                         <section id="static-presets" class="preset-section preset-catalog hidden" aria-labelledby="preset-title">
                             <div class="preset-heading">
                                 <h3 id="preset-title">Posture presets</h3>
-                                <span>21 reference postures</span>
+                                <span id="preset-summary">Reference postures</span>
                             </div>
-                            <p class="catalog-note">Approximate reference angles.</p>
-                            <div id="pose-presets" class="preset-groups">
-                                <section class="preset-group" aria-labelledby="preset-functional">
-                                    <h4 id="preset-functional">Functional reference</h4>
-                                    <div class="pose-presets">
-                                        <button type="button" data-preset="arm-side" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Arm by side</span></button>
-                                        <button type="button" data-preset="forward-reach" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forward reach</span></button>
-                                        <button type="button" data-preset="hand-to-mouth" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Hand to mouth</span></button>
-                                        <button type="button" data-preset="cross-body-reach" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Cross-body reach</span></button>
-                                        <button type="button" data-preset="hand-behind-head" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Hand behind head</span></button>
-                                        <button type="button" data-preset="high-forward-reach" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>High forward reach</span></button>
-                                    </div>
-                                </section>
-                                <section class="preset-group" aria-labelledby="preset-shoulder">
-                                    <h4 id="preset-shoulder">Shoulder elevation</h4>
-                                    <div class="pose-presets">
-                                        <button type="button" data-preset="flexion-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forward 90°</span></button>
-                                        <button type="button" data-preset="abduction-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Abduction 90°</span></button>
-                                        <button type="button" data-preset="scaption-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Scaption 90°</span></button>
-                                    </div>
-                                </section>
-                                <section class="preset-group" aria-labelledby="preset-rotation">
-                                    <h4 id="preset-rotation">Shoulder rotation</h4>
-                                    <div class="pose-presets">
-                                        <button type="button" data-preset="external-side" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>External rotation</span></button>
-                                        <button type="button" data-preset="internal-side" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Internal rotation</span></button>
-                                        <button type="button" data-preset="rotation-90-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>90/90 external rotation</span></button>
-                                        <button type="button" data-preset="scaption-ir" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Scaption + internal rotation</span></button>
-                                    </div>
-                                </section>
-                                <section class="preset-group" aria-labelledby="preset-elbow">
-                                    <h4 id="preset-elbow">Elbow &amp; forearm</h4>
-                                    <div class="pose-presets">
-                                        <button type="button" data-preset="elbow-90" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Elbow 90° neutral</span></button>
-                                        <button type="button" data-preset="elbow-120" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Elbow flexion 120°</span></button>
-                                        <button type="button" data-preset="elbow-supinated" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forearm supinated 60°</span></button>
-                                        <button type="button" data-preset="forearm-pronated" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Forearm pronated 60°</span></button>
-                                    </div>
-                                </section>
-                                <section class="preset-group" aria-labelledby="preset-wrist">
-                                    <h4 id="preset-wrist">Wrist</h4>
-                                    <div class="pose-presets">
-                                        <button type="button" data-preset="wrist-extension-30" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Extension 30°</span></button>
-                                        <button type="button" data-preset="wrist-flexion-30" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Flexion 30°</span></button>
-                                        <button type="button" data-preset="wrist-deviation-positive" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Deviation +20°</span></button>
-                                        <button type="button" data-preset="wrist-deviation-negative" aria-pressed="false"><canvas class="preset-thumbnail" width="104" height="104" aria-hidden="true"></canvas><span>Deviation −10°</span></button>
-                                    </div>
-                                </section>
-                            </div>
+                            <p id="preset-note" class="catalog-note">Approximate reference angles.</p>
+                            <div id="pose-presets" class="preset-groups"></div>
                         </section>
                         <div id="coordinate-controls" class="coordinate-controls compact"></div>
                         <div id="static-actions" class="static-actions">
@@ -300,36 +288,31 @@
                 <header>
                     <div>
                         <h2 id="diagnosis-records-title">Assessment records</h2>
-                        <span id="diagnosis-draft-state">Choose how this tab should handle assessment data</span>
+                        <span id="diagnosis-draft-state">Device storage</span>
                     </div>
                     <div class="diagnosis-record-actions">
-                        <button id="diagnosis-delete-all-data" class="quiet-button" type="button">Delete local data</button>
-                        <button id="diagnosis-new-assessment" class="quiet-button" type="button" disabled>New assessment</button>
+                        <button id="diagnosis-delete-all-data" class="quiet-button" type="button">Clear Data</button>
+                        <button id="diagnosis-new-assessment" class="quiet-button" type="button">New assessment</button>
                     </div>
                 </header>
-                <p id="diagnosis-records-privacy" class="diagnosis-records-privacy">No assessment data has been loaded or saved. Choose a storage option below to begin.</p>
+                <p id="diagnosis-records-privacy" class="diagnosis-records-privacy">Drafts and reports remain in this browser profile until deleted. Clearing this browser's site data also removes these records.</p>
                 <div id="diagnosis-saved-report-list"></div>
             </section>
 
-            <section id="diagnosis-storage-choice" class="diagnosis-storage-choice panel" aria-labelledby="diagnosis-storage-title">
+            <section id="diagnosis-privacy-overview" class="diagnosis-privacy-overview panel" aria-labelledby="diagnosis-privacy-overview-title">
                 <header>
                     <p class="eyebrow">Privacy first</p>
-                    <h2 id="diagnosis-storage-title">How should this tab handle assessment data?</h2>
-                    <p>Choose before answering any health question. The choice lasts until this tab closes or reloads.</p>
+                    <h2 id="diagnosis-privacy-overview-title">Your information stays with you</h2>
+                    <p>Assessment drafts and reports are saved automatically in this browser profile.</p>
                 </header>
-                <div class="diagnosis-storage-options">
-                    <button id="diagnosis-use-session-storage" class="diagnosis-storage-option recommended" type="button">
-                        <span class="diagnosis-storage-badge">Recommended</span>
-                        <strong>Use this tab only</strong>
-                        <span>Keep answers and reports in memory. Nothing is written to browser storage; closing or reloading removes them.</span>
-                    </button>
-                    <button id="diagnosis-use-device-storage" class="diagnosis-storage-option" type="button">
-                        <span class="diagnosis-storage-badge">Optional</span>
-                        <strong>Save on this device</strong>
-                        <span>Store drafts and reports in this browser profile so they can be reopened later. Other people using this profile may be able to view them.</span>
-                    </button>
+                <div class="diagnosis-privacy-overview-body">
+                    <p><strong>No server collection.</strong> The application does not send assessment information to us or to a health-record server.</p>
+                    <p><strong>No cookies or advertising trackers.</strong> Records remain available only in this browser profile unless you export them.</p>
+                    <p><strong>You control deletion.</strong> Use Clear Data or clear this browser's site data to remove local records. Exported files must be deleted separately.</p>
                 </div>
-                <p class="diagnosis-storage-footnote"><strong>Runs locally:</strong> answers stay in this browser. Downloaded files are saved wherever you choose and are outside this setting.</p>
+                <div class="diagnosis-privacy-start">
+                    <button id="diagnosis-start" class="primary-button" type="button">Start</button>
+                </div>
             </section>
 
             <section id="diagnosis-safety-landing" class="diagnosis-safety-landing panel hidden" aria-labelledby="diagnosis-safety-title">
@@ -349,7 +332,7 @@
                         <div id="diagnosis-safety-warning" class="diagnosis-stop-warning hidden" role="alert"></div>
                         <div class="diagnosis-safety-footer">
                             <span id="diagnosis-safety-state">Review required</span>
-                            <button id="diagnosis-continue" class="primary-button" type="button" disabled>Continue to assessment details</button>
+                            <button id="diagnosis-continue" class="primary-button" type="button" disabled>Continue</button>
                         </div>
                     </div>
                 </div>
@@ -359,22 +342,22 @@
                 <header>
                     <p class="eyebrow">Step 2 of 3</p>
                     <h2 id="diagnosis-intake-title">Assessment context</h2>
-                    <p>Personal details are optional. The assessed arm and pain questions are required.</p>
+                    <p>Enter the patient details and pain history used for this assessment record.</p>
                 </header>
                 <form id="diagnosis-intake-form">
                     <section class="diagnosis-intake-section" aria-labelledby="intake-person-title">
                         <div class="diagnosis-intake-heading">
-                            <h3 id="intake-person-title">Optional record details</h3>
-                            <span>Only the assessed arm is required for the display</span>
+                            <h3 id="intake-person-title">Patient details</h3>
+                            <span>Required fields are marked *</span>
                         </div>
                         <div class="diagnosis-intake-grid">
-                            <label class="diagnosis-field span-2"><span>Record label (optional)</span><input name="name" type="text" maxlength="120" autocomplete="off"></label>
-                            <label class="diagnosis-field"><span>Age (optional)</span><input name="ageYears" type="number" min="1" max="120" step="1" inputmode="numeric"></label>
-                            <label class="diagnosis-field"><span>Gender (optional)</span><select name="gender">
+                            <label class="diagnosis-field span-2"><span>Patient name or alias</span><input name="name" type="text" maxlength="120" autocomplete="off" placeholder="Patient name or alias"></label>
+                            <label class="diagnosis-field"><span>Age *</span><input name="ageYears" type="number" min="1" max="120" step="1" inputmode="numeric" required></label>
+                            <label class="diagnosis-field"><span>Gender *</span><select name="gender" required>
                                 <option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="nonbinary">Non-binary</option><option value="self_described">Self-described</option><option value="prefer_not_to_say">Prefer not to say</option>
                             </select></label>
-                            <label class="diagnosis-field"><span>Height (cm, optional)</span><input name="heightCm" type="number" min="80" max="250" step="0.1" inputmode="decimal"></label>
-                            <label class="diagnosis-field"><span>Weight (kg, optional)</span><input name="weightKg" type="number" min="20" max="350" step="0.1" inputmode="decimal"></label>
+                            <label class="diagnosis-field"><span>Height (cm) *</span><input name="heightCm" type="number" min="80" max="250" step="0.1" inputmode="decimal" required></label>
+                            <label class="diagnosis-field"><span>Weight (kg) *</span><input name="weightKg" type="number" min="20" max="350" step="0.1" inputmode="decimal" required></label>
                             <label class="diagnosis-field"><span>Arm being assessed *</span><select name="assessedArm" required><option value="">Select</option><option value="right">Right</option><option value="left">Left</option></select></label>
                         </div>
                     </section>
@@ -410,15 +393,19 @@
                     </section>
 
                     <section class="diagnosis-privacy-consent" aria-labelledby="diagnosis-privacy-title">
-                        <details>
-                            <summary id="diagnosis-privacy-title">Privacy and export details</summary>
-                            <div>
+                        <div class="diagnosis-privacy-details">
+                            <h3 id="diagnosis-privacy-title">Privacy and export details</h3>
+                            <div class="diagnosis-privacy-copy">
                                 <p><strong>No server collection.</strong> Waajacu's Medical does not send the information entered here to us or to a health-record server. We do not receive, analyse, sell, or share it.</p>
                                 <p><strong>No cookies.</strong> This application does not use cookies or advertising trackers.</p>
-                                <p id="diagnosis-active-storage-notice"><strong>Session only.</strong> Answers remain in memory in this tab and disappear when it closes or reloads.</p>
+                                <p id="diagnosis-active-storage-notice"><strong>Saved on this device.</strong> Drafts and reports remain in this browser profile until deleted.</p>
                                 <p><strong>Exports.</strong> The reduced-detail report excludes direct identifiers and observation notes, and groups exact age, height, and weight into broad bands. It is not guaranteed anonymous. The full report retains exact local detail and free text. Review every file before sharing it.</p>
                             </div>
-                        </details>
+                        </div>
+                        <label class="diagnosis-privacy-accept">
+                            <input name="privacyAccepted" type="checkbox" required>
+                            <span>I have read and accept the privacy and export details.</span>
+                        </label>
                     </section>
                     <div class="diagnosis-intake-actions">
                         <button id="diagnosis-intake-back" class="quiet-button" type="button">Back to safety</button>
@@ -554,29 +541,34 @@
         <section id="model-information" class="model-information panel" aria-labelledby="model-information-title">
             <header class="model-information-header">
                 <h2 id="model-information-title">About this model</h2>
-                <p><strong>Research model—not a diagnosis.</strong> Results are generic estimates, not measurements of an individual.</p>
+                <div class="model-disclosure" role="note">
+                    <strong>Research model—not a diagnosis.</strong>
+                    <span>Results are generic estimates, not measurements of an individual.</span>
+                </div>
             </header>
             <div class="model-information-groups">
-                <details open>
-                    <summary>What the model shows</summary>
+                <section class="model-information-section" aria-labelledby="model-shows-title">
+                    <h3 id="model-shows-title">What the model shows</h3>
                     <div class="model-information-body">
-                        <p><strong>Model:</strong> <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">MS-Human-700</a>, primary variant. The complete skeleton is shown as quiet context; <span id="count-muscles">—</span> relevant right-arm and shoulder-girdle muscles, <span id="count-bodies">—</span> articulated arm bodies, and <span id="count-meshes">—</span> active-arm surface meshes remain the focus.</p>
-                        <p><strong>Posture and paths:</strong> seven right-arm controls drive the shoulder girdle, arm and wrist. Muscle paths are recalculated through the model's attachment sites and wrapping surfaces at every posture.</p>
+                        <p><strong>Model:</strong> <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">MS-Human-700</a>, using its primary full-body model and detailed manipulation hand variant. The complete skeleton is shown as quiet context while <span id="count-region-name">the selected region</span> remains in focus: <span id="count-muscles">—</span> relevant muscles, <span id="count-bodies">—</span> articulated bodies, and <span id="count-meshes">—</span> surface meshes.</p>
+                        <p><strong>Posture and paths:</strong> choose one body region at a time. Its own posture controls, muscle inventory and presets replace the previous region cleanly; paths are recalculated through the model's attachment sites and wrapping surfaces at every posture.</p>
+                        <p><strong>Muscle rendering:</strong> switch between procedural anatomical bodies and technical path lines. Anatomical bodies use smoothed, muscle-family-specific surface profiles while following the model path; path lines show the exact calculated centerline. Body shape and thickness are illustrative and do not vary with activation; color represents activation.</p>
                         <p><strong>Activation:</strong> colors show a static, gravity-only model estimate. The calculation includes passive model forces and assumes the rest of the body is externally supported.</p>
+                        <p><strong>Detailed hand:</strong> finger posture and intrinsic-hand muscles come from the articulated right-hand variant. Hand presets are unloaded shapes without object contact; they do not estimate grip or pinch force. Mirror display does not change the calculated side.</p>
                     </div>
-                </details>
-                <details>
-                    <summary>Methods and limitations</summary>
+                </section>
+                <section class="model-information-section" aria-labelledby="model-limitations-title">
+                    <h3 id="model-limitations-title">Methods and limitations</h3>
                     <div class="model-information-body">
                         <p><strong>Static only:</strong> there is no held object, contact force, measured support, speed, acceleration, fatigue or person-specific co-contraction. Dynamic movement can require different activation.</p>
                         <p><strong>Quality checks:</strong> colors appear only when paths and values are valid and the posture passes the static balance and reserve-torque limits. A failed result remains gray.</p>
-                        <p><strong>Interpretation:</strong> activation and active tensile-force contribution are model outputs—not measured effort, personal force, tissue load, pain, damage or diagnostic evidence. Shoulder joint reaction is not calculated.</p>
-                        <p><strong>Assessment:</strong> the guided sequence records observations and shows the same generic model reference. It cannot identify a painful tissue, rule out urgent conditions or replace a qualified clinician.</p>
+                        <p><strong>Interpretation:</strong> activation and active tensile-force contribution are model outputs—not measured effort, personal force, tissue load, pain, damage or diagnostic evidence. Joint reaction forces are not calculated.</p>
+                        <p><strong>Assessment:</strong> the guided sequence remains a separate right upper-limb workflow. Explorer region choices do not change its protocol. It cannot identify a painful tissue, rule out urgent conditions or replace a qualified clinician.</p>
                         <p><strong>Technical details:</strong> <span id="runtime-note">Loading the browser runtime…</span> <span id="model-hash">Checking model integrity…</span> This distribution includes documented source-model modifications; see the source-change record below.</p>
                     </div>
-                </details>
-                <details id="credits-legal">
-                    <summary>Credits, licenses and citation</summary>
+                </section>
+                <section id="credits-legal" class="model-information-section" aria-labelledby="credits-legal-title">
+                    <h3 id="credits-legal-title">Credits, licenses and citation</h3>
                     <div class="model-information-body legal-grid">
                         <p><strong>Waajacu's Medical:</strong> original application code and interface © 2026 Waajacu's Medical contributors, licensed under the <a href="./LICENSE" target="_blank">MIT License</a>.</p>
                         <p><strong>MS-Human-700:</strong> by the <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">LNS Group</a>, sourced through <a href="https://github.com/google-deepmind/mujoco_menagerie/tree/main/ms_human_700" target="_blank" rel="noreferrer">MuJoCo Menagerie</a>. Modified and compiled browser assets remain under <a href="./models/ms_human_700/LICENSE" target="_blank">Apache-2.0</a>; changes are listed in the <a href="./models/ms_human_700/SOURCE.md" target="_blank">source record</a>.</p>
@@ -585,7 +577,7 @@
                         <p><strong>Provenance:</strong> Waajacu has not independently verified every model parameter or mesh. Local modifications are not endorsed by the upstream authors. See the <a href="./THIRD_PARTY_NOTICES.md" target="_blank">third-party notices</a> for complete boundaries.</p>
                         <p><strong>Safety references:</strong> <a href="https://www.nhs.uk/symptoms/shoulder-pain/" target="_blank" rel="noreferrer">NHS shoulder guidance</a> and a <a href="https://pubmed.ncbi.nlm.nih.gov/28122541/" target="_blank" rel="noreferrer">systematic review of shoulder examination tests</a>. These sources do not validate this application.</p>
                     </div>
-                </details>
+                </section>
             </div>
         </section>
 

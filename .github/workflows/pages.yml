@@ -26,7 +26,7 @@ jobs:
           -File .\release.ps1
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: verify-muscles
     runs-on: ubuntu-latest
     permissions:
@@ -47,11 +47,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/muscles
+          mkdir -p _site/en/tools/muscles _site/muscles
           cp -R site/. _site/
           cp waajacu_medical_no_bg.png _site/waajacu_medical_no_bg.png
-          cp -R muscles/public/. _site/muscles/
+          cp -R muscles/public/. _site/en/tools/muscles/
           touch _site/.nojekyll
+
+      - name: Check assembled routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          test -f _site/en/tools/muscles/index.html
+          test -f _site/en/tools/muscles/vendor/mujoco.wasm
+          test -f _site/muscles/index.html
+          grep -Fq 'href="./en/tools/muscles/"' _site/index.html
+          grep -Fq '../en/tools/muscles/' _site/muscles/index.html
+          if find _site -type l -print -quit | grep -q .; then
+            echo 'The Pages artifact must not contain symbolic links.' >&2
+            exit 1
+          fi
+          if find _site -path '*/tmp/*' -print -quit | grep -q .; then
+            echo 'The Pages artifact unexpectedly contains tmp content.' >&2
+            exit 1
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

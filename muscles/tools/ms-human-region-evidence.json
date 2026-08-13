@@ -1,0 +1,373 @@
+{
+  "schemaVersion": 1,
+  "manifestId": "MS_HUMAN_700_REGION_MANIFEST_V1",
+  "manifestContentDigestSha256": "caba1fc651c2eef253f04c008e2b27ea13eee17eff9d931c2c158b6816c9860d",
+  "generatedAt": null,
+  "clinicalValidation": false,
+  "selectionMethod": {
+    "id": "equality-projected-active-generalized-force-sweep-v1",
+    "description": "At each deterministic pose, the actuator length gradient is projected through authored joint equalities and multiplied by the actuator force change from activation 0 to 1. An actuator is a candidate when its maximum absolute projected contribution clears the stated threshold.",
+    "poseSweep": {
+      "defaultPose": true,
+      "perAxisFractionsTowardEachBound": [
+        0.35,
+        0.7
+      ],
+      "coupledSequence": "Halton",
+      "coupledPoseCount": 16,
+      "coupledRangeFraction": [
+        0.1,
+        0.9
+      ],
+      "bases": [
+        2,
+        3,
+        5,
+        7,
+        11,
+        13,
+        17
+      ]
+    },
+    "projection": "Virtual-work reduction using the derivative of every authored joint equality sourced by a region coordinate.",
+    "absoluteThresholdNmPerUnitActivation": 1e-8,
+    "relativeThreshold": 1e-10,
+    "defaultVisibility": "Upper limbs show every Arm and Shoulder stabilizer candidate while hiding Long torso origin paths by default; the right upper limb preserves the existing right-arm metadata. Other regions show the 36 largest maximum projected contributors, or every candidate when fewer than 36 exist.",
+    "clinicalValidation": false
+  },
+  "runtimeInventory": {
+    "bodies": 81,
+    "joints": 85,
+    "generalizedCoordinates": 85,
+    "generalizedVelocities": 85,
+    "actuators": 700,
+    "tendons": 700,
+    "equalities": 42,
+    "jointEqualities": 42
+  },
+  "regions": [
+    {
+      "id": "right-upper-limb",
+      "presentationName": "Right upper limb",
+      "coordinateCount": 7,
+      "activeBodyCount": 11,
+      "candidateMuscleCount": 88,
+      "mechanicallyQualifiedMuscleCount": 88,
+      "defaultVisibleMuscleCount": 74,
+      "presetCount": 21,
+      "sweepPoseCount": 41,
+      "selectionThresholdNmPerUnitActivation": 1e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 62.136624446,
+      "defaultSelectedMuscle": {
+        "actuatorId": 114,
+        "name": "DELT1_r"
+      },
+      "contractDigestSha256": "f247de85853073e381a7aa95a80ecc5fe0cf7c2c71af8f7ec873265bd8a47e16",
+      "runtimeRegionDigestSha256": "63f189f3e7ca8932df475ae19685a2960a00d37c2c79354ecc3ca61fbae60d88",
+      "coordinateEvidence": [
+        {
+          "name": "elv_angle_r",
+          "candidateMuscles": 29,
+          "maximumProjectedMomentNmPerUnitActivation": 47.413158939
+        },
+        {
+          "name": "shoulder_elv_r",
+          "candidateMuscles": 56,
+          "maximumProjectedMomentNmPerUnitActivation": 62.136624446
+        },
+        {
+          "name": "shoulder_rot_r",
+          "candidateMuscles": 29,
+          "maximumProjectedMomentNmPerUnitActivation": 30.83854544
+        },
+        {
+          "name": "elbow_flexion_r",
+          "candidateMuscles": 22,
+          "maximumProjectedMomentNmPerUnitActivation": 22.827989234
+        },
+        {
+          "name": "pro_sup_r",
+          "candidateMuscles": 27,
+          "maximumProjectedMomentNmPerUnitActivation": 7.519827674
+        },
+        {
+          "name": "deviation_r",
+          "candidateMuscles": 24,
+          "maximumProjectedMomentNmPerUnitActivation": 8.795408758
+        },
+        {
+          "name": "flexion_r",
+          "candidateMuscles": 24,
+          "maximumProjectedMomentNmPerUnitActivation": 11.712818032
+        }
+      ],
+      "legacyCompatibility": {
+        "expectedMuscleCount": 88,
+        "mechanicallyQualifiedMuscleCount": 88,
+        "exactActuatorIdsPreserved": true,
+        "exactNamesPreserved": true,
+        "compatibilityExcludedMechanicallyQualifiedActuatorIds": []
+      }
+    },
+    {
+      "id": "left-upper-limb",
+      "presentationName": "Left upper limb",
+      "coordinateCount": 7,
+      "activeBodyCount": 11,
+      "candidateMuscleCount": 88,
+      "mechanicallyQualifiedMuscleCount": 88,
+      "defaultVisibleMuscleCount": 74,
+      "presetCount": 21,
+      "sweepPoseCount": 41,
+      "selectionThresholdNmPerUnitActivation": 1e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 62.136624446,
+      "defaultSelectedMuscle": {
+        "actuatorId": 175,
+        "name": "DELT1_l"
+      },
+      "contractDigestSha256": "bc2f98dcb73c91fb715e8acdb4e2277d39c6d37c315dcfc3b7d62b2afeec5561",
+      "runtimeRegionDigestSha256": "88c045e526dea350cc3dabc00c7df96b9096368ab963fedf4fca47a6eb745ce9",
+      "coordinateEvidence": [
+        {
+          "name": "elv_angle_l",
+          "candidateMuscles": 29,
+          "maximumProjectedMomentNmPerUnitActivation": 47.413158939
+        },
+        {
+          "name": "shoulder_elv_l",
+          "candidateMuscles": 56,
+          "maximumProjectedMomentNmPerUnitActivation": 62.136624446
+        },
+        {
+          "name": "shoulder_rot_l",
+          "candidateMuscles": 29,
+          "maximumProjectedMomentNmPerUnitActivation": 30.83854544
+        },
+        {
+          "name": "elbow_flexion_l",
+          "candidateMuscles": 22,
+          "maximumProjectedMomentNmPerUnitActivation": 22.827989234
+        },
+        {
+          "name": "pro_sup_l",
+          "candidateMuscles": 27,
+          "maximumProjectedMomentNmPerUnitActivation": 7.519827674
+        },
+        {
+          "name": "deviation_l",
+          "candidateMuscles": 24,
+          "maximumProjectedMomentNmPerUnitActivation": 8.795408758
+        },
+        {
+          "name": "flexion_l",
+          "candidateMuscles": 24,
+          "maximumProjectedMomentNmPerUnitActivation": 11.712818032
+        }
+      ],
+      "legacyCompatibility": null
+    },
+    {
+      "id": "right-lower-limb",
+      "presentationName": "Right lower limb",
+      "coordinateCount": 7,
+      "activeBodyCount": 6,
+      "candidateMuscleCount": 50,
+      "mechanicallyQualifiedMuscleCount": 50,
+      "defaultVisibleMuscleCount": 36,
+      "presetCount": 17,
+      "sweepPoseCount": 43,
+      "selectionThresholdNmPerUnitActivation": 2.419e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 241.904106153,
+      "defaultSelectedMuscle": {
+        "actuatorId": 32,
+        "name": "soleus_r"
+      },
+      "contractDigestSha256": "981b27620b0f097f8976f6ffb37204a137353f41a6a103b9199a698a6835613b",
+      "runtimeRegionDigestSha256": "2ddaf77db941b120dde750ee0806fe7d468c0ad695ff39216934ebea7a04a88d",
+      "coordinateEvidence": [
+        {
+          "name": "hip_flexion_r",
+          "candidateMuscles": 35,
+          "maximumProjectedMomentNmPerUnitActivation": 121.560534958
+        },
+        {
+          "name": "hip_adduction_r",
+          "candidateMuscles": 35,
+          "maximumProjectedMomentNmPerUnitActivation": 70.984110414
+        },
+        {
+          "name": "hip_rotation_r",
+          "candidateMuscles": 35,
+          "maximumProjectedMomentNmPerUnitActivation": 53.052761767
+        },
+        {
+          "name": "knee_angle_r",
+          "candidateMuscles": 13,
+          "maximumProjectedMomentNmPerUnitActivation": 167.286133647
+        },
+        {
+          "name": "ankle_angle_r",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 241.904106153
+        },
+        {
+          "name": "subtalar_angle_r",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 46.103834393
+        },
+        {
+          "name": "mtp_angle_r",
+          "candidateMuscles": 4,
+          "maximumProjectedMomentNmPerUnitActivation": 5.17603046
+        }
+      ],
+      "legacyCompatibility": null
+    },
+    {
+      "id": "left-lower-limb",
+      "presentationName": "Left lower limb",
+      "coordinateCount": 7,
+      "activeBodyCount": 6,
+      "candidateMuscleCount": 50,
+      "mechanicallyQualifiedMuscleCount": 50,
+      "defaultVisibleMuscleCount": 36,
+      "presetCount": 17,
+      "sweepPoseCount": 43,
+      "selectionThresholdNmPerUnitActivation": 2.419e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 241.904106153,
+      "defaultSelectedMuscle": {
+        "actuatorId": 82,
+        "name": "soleus_l"
+      },
+      "contractDigestSha256": "a8aa2381f220adf70897778f9f9b3d30d30eb49b8b018f48943df8ee6a6b3bbb",
+      "runtimeRegionDigestSha256": "6f4763d9fd48564200eaebedbd2b6cc9f415d94e46af9d1a3e32f065e16f9de6",
+      "coordinateEvidence": [
+        {
+          "name": "hip_flexion_l",
+          "candidateMuscles": 35,
+          "maximumProjectedMomentNmPerUnitActivation": 121.560534958
+        },
+        {
+          "name": "hip_adduction_l",
+          "candidateMuscles": 35,
+          "maximumProjectedMomentNmPerUnitActivation": 70.984110414
+        },
+        {
+          "name": "hip_rotation_l",
+          "candidateMuscles": 35,
+          "maximumProjectedMomentNmPerUnitActivation": 53.052761767
+        },
+        {
+          "name": "knee_angle_l",
+          "candidateMuscles": 13,
+          "maximumProjectedMomentNmPerUnitActivation": 167.286133647
+        },
+        {
+          "name": "ankle_angle_l",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 241.904106153
+        },
+        {
+          "name": "subtalar_angle_l",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 46.103834393
+        },
+        {
+          "name": "mtp_angle_l",
+          "candidateMuscles": 4,
+          "maximumProjectedMomentNmPerUnitActivation": 5.17603046
+        }
+      ],
+      "legacyCompatibility": null
+    },
+    {
+      "id": "trunk",
+      "presentationName": "Trunk",
+      "coordinateCount": 6,
+      "activeBodyCount": 45,
+      "candidateMuscleCount": 222,
+      "mechanicallyQualifiedMuscleCount": 222,
+      "defaultVisibleMuscleCount": 36,
+      "presetCount": 19,
+      "sweepPoseCount": 41,
+      "selectionThresholdNmPerUnitActivation": 1.2141e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 121.412950743,
+      "defaultSelectedMuscle": {
+        "actuatorId": 461,
+        "name": "rect_abd_l"
+      },
+      "contractDigestSha256": "0308c56ad974270fa34f2b3b42bfd714b8878e4363a587af60c1a5aab4c63114",
+      "runtimeRegionDigestSha256": "9575a2d4c3a023f4ebfc8fd9cfed8b13024a7db3dfa2570752ae0e5a4341bb85",
+      "coordinateEvidence": [
+        {
+          "name": "L5_S1_FE",
+          "candidateMuscles": 180,
+          "maximumProjectedMomentNmPerUnitActivation": 121.412950743
+        },
+        {
+          "name": "L5_S1_LB",
+          "candidateMuscles": 180,
+          "maximumProjectedMomentNmPerUnitActivation": 95.098016926
+        },
+        {
+          "name": "L5_S1_AR",
+          "candidateMuscles": 180,
+          "maximumProjectedMomentNmPerUnitActivation": 35.783824254
+        },
+        {
+          "name": "T12_L1_FE",
+          "candidateMuscles": 122,
+          "maximumProjectedMomentNmPerUnitActivation": 103.797854175
+        },
+        {
+          "name": "T12_L1_LB",
+          "candidateMuscles": 122,
+          "maximumProjectedMomentNmPerUnitActivation": 52.564099803
+        },
+        {
+          "name": "T12_L1_AR",
+          "candidateMuscles": 122,
+          "maximumProjectedMomentNmPerUnitActivation": 67.005041538
+        }
+      ],
+      "legacyCompatibility": null
+    },
+    {
+      "id": "head-neck",
+      "presentationName": "Head and neck",
+      "coordinateCount": 3,
+      "activeBodyCount": 1,
+      "candidateMuscleCount": 54,
+      "mechanicallyQualifiedMuscleCount": 54,
+      "defaultVisibleMuscleCount": 36,
+      "presetCount": 7,
+      "sweepPoseCount": 29,
+      "selectionThresholdNmPerUnitActivation": 1e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 12.294756568,
+      "defaultSelectedMuscle": {
+        "actuatorId": 557,
+        "name": "stern_mast_L"
+      },
+      "contractDigestSha256": "9af4680cc29c84968d9eb38f2034cdd04ee8737dea22ecfc93764fd1804d75b6",
+      "runtimeRegionDigestSha256": "d0f8249696ef657c2a6b0757125ce7d13156c742afc1411bca60db44db094077",
+      "coordinateEvidence": [
+        {
+          "name": "T1_head_neck_FE",
+          "candidateMuscles": 54,
+          "maximumProjectedMomentNmPerUnitActivation": 12.294756568
+        },
+        {
+          "name": "T1_head_neck_LB",
+          "candidateMuscles": 54,
+          "maximumProjectedMomentNmPerUnitActivation": 12.245327237
+        },
+        {
+          "name": "T1_head_neck_AR",
+          "candidateMuscles": 54,
+          "maximumProjectedMomentNmPerUnitActivation": 5.835645249
+        }
+      ],
+      "legacyCompatibility": null
+    }
+  ]
+}

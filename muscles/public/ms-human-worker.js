@@ -3,16 +3,26 @@ import loadMujoco from './vendor/mujoco.js';
 const CONTRACT_VERSION = 1;
 const STATE_SCHEMA_VERSION = 1;
 const EXPECTED_MUJOCO_VERSION = '3.10.0';
-const MODEL_ID = 'MS_HUMAN_700_RIGHT_ARM_STATIC_V1';
-const SOLVER_CONFIG_NAME = 'MS_HUMAN_700_RIGHT_ARM_STATIC_MIN_NORM_V1';
-const DEFAULT_SELECTED_MUSCLE = 'DELT1_r';
+const PROFILE = new URL(import.meta.url).searchParams.get('profile') === 'hand' ? 'hand' : 'primary';
+const HAND_PROFILE = PROFILE === 'hand';
+const MODEL_ID = HAND_PROFILE ? 'MS_HUMAN_700_RIGHT_HAND_STATIC_V1' : 'MS_HUMAN_700_RIGHT_ARM_STATIC_V1';
+const SOLVER_CONFIG_NAME = HAND_PROFILE
+    ? 'MS_HUMAN_700_RIGHT_HAND_STATIC_MIN_NORM_V1'
+    : 'MS_HUMAN_700_RIGHT_ARM_STATIC_MIN_NORM_V1';
+const DEFAULT_SELECTED_MUSCLE = HAND_PROFILE ? 'OPP' : 'DELT1_r';
+const EXPECTED_FUNCTIONAL_MUSCLES = HAND_PROFILE ? 44 : 88;
+const EXPECTED_COORDINATES = HAND_PROFILE ? 23 : 7;
+const EXPECTED_REGION_MANIFEST_ID = HAND_PROFILE
+    ? 'MS_HUMAN_700_HAND_REGION_MANIFEST_V1'
+    : 'MS_HUMAN_700_REGION_MANIFEST_V1';
 const DEGREES_TO_RADIANS = Math.PI / 180;
 const RADIANS_TO_DEGREES = 180 / Math.PI;
 
 const URLS = Object.freeze({
-    metadata: new URL('./models/ms_human_700/right-arm.json', import.meta.url).href,
-    geometry: new URL('./models/ms_human_700/right-arm.meshbin', import.meta.url).href,
-    runtime: new URL('./models/ms_human_700/right-arm-runtime.mjb', import.meta.url).href,
+    metadata: new URL(HAND_PROFILE ? './models/ms_human_700/right-hand.json' : './models/ms_human_700/right-arm.json', import.meta.url).href,
+    regions: new URL(HAND_PROFILE ? './models/ms_human_700/hand-region.json' : './models/ms_human_700/body-regions.json', import.meta.url).href,
+    geometry: new URL(HAND_PROFILE ? './models/ms_human_700/right-hand.meshbin' : './models/ms_human_700/right-arm.meshbin', import.meta.url).href,
+    runtime: new URL(HAND_PROFILE ? './models/ms_human_700/right-hand-runtime.mjb' : './models/ms_human_700/right-arm-runtime.mjb', import.meta.url).href,
     mujocoJs: new URL('./vendor/mujoco.js', import.meta.url).href,
     mujocoWasm: new URL('./vendor/mujoco.wasm', import.meta.url).href
 });
@@ -21,9 +31,10 @@ const URLS = Object.freeze({
 // executes directly. The geometry digest is exported for the renderer, which
 // owns and verifies the separate mesh download.
 const ASSET_SHA256 = Object.freeze({
-    metadata: '4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e',
-    geometry: '5cbdf2aebd44da09dbd9b546cca35abc7b3b2f64e927f879c0d03595e087f68c',
-    runtime: '13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3',
+    metadata: HAND_PROFILE ? 'e6d169bdc2edeed3e846d7ccbe03d7ef68968fb2f715c61f4b892bfa85307a46' : '4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e',
+    regions: HAND_PROFILE ? '94180b72f4efcb877bcbad8a9b9cdf6bc51a2604d463c817ebd8cf722924628a' : '485e389aebe640687974a719ed7adf176c637617afc0800387b4fa5860c0da4e',
+    geometry: HAND_PROFILE ? '5054f8ff61ca45db638bd36729f1ed71100fd889c58a60d219c673a3162f03ea' : '5cbdf2aebd44da09dbd9b546cca35abc7b3b2f64e927f879c0d03595e087f68c',
+    runtime: HAND_PROFILE ? '40b75b5583aeb5f20cbda668c4b7e035109dab97175ce30b368551a204e98e1d' : '13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3',
     mujocoJs: '45e8e0e1617c19fbf7f00b36a6a72d1c0c980c0a4f38523e04f0641e8fbab7b9',
     mujocoWasm: '832597ae0a0e306c97ed43d2a9bbca033cf3e547eced410fb9011d87a68d4207'
 });
@@ -33,16 +44,15 @@ const EXPECTED_SOURCE_TREE_SHA256 = '38815fed122d1beb61155f0afd85e72a52093111fca
 let initializationPromise = null;
 let disposed = false;
 let rawMetadata = null;
+let rawRegionManifest = null;
 let publicMetadata = null;
 let solverConfig = null;
 let mujoco = null;
 let model = null;
 let data = null;
-let coordinateSpecs = [];
-let coordinateByInputName = new Map();
-let muscleDescriptors = [];
-let muscleByName = new Map();
-let muscleByActuatorId = new Map();
+let defaultRegionContext = null;
+let regionContexts = new Map();
+let regionManifestDigest = null;
 
 function assert(condition, message, code = 'MODEL_INTEGRITY_ERROR') {
     if (condition) return;
@@ -53,6 +63,35 @@ function assert(condition, message, code = 'MODEL_INTEGRITY_ERROR') {
 
 function canonicalCoordinateName(engineName) {
     return engineName.endsWith('_r') ? engineName.slice(0, -2) : engineName;
+}
+
+function nameSuffixAwareCoordinate(name, engineName) {
+    if (name === engineName) return name;
+    return engineName;
+}
+
+function canonicalJsonValue(value) {
+    if (Array.isArray(value)) return value.map(canonicalJsonValue);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.keys(value).sort().map((key) => [key, canonicalJsonValue(value[key])])
+        );
+    }
+    return value;
+}
+
+function deepFreeze(value, seen = new Set()) {
+    if (!value || typeof value !== 'object' || seen.has(value)) return value;
+    seen.add(value);
+    for (const child of Object.values(value)) deepFreeze(child, seen);
+    return Object.freeze(value);
+}
+
+function humanizeIdentifier(value) {
+    return String(value)
+        .replace(/_[rl]$/i, '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function stableStringify(value) {
@@ -94,7 +133,7 @@ function runtimeCount(value) {
     return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-function buildSolverConfig(metadata) {
+function buildSolverConfig(metadata, coordinates, semantics = {}) {
     const source = metadata.staticHold;
     return {
         algorithm: 'bounded weighted minimum-norm equality solve with active-set bounds',
@@ -106,22 +145,50 @@ function buildSolverConfig(metadata) {
         maximumReserveNm: source.maximumReserveNm,
         capacityActivation: source.capacityActivation,
         capacityReserveNm: source.capacityReserveNm,
-        gravityMPerS2: [...source.gravityMPerS2],
-        solvedCoordinates: coordinateSpecs.map((coordinate) => coordinate.name),
-        fixedSupport: 'All non-solved model coordinates remain prescribed at keyframe 0; their support reactions are not solved or interpreted.',
+        gravityMPerS2: [...(semantics.gravityMPerS2 || source.gravityMPerS2)],
+        solvedCoordinates: coordinates.map((coordinate) => coordinate.name),
+        fixedSupport: semantics.fixedSupport
+            || 'All non-solved model coordinates remain prescribed at keyframe 0; their support reactions are not solved or interpreted.',
         momentArmMethod: 'Negative MuJoCo actuator-length gradient projected through authored joint-equality derivatives; finite-difference fallback uses the same compiled model.',
-        assumptions: [...source.assumptions]
+        assumptions: [...(semantics.assumptions || source.assumptions)]
+    };
+}
+
+function publicRegionMetadata(context) {
+    const muscles = context.muscles.map((muscle) => ({ ...muscle }));
+    return {
+        id: context.id,
+        digest: context.digest,
+        label: context.label,
+        description: context.description,
+        laterality: context.laterality,
+        coordinates: context.coordinates.map((coordinate) => ({ ...coordinate })),
+        muscles,
+        muscleNames: muscles.map((muscle) => muscle.name),
+        defaultSelectedMuscle: context.defaultSelectedMuscle.name,
+        defaultSelectedMuscleId: context.defaultSelectedMuscle.id,
+        presets: context.presets.map((preset) => ({ ...preset, coordinates: { ...preset.coordinates } })),
+        presetGroups: context.presetGroups.map((group) => ({
+            ...group,
+            presets: group.presets.map((preset) => ({ ...preset, coordinates: { ...preset.coordinates } }))
+        })),
+        solverConfig: {
+            ...context.solverConfig,
+            activationBounds: [...context.solverConfig.activationBounds],
+            gravityMPerS2: [...context.solverConfig.gravityMPerS2],
+            solvedCoordinates: [...context.solverConfig.solvedCoordinates],
+            assumptions: [...context.solverConfig.assumptions]
+        },
+        capabilities: { ...context.capabilities },
+        geometryActiveBodyIds: [...context.activeBodyIds],
+        semantics: { ...context.semantics, assumptions: [...context.semantics.assumptions] }
     };
 }
 
 async function buildPublicMetadata(metadata, verifiedAssets) {
-    const configDigest = await sha256Text(stableStringify(solverConfig));
-    const configId = `${SOLVER_CONFIG_NAME}:${configDigest.slice(0, 16)}`;
-    solverConfig = { id: configId, digest: configDigest, ...solverConfig };
-
     const geoms = metadata.geometry.geoms.map((geom) => ({ ...geom, rgba: [...geom.rgba] }));
-    const muscles = muscleDescriptors.map((muscle) => ({ ...muscle }));
-    const coordinates = coordinateSpecs.map((coordinate) => ({ ...coordinate }));
+    const muscles = defaultRegionContext.muscles.map((muscle) => ({ ...muscle }));
+    const coordinates = defaultRegionContext.coordinates.map((coordinate) => ({ ...coordinate }));
     const presets = metadata.presets.map((preset) => ({
         ...preset,
         coordinates: Object.fromEntries(
@@ -133,6 +200,8 @@ async function buildPublicMetadata(metadata, verifiedAssets) {
     return {
         schemaVersion: STATE_SCHEMA_VERSION,
         contractVersion: CONTRACT_VERSION,
+        defaultRegionId: defaultRegionContext.id,
+        regions: [...regionContexts.values()].map(publicRegionMetadata),
         identity: {
             modelId: MODEL_ID,
             modelDigest: EXPECTED_SOURCE_TREE_SHA256,
@@ -141,6 +210,7 @@ async function buildPublicMetadata(metadata, verifiedAssets) {
             sourceCommit: metadata.source.commit,
             runtimeModelSha256: ASSET_SHA256.runtime,
             runtimeVersion: EXPECTED_MUJOCO_VERSION,
+            regionManifestSha256: regionManifestDigest,
             assetSha256: { ...ASSET_SHA256 },
             verifiedAtInitialization: [...verifiedAssets]
         },
@@ -165,7 +235,7 @@ async function buildPublicMetadata(metadata, verifiedAssets) {
         counts: {
             bodies: runtimeCount(model.nbody),
             renderedBodies: bodyIds.size,
-            muscles: muscleDescriptors.length,
+            muscles: defaultRegionContext.muscles.length,
             ligaments: 0,
             meshes: geoms.length
         },
@@ -175,7 +245,7 @@ async function buildPublicMetadata(metadata, verifiedAssets) {
             dynamicMotion: false,
             externalLoads: false,
             patientSpecific: false,
-            leftArm: false,
+            leftArm: !HAND_PROFILE,
             calculationSide: 'right'
         },
         coordinates,
@@ -210,22 +280,26 @@ async function buildPublicMetadata(metadata, verifiedAssets) {
             localCorrections: [...metadata.source.localCorrections]
         },
         validation: { ...metadata.validation },
-        notice: 'Generic MS-Human-700 right-arm model; static, gravity-only, non-patient-specific, and not diagnostic.'
+        notice: HAND_PROFILE
+            ? 'Generic articulated MS-Human-700 right-hand model; unloaded, static, gravity-only, non-patient-specific, and not diagnostic.'
+            : 'Generic MS-Human-700 right-arm model; static, gravity-only, non-patient-specific, and not diagnostic.'
     };
 }
 
 function validateRuntimeInventory(metadata) {
     assert(mujoco.mj_versionString() === EXPECTED_MUJOCO_VERSION,
         `Expected MuJoCo ${EXPECTED_MUJOCO_VERSION}; loaded ${mujoco.mj_versionString()}.`);
-    assert(metadata.schemaVersion === 1, `Unsupported right-arm metadata schema ${metadata.schemaVersion}.`);
+    assert(metadata.schemaVersion === 1, `Unsupported MS-Human metadata schema ${metadata.schemaVersion}.`);
     assert(metadata.source.sourceTreeSha256 === EXPECTED_SOURCE_TREE_SHA256,
         'The MS-Human source-tree identity does not match this engine.');
     assert(model.nu === metadata.model.totalMuscles,
-        'The runtime actuator count does not match the right-arm metadata.');
-    assert(metadata.muscles.length === 88 && metadata.model.functionalMuscles === 88,
-        'The functional right-arm inventory must contain exactly 88 muscles.');
-    assert(metadata.coordinates.length === 7 && metadata.model.independentCoordinates === 7,
-        'The right-arm runtime must expose exactly seven independent coordinates.');
+        'The runtime actuator count does not match the selected profile metadata.');
+    assert(metadata.muscles.length === EXPECTED_FUNCTIONAL_MUSCLES
+            && metadata.model.functionalMuscles === EXPECTED_FUNCTIONAL_MUSCLES,
+        `The functional ${PROFILE} inventory must contain exactly ${EXPECTED_FUNCTIONAL_MUSCLES} muscles.`);
+    assert(metadata.coordinates.length === EXPECTED_COORDINATES
+            && metadata.model.independentCoordinates === EXPECTED_COORDINATES,
+        `The ${PROFILE} runtime must expose exactly ${EXPECTED_COORDINATES} independent coordinates.`);
 
     const seenActuators = new Set();
     const seenTendons = new Set();
@@ -257,53 +331,463 @@ function validateRuntimeInventory(metadata) {
     }
 }
 
+function objectIdByName(objectType, count, name, label) {
+    assert(typeof name === 'string' && name.length > 0, `${label} must have a runtime name.`);
+    for (let id = 0; id < count; id += 1) {
+        if (mujoco.mj_id2name(model, objectType, id) === name) return id;
+    }
+    assert(false, `Unknown runtime ${label}: ${name}.`);
+}
+
+function finiteNumber(value, label) {
+    const numeric = Number(value);
+    assert(Number.isFinite(numeric), `${label} must be finite.`);
+    return numeric;
+}
+
+function semanticValue(semantics, names, fallback = null) {
+    for (const name of names) {
+        if (typeof semantics?.[name] === 'string' && semantics[name].trim()) return semantics[name].trim();
+    }
+    return fallback;
+}
+
+function coordinateAlias(regionId, engineName, compatibility, declaredName) {
+    const regionAliases = compatibility?.coordinateAliases?.[regionId]
+        || compatibility?.coordinateAliases
+        || compatibility?.rightArmCoordinateAliases
+        || (regionId === 'right-upper-limb'
+            ? compatibility?.rightUpperLimb?.canonicalCoordinateAliases
+            : null)
+        || {};
+    if (typeof regionAliases[declaredName] === 'string'
+            && regionAliases[declaredName] === engineName) return declaredName;
+    if (typeof regionAliases[engineName] === 'string') return regionAliases[engineName];
+    for (const [alias, target] of Object.entries(regionAliases)) {
+        if (target === engineName) return alias;
+    }
+    return regionId === (rawRegionManifest?.defaultRegionId || compatibility?.defaultRegionId)
+        ? canonicalCoordinateName(engineName)
+        : engineName;
+}
+
+function normalizeCoordinate(region, rawCoordinate, compatibility) {
+    const source = typeof rawCoordinate === 'string' ? { name: rawCoordinate } : rawCoordinate;
+    assert(source && typeof source === 'object' && !Array.isArray(source),
+        `Region ${region.id} has an invalid coordinate descriptor.`);
+    const engineName = source.engineName || source.name;
+    const jointId = source.jointId ?? objectIdByName(
+        mujoco.mjtObj.mjOBJ_JOINT.value,
+        model.njnt,
+        engineName,
+        'joint'
+    );
+    const runtimeName = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT.value, jointId);
+    assert(runtimeName === engineName, `Joint mapping changed for ${engineName}.`);
+    const qposAddress = source.qposAddress ?? model.jnt_qposadr[jointId];
+    const dofAddress = source.dofAddress ?? model.jnt_dofadr[jointId];
+    assert(model.jnt_qposadr[jointId] === qposAddress, `Q-position mapping changed for ${engineName}.`);
+    assert(model.jnt_dofadr[jointId] === dofAddress, `Degree-of-freedom mapping changed for ${engineName}.`);
+
+    const runtimeMinimum = model.jnt_range[jointId * 2] * RADIANS_TO_DEGREES;
+    const runtimeMaximum = model.jnt_range[jointId * 2 + 1] * RADIANS_TO_DEGREES;
+    const legacy = rawMetadata.coordinates.find((coordinate) => coordinate.name === engineName);
+    const minimum = finiteNumber(
+        source.minimumDegrees ?? source.minimum ?? legacy?.minimumDegrees ?? runtimeMinimum,
+        `${engineName} minimum`
+    );
+    const maximum = finiteNumber(
+        source.maximumDegrees ?? source.maximum ?? legacy?.maximumDegrees ?? runtimeMaximum,
+        `${engineName} maximum`
+    );
+    const defaultValue = finiteNumber(
+        source.defaultDegrees ?? source.default ?? legacy?.defaultDegrees ?? 0,
+        `${engineName} default`
+    );
+    assert(minimum <= maximum && defaultValue >= minimum - 1e-8 && defaultValue <= maximum + 1e-8,
+        `Region ${region.id} has an invalid authored range for ${engineName}.`);
+    assert(Math.abs(minimum - runtimeMinimum) <= 5e-4 && Math.abs(maximum - runtimeMaximum) <= 5e-4,
+        `Region ${region.id} range for ${engineName} does not match the compiled model.`);
+    const name = source.inputName || source.canonicalName
+        || coordinateAlias(region.id, engineName, compatibility, nameSuffixAwareCoordinate(source.name, engineName));
+    return {
+        name,
+        engineName,
+        label: source.label || legacy?.label || humanizeIdentifier(engineName),
+        minimum,
+        maximum,
+        default: defaultValue,
+        units: 'degrees',
+        jointId,
+        qposAddress,
+        dofAddress,
+        equalityDependents: Array.isArray(source.equalityDependents)
+            ? source.equalityDependents.map((dependent) => ({ ...dependent }))
+            : []
+    };
+}
+
+function normalizeMuscle(region, rawMuscle) {
+    assert(rawMuscle && typeof rawMuscle === 'object' && !Array.isArray(rawMuscle),
+        `Region ${region.id} has an invalid muscle descriptor.`);
+    const name = rawMuscle.name;
+    const actuatorId = rawMuscle.actuatorId ?? objectIdByName(
+        mujoco.mjtObj.mjOBJ_ACTUATOR.value,
+        model.nu,
+        name,
+        'actuator'
+    );
+    const runtimeName = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR.value, actuatorId);
+    assert(runtimeName === name, `Actuator mapping changed for ${name}.`);
+    const tendon = rawMuscle.tendon || `${name}_tendon`;
+    const tendonId = rawMuscle.tendonId ?? objectIdByName(
+        mujoco.mjtObj.mjOBJ_TENDON.value,
+        model.ntendon,
+        tendon,
+        'tendon'
+    );
+    assert(mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_TENDON.value, tendonId) === tendon,
+        `Tendon mapping changed for ${name}.`);
+    assert(model.actuator_actadr[actuatorId] >= 0, `Muscle ${name} has no activation state.`);
+    assert(Array.isArray(rawMuscle.pathBodyIds) && rawMuscle.pathBodyIds.length > 0,
+        `Muscle ${name} has no declared path-body inventory.`);
+    for (const bodyId of rawMuscle.pathBodyIds) {
+        assert(Number.isInteger(bodyId) && bodyId >= 0 && bodyId < model.nbody,
+            `Muscle ${name} has invalid path body ID ${String(bodyId)}.`);
+    }
+    return {
+        id: rawMuscle.id || `${MODEL_ID}:actuator:${actuatorId}`,
+        actuatorId,
+        name,
+        tendonId,
+        tendon,
+        group: rawMuscle.group || region.presentationName || region.label,
+        visibleByDefault: rawMuscle.visibleByDefault !== false
+    };
+}
+
+function buildEqualityMappings(region, coordinates) {
+    const independentColumns = new Map(coordinates.map((coordinate, index) => [coordinate.jointId, index]));
+    const selectedJointIds = new Set(independentColumns.keys());
+    const seenDependents = new Set();
+    const mappings = [];
+    const equalityStride = model.neq ? model.eq_data.length / model.neq : 0;
+    assert(!model.neq || Number.isInteger(equalityStride) && equalityStride >= 5,
+        'The compiled equality data layout is unsupported.');
+    const jointEqualityType = mujoco.mjtEq.mjEQ_JOINT.value;
+    for (let equalityId = 0; equalityId < model.neq; equalityId += 1) {
+        if (model.eq_type[equalityId] !== jointEqualityType) continue;
+        const sourceJoint = model.eq_obj2id[equalityId];
+        const column = independentColumns.get(sourceJoint);
+        if (column === undefined) continue;
+        const dependentJoint = model.eq_obj1id[equalityId];
+        assert(!selectedJointIds.has(dependentJoint),
+            `Region ${region.id} selects equality-dependent joint ${dependentJoint} as an input.`);
+        assert(!seenDependents.has(dependentJoint),
+            `Region ${region.id} has duplicate equality mappings for joint ${dependentJoint}.`);
+        seenDependents.add(dependentJoint);
+        const coefficients = Array.from({ length: 5 }, (_, index) =>
+            finiteNumber(model.eq_data[equalityId * equalityStride + index], `Equality ${equalityId} coefficient`));
+        const coordinate = coordinates[column];
+        for (const degrees of [coordinate.minimum, coordinate.default, coordinate.maximum]) {
+            const evaluated = polynomialValueAndDerivative(coefficients, degrees * DEGREES_TO_RADIANS);
+            assert(Number.isFinite(evaluated.value) && Number.isFinite(evaluated.derivative),
+                `Region ${region.id} equality ${equalityId} has a non-finite realization or derivative.`);
+        }
+        mappings.push({
+            equalityId,
+            sourceJoint,
+            dependentJoint,
+            column,
+            sourceQpos: model.jnt_qposadr[sourceJoint],
+            dependentQpos: model.jnt_qposadr[dependentJoint],
+            dependentDof: model.jnt_dofadr[dependentJoint],
+            coefficients
+        });
+    }
+    for (const [column, coordinate] of coordinates.entries()) {
+        const actual = mappings.filter((mapping) => mapping.column === column);
+        const expected = coordinate.equalityDependents;
+        assert(expected.length === actual.length,
+            `Region ${region.id} equality inventory changed for ${coordinate.engineName}.`);
+        for (const descriptor of expected) {
+            const mapping = actual.find((candidate) => candidate.equalityId === descriptor.equalityId);
+            assert(mapping, `Region ${region.id} is missing equality ${descriptor.equalityId}.`);
+            assert(mapping.dependentJoint === descriptor.jointId,
+                `Region ${region.id} equality ${descriptor.equalityId} dependent joint changed.`);
+            const dependentName = mujoco.mj_id2name(
+                model,
+                mujoco.mjtObj.mjOBJ_JOINT.value,
+                mapping.dependentJoint
+            );
+            assert(dependentName === descriptor.name,
+                `Region ${region.id} equality ${descriptor.equalityId} dependent name changed.`);
+        }
+    }
+    return mappings;
+}
+
+function normalizePresetCoordinates(rawCoordinates, coordinateByInputName, regionId) {
+    assert(rawCoordinates && typeof rawCoordinates === 'object' && !Array.isArray(rawCoordinates),
+        `Region ${regionId} preset coordinates must be an object.`);
+    const result = {};
+    for (const [inputName, rawValue] of Object.entries(rawCoordinates)) {
+        const coordinate = coordinateByInputName[inputName];
+        assert(coordinate, `Region ${regionId} preset uses unknown coordinate ${inputName}.`);
+        const value = finiteNumber(rawValue, `${regionId} preset ${inputName}`);
+        assert(value >= coordinate.minimum - 1e-8 && value <= coordinate.maximum + 1e-8,
+            `Region ${regionId} preset value for ${inputName} is outside the authored range.`);
+        result[coordinate.name] = value;
+    }
+    return result;
+}
+
+function normalizePresetGroups(region, coordinateByInputName) {
+    const rawGroups = Array.isArray(region.presetGroups) ? region.presetGroups : [];
+    const loosePresets = Array.isArray(region.presets) ? region.presets : [];
+    const groups = rawGroups.length ? rawGroups : [{ id: 'reference', label: 'Reference', presets: loosePresets }];
+    const seenIds = new Set();
+    return groups.map((group, groupIndex) => {
+        const sourcePresets = group.presets || group.items || group.postures || [];
+        assert(Array.isArray(sourcePresets), `Region ${region.id} preset group must contain an array.`);
+        const presets = sourcePresets.map((preset, presetIndex) => {
+            assert(preset && typeof preset === 'object', `Region ${region.id} has an invalid preset.`);
+            const id = preset.id || `preset-${groupIndex + 1}-${presetIndex + 1}`;
+            assert(!seenIds.has(id), `Region ${region.id} has duplicate preset ID ${id}.`);
+            seenIds.add(id);
+            return {
+                ...preset,
+                id,
+                coordinates: normalizePresetCoordinates(preset.coordinates || {}, coordinateByInputName, region.id)
+            };
+        });
+        return { ...group, id: group.id || `group-${groupIndex + 1}`, presets };
+    });
+}
+
+async function buildRegionContext(region, compatibility, isDefault) {
+    assert(region && typeof region === 'object' && !Array.isArray(region), 'Invalid regional manifest entry.');
+    assert(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(region.id || ''), `Invalid region ID ${String(region.id)}.`);
+    const regionLabel = region.presentationName || region.label;
+    assert(typeof regionLabel === 'string' && regionLabel.trim(), `Region ${region.id} must have a label.`);
+    assert(Array.isArray(region.coordinates) && region.coordinates.length > 0,
+        `Region ${region.id} must select at least one coordinate.`);
+    const coordinates = region.coordinates.map((coordinate) => normalizeCoordinate(region, coordinate, compatibility));
+    const coordinateNames = new Set();
+    const engineNames = new Set();
+    const jointIds = new Set();
+    const coordinateByInputName = Object.create(null);
+    for (const coordinate of coordinates) {
+        assert(!coordinateNames.has(coordinate.name), `Region ${region.id} has duplicate coordinate ${coordinate.name}.`);
+        assert(!engineNames.has(coordinate.engineName), `Region ${region.id} repeats joint ${coordinate.engineName}.`);
+        assert(!jointIds.has(coordinate.jointId), `Region ${region.id} repeats joint ID ${coordinate.jointId}.`);
+        coordinateNames.add(coordinate.name);
+        engineNames.add(coordinate.engineName);
+        jointIds.add(coordinate.jointId);
+        coordinateByInputName[coordinate.name] = coordinate;
+        coordinateByInputName[coordinate.engineName] = coordinate;
+    }
+
+    const rawMuscles = region.candidateMuscles || region.muscles;
+    assert(Array.isArray(rawMuscles) && rawMuscles.length > 0,
+        `Region ${region.id} must select at least one candidate muscle.`);
+    const muscles = rawMuscles.map((muscle) => normalizeMuscle(region, muscle));
+    const actuatorIds = new Set();
+    const tendonIds = new Set();
+    const muscleByName = Object.create(null);
+    const muscleByActuatorId = Object.create(null);
+    const muscleById = Object.create(null);
+    for (const muscle of muscles) {
+        assert(!actuatorIds.has(muscle.actuatorId), `Region ${region.id} repeats actuator ${muscle.actuatorId}.`);
+        assert(!tendonIds.has(muscle.tendonId), `Region ${region.id} repeats tendon ${muscle.tendonId}.`);
+        actuatorIds.add(muscle.actuatorId);
+        tendonIds.add(muscle.tendonId);
+        muscleByName[muscle.name] = muscle;
+        muscleByActuatorId[String(muscle.actuatorId)] = muscle;
+        muscleById[muscle.id] = muscle;
+    }
+
+    const activeBodyIds = region.activeBodyIds || region.geometryActiveBodyIds;
+    assert(Array.isArray(activeBodyIds) && activeBodyIds.length > 0,
+        `Region ${region.id} must select at least one active body.`);
+    const uniqueBodyIds = new Set();
+    for (const rawBodyId of activeBodyIds) {
+        const bodyId = Number(rawBodyId);
+        assert(Number.isInteger(bodyId) && bodyId > 0 && bodyId < model.nbody,
+            `Region ${region.id} has invalid active body ID ${String(rawBodyId)}.`);
+        assert(!uniqueBodyIds.has(bodyId), `Region ${region.id} repeats active body ID ${bodyId}.`);
+        uniqueBodyIds.add(bodyId);
+        assert(mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY.value, bodyId),
+            `Region ${region.id} active body ${bodyId} has no runtime name.`);
+    }
+    if (Array.isArray(region.activeBodies)) {
+        assert(region.activeBodies.length === activeBodyIds.length,
+            `Region ${region.id} active-body descriptor count changed.`);
+        for (const descriptor of region.activeBodies) {
+            assert(uniqueBodyIds.has(descriptor.bodyId),
+                `Region ${region.id} describes inactive body ${String(descriptor.bodyId)}.`);
+            const runtimeName = mujoco.mj_id2name(
+                model,
+                mujoco.mjtObj.mjOBJ_BODY.value,
+                descriptor.bodyId
+            );
+            assert(runtimeName === descriptor.name,
+                `Region ${region.id} body mapping changed for ${String(descriptor.name)}.`);
+            assert(model.body_parentid[descriptor.bodyId] === descriptor.parentBodyId,
+                `Region ${region.id} parent mapping changed for ${descriptor.name}.`);
+        }
+    }
+
+    const semantics = region.semantics || {};
+    const fixedSupport = semanticValue(semantics, ['fixedSupport', 'fixedSupportDescription']);
+    const equilibrium = semanticValue(semantics, ['equilibrium', 'equilibriumDescription']);
+    assert(fixedSupport, `Region ${region.id} must declare fixed-support semantics.`);
+    assert(equilibrium, `Region ${region.id} must declare equilibrium semantics.`);
+    const assumptions = Array.isArray(semantics.assumptions) && semantics.assumptions.length
+        ? semantics.assumptions.map((value) => String(value))
+        : [...rawMetadata.staticHold.assumptions];
+    const gravityMPerS2 = Array.isArray(semantics.gravityMPerS2)
+        ? semantics.gravityMPerS2.map((value, index) => finiteNumber(value, `${region.id} gravity[${index}]`))
+        : [...rawMetadata.staticHold.gravityMPerS2];
+    assert(gravityMPerS2.length === 3, `Region ${region.id} gravity must have three components.`);
+    for (let index = 0; index < 3; index += 1) {
+        assert(Math.abs(gravityMPerS2[index] - model.opt.gravity[index]) <= 1e-12,
+            `Region ${region.id} gravity differs from the compiled model.`);
+    }
+    assert(semantics.clinicalValidation === false,
+        `Region ${region.id} must explicitly remain clinically unvalidated.`);
+    const normalizedSemantics = {
+        ...semantics,
+        fixedSupport,
+        equilibrium,
+        assumptions,
+        gravityMPerS2,
+        calculationSide: region.calculationSide || semantics.calculationSide || region.laterality || 'midline',
+        generalizedForceUnits: semanticValue(
+            semantics,
+            ['generalizedForceUnits', 'equilibriumResidualUnits'],
+            `N\u00b7m for the ${coordinates.length} rotational coordinates`
+        )
+    };
+    const equalityMappings = buildEqualityMappings(region, coordinates);
+    const presetGroups = normalizePresetGroups(region, coordinateByInputName);
+    const presets = presetGroups.flatMap((group) => group.presets.map((preset) => ({ ...preset, groupId: group.id })));
+    const defaultMuscleName = typeof region.defaultSelectedMuscle === 'object'
+        ? region.defaultSelectedMuscle.name
+        : region.defaultSelectedMuscle;
+    const defaultSelectedMuscle = muscleByName[defaultMuscleName]
+        || (isDefault ? muscleByName[DEFAULT_SELECTED_MUSCLE] : null)
+        || muscles[0];
+    assert(defaultSelectedMuscle, `Region ${region.id} has no valid default selected muscle.`);
+    if (typeof region.defaultSelectedMuscle === 'object') {
+        assert(defaultSelectedMuscle.actuatorId === region.defaultSelectedMuscle.actuatorId,
+            `Region ${region.id} default selected-muscle mapping changed.`);
+    }
+
+    // Keep the legacy right-arm solver identity byte-for-byte stable for
+    // Diagnosis; every non-default region derives its support contract here.
+    const legacyDefault = !HAND_PROFILE && isDefault;
+    const rawConfig = buildSolverConfig(rawMetadata, coordinates, legacyDefault ? {} : normalizedSemantics);
+    const configDigest = await sha256Text(stableStringify(rawConfig));
+    const configName = legacyDefault || HAND_PROFILE && isDefault
+        ? SOLVER_CONFIG_NAME
+        : `MS_HUMAN_700_${region.id.toUpperCase().replace(/-/g, '_')}_STATIC_MIN_NORM_V1`;
+    const regionalSolverConfig = { id: `${configName}:${configDigest.slice(0, 16)}`, digest: configDigest, ...rawConfig };
+    const calculatedRegionDigest = await sha256Text(JSON.stringify(canonicalJsonValue(region)));
+    if (region.digest || region.sha256) {
+        assert((region.digest || region.sha256) === calculatedRegionDigest,
+            `Region ${region.id} digest does not match its canonical contents.`);
+    }
+
+    return deepFreeze({
+        id: region.id,
+        digest: calculatedRegionDigest,
+        label: regionLabel,
+        description: region.description || '',
+        laterality: region.laterality || normalizedSemantics.calculationSide,
+        coordinates,
+        coordinateByInputName,
+        muscles,
+        muscleByName,
+        muscleByActuatorId,
+        muscleById,
+        activeBodyIds: [...uniqueBodyIds],
+        presetGroups,
+        presets,
+        defaultSelectedMuscle,
+        equalityMappings,
+        semantics: normalizedSemantics,
+        solverConfig: regionalSolverConfig,
+        capabilities: {
+            pose: true,
+            staticHold: true,
+            dynamicMotion: false,
+            externalLoads: false,
+            patientSpecific: false,
+            calculationSide: normalizedSemantics.calculationSide
+        }
+    });
+}
+
+async function buildRegionContexts(manifest) {
+    assert(manifest && typeof manifest === 'object' && !Array.isArray(manifest),
+        'The body-region manifest must be an object.');
+    assert(manifest.schemaVersion === 1, `Unsupported body-region schema ${manifest.schemaVersion}.`);
+    assert(manifest.manifestId === EXPECTED_REGION_MANIFEST_ID,
+        `Unexpected body-region manifest identity ${String(manifest.manifestId)}.`);
+    const { contentDigestSha256, ...canonicalContent } = manifest;
+    assert(typeof contentDigestSha256 === 'string' && /^[a-f0-9]{64}$/.test(contentDigestSha256),
+        'The body-region manifest has no canonical content digest.');
+    const calculatedContentDigest = await sha256Text(JSON.stringify(canonicalJsonValue(canonicalContent)));
+    assert(calculatedContentDigest === contentDigestSha256,
+        'The body-region canonical content digest does not match its contents.');
+    assert(Array.isArray(manifest.regions) && manifest.regions.length > 0,
+        'The body-region manifest has no regions.');
+    assert(typeof manifest.defaultRegionId === 'string' && manifest.defaultRegionId,
+        'The body-region manifest has no default region ID.');
+    assert(manifest.model?.sourceTreeSha256 === EXPECTED_SOURCE_TREE_SHA256,
+        'The body-region source-tree identity does not match this engine.');
+    assert(manifest.model?.runtime?.sha256 === ASSET_SHA256.runtime,
+        'The body-region manifest references a different runtime model.');
+    assert(manifest.model?.geometry?.sha256 === ASSET_SHA256.geometry,
+        'The body-region manifest references different geometry.');
+    const contexts = new Map();
+    for (const region of manifest.regions) {
+        assert(!contexts.has(region.id), `Duplicate region ID ${region.id}.`);
+        const context = await buildRegionContext(
+            region,
+            manifest.compatibility || {},
+            region.id === manifest.defaultRegionId
+        );
+        contexts.set(context.id, context);
+    }
+    assert(contexts.has(manifest.defaultRegionId),
+        `Default region ${manifest.defaultRegionId} does not exist.`);
+    return contexts;
+}
+
 async function initializeRuntime() {
     if (publicMetadata) return publicMetadata;
     if (initializationPromise) return initializationPromise;
     initializationPromise = (async () => {
-        const [metadataBytes, runtimeBytes, mujocoJsBytes, mujocoWasmBytes] = await Promise.all([
-            fetchBytes(URLS.metadata, 'Right-arm metadata'),
-            fetchBytes(URLS.runtime, 'Right-arm runtime model'),
+        const [metadataBytes, regionBytes, runtimeBytes, mujocoJsBytes, mujocoWasmBytes] = await Promise.all([
+            fetchBytes(URLS.metadata, HAND_PROFILE ? 'Right-hand metadata' : 'Right-arm metadata'),
+            fetchBytes(URLS.regions, HAND_PROFILE ? 'Hand-region manifest' : 'Body-region manifest'),
+            fetchBytes(URLS.runtime, HAND_PROFILE ? 'Right-hand runtime model' : 'Right-arm runtime model'),
             fetchBytes(URLS.mujocoJs, 'MuJoCo JavaScript runtime'),
             fetchBytes(URLS.mujocoWasm, 'MuJoCo WebAssembly runtime')
         ]);
         await Promise.all([
-            verifyDigest('Right-arm metadata', metadataBytes, ASSET_SHA256.metadata),
-            verifyDigest('Right-arm runtime model', runtimeBytes, ASSET_SHA256.runtime),
+            verifyDigest(HAND_PROFILE ? 'Right-hand metadata' : 'Right-arm metadata', metadataBytes, ASSET_SHA256.metadata),
+            verifyDigest(HAND_PROFILE ? 'Hand-region manifest' : 'Body-region manifest', regionBytes, ASSET_SHA256.regions),
+            verifyDigest(HAND_PROFILE ? 'Right-hand runtime model' : 'Right-arm runtime model', runtimeBytes, ASSET_SHA256.runtime),
             verifyDigest('MuJoCo JavaScript runtime', mujocoJsBytes, ASSET_SHA256.mujocoJs),
             verifyDigest('MuJoCo WebAssembly runtime', mujocoWasmBytes, ASSET_SHA256.mujocoWasm)
         ]);
 
         rawMetadata = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(metadataBytes));
-        coordinateSpecs = rawMetadata.coordinates.map((coordinate) => ({
-            name: canonicalCoordinateName(coordinate.name),
-            engineName: coordinate.name,
-            label: coordinate.label,
-            minimum: coordinate.minimumDegrees,
-            maximum: coordinate.maximumDegrees,
-            default: coordinate.defaultDegrees,
-            units: 'degrees',
-            jointId: coordinate.jointId,
-            qposAddress: coordinate.qposAddress,
-            dofAddress: coordinate.dofAddress
-        }));
-        coordinateByInputName = new Map();
-        for (const coordinate of coordinateSpecs) {
-            coordinateByInputName.set(coordinate.name, coordinate);
-            coordinateByInputName.set(coordinate.engineName, coordinate);
-        }
-        muscleDescriptors = rawMetadata.muscles.map((muscle) => ({
-            id: `${MODEL_ID}:actuator:${muscle.actuatorId}`,
-            actuatorId: muscle.actuatorId,
-            name: muscle.name,
-            tendonId: muscle.tendonId,
-            tendon: muscle.tendon,
-            group: muscle.group,
-            visibleByDefault: muscle.visibleByDefault
-        }));
-        muscleByName = new Map(muscleDescriptors.map((muscle) => [muscle.name, muscle]));
-        muscleByActuatorId = new Map(muscleDescriptors.map((muscle) => [muscle.actuatorId, muscle]));
-        solverConfig = buildSolverConfig(rawMetadata);
+        rawRegionManifest = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(regionBytes));
+        regionManifestDigest = ASSET_SHA256.regions;
 
         mujoco = await loadMujoco({
             wasmBinary: mujocoWasmBytes,
@@ -319,9 +803,24 @@ async function initializeRuntime() {
         assert(model, 'MuJoCo could not open the pinned right-arm runtime model.');
         data = new mujoco.MjData(model);
         validateRuntimeInventory(rawMetadata);
+        regionContexts = await buildRegionContexts(rawRegionManifest);
+        defaultRegionContext = regionContexts.get(rawRegionManifest.defaultRegionId);
+        solverConfig = defaultRegionContext.solverConfig;
+        assert(defaultRegionContext.coordinates.length === rawMetadata.coordinates.length,
+            'The default region no longer matches the legacy right-arm coordinate inventory.');
+        assert(defaultRegionContext.muscles.length === rawMetadata.muscles.length,
+            'The default region no longer matches the legacy right-arm muscle inventory.');
+        for (const [index, coordinate] of defaultRegionContext.coordinates.entries()) {
+            assert(coordinate.engineName === rawMetadata.coordinates[index].name,
+                'The default region changed the legacy right-arm coordinate order.');
+        }
+        for (const [index, muscle] of defaultRegionContext.muscles.entries()) {
+            assert(muscle.actuatorId === rawMetadata.muscles[index].actuatorId,
+                'The default region changed the legacy right-arm muscle order.');
+        }
         publicMetadata = await buildPublicMetadata(
             rawMetadata,
-            ['metadata', 'runtime', 'mujocoJs', 'mujocoWasm']
+            ['metadata', 'regions', 'runtime', 'mujocoJs', 'mujocoWasm']
         );
         return publicMetadata;
     })().catch((error) => {
@@ -351,14 +850,23 @@ function numericCoordinate(value, name) {
     return Object.is(numeric, -0) ? 0 : numeric;
 }
 
-function resolveCoordinates(input = {}) {
+function resolveRegion(regionId) {
+    const resolvedId = regionId === undefined || regionId === null || regionId === ''
+        ? defaultRegionContext.id
+        : String(regionId);
+    const context = regionContexts.get(resolvedId);
+    if (!context) throw new RangeError(`Unknown MS-Human region: ${resolvedId}.`);
+    return context;
+}
+
+function resolveCoordinates(context, input = {}) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
         throw new TypeError('Coordinates must be an object keyed by canonical coordinate name.');
     }
     const supplied = new Map();
     for (const [inputName, rawValue] of Object.entries(input)) {
-        const coordinate = coordinateByInputName.get(inputName);
-        if (!coordinate) throw new RangeError(`Unknown MS-Human coordinate: ${inputName}.`);
+        const coordinate = context.coordinateByInputName[inputName];
+        if (!coordinate) throw new RangeError(`Unknown MS-Human coordinate for ${context.id}: ${inputName}.`);
         const value = numericCoordinate(rawValue, inputName);
         const existing = supplied.get(coordinate.name);
         if (existing !== undefined && Math.abs(existing - value) > 1e-10) {
@@ -368,7 +876,7 @@ function resolveCoordinates(input = {}) {
     }
 
     const resolved = {};
-    for (const coordinate of coordinateSpecs) {
+    for (const coordinate of context.coordinates) {
         const value = supplied.has(coordinate.name) ? supplied.get(coordinate.name) : coordinate.default;
         if (value < coordinate.minimum - 1e-8 || value > coordinate.maximum + 1e-8) {
             throw new RangeError(
@@ -381,18 +889,17 @@ function resolveCoordinates(input = {}) {
     return resolved;
 }
 
-function resolveSelectedMuscle(value) {
+function resolveSelectedMuscle(context, value) {
     if (value && typeof value === 'object') value = value.actuatorId ?? value.name ?? value.id;
     let selected = null;
     if (value === undefined || value === null || value === '') {
-        selected = muscleByName.get(DEFAULT_SELECTED_MUSCLE) || muscleDescriptors[0];
+        selected = context.defaultSelectedMuscle;
     } else if (typeof value === 'number' || (/^\d+$/.test(String(value)))) {
-        selected = muscleByActuatorId.get(Number(value));
+        selected = context.muscleByActuatorId[String(Number(value))];
     } else {
-        selected = muscleByName.get(String(value));
-        if (!selected) selected = muscleDescriptors.find((muscle) => muscle.id === String(value));
+        selected = context.muscleByName[String(value)] || context.muscleById[String(value)];
     }
-    if (!selected) throw new RangeError(`Unknown MS-Human muscle: ${String(value)}.`);
+    if (!selected) throw new RangeError(`Unknown MS-Human muscle for ${context.id}: ${String(value)}.`);
     return selected;
 }
 
@@ -409,45 +916,32 @@ function polynomialValueAndDerivative(coefficients, x) {
     return { value, derivative };
 }
 
-function realizeCoordinates(coordinates) {
+function realizeCoordinates(context, coordinates) {
     mujoco.mj_resetDataKeyframe(model, data, 0);
     data.qvel.fill(0);
     data.qacc.fill(0);
     data.ctrl.fill(0);
     data.act.fill(0);
 
-    const independentColumns = new Map();
-    for (const [column, coordinate] of coordinateSpecs.entries()) {
+    for (const coordinate of context.coordinates) {
         data.qpos[coordinate.qposAddress] = coordinates[coordinate.name] * DEGREES_TO_RADIANS;
-        independentColumns.set(coordinate.jointId, column);
     }
 
-    const equalityStride = model.neq ? model.eq_data.length / model.neq : 0;
-    const jointEqualityType = mujoco.mjtEq.mjEQ_JOINT.value;
     const equalityDerivatives = [];
-    for (let equalityId = 0; equalityId < model.neq; equalityId += 1) {
-        if (model.eq_type[equalityId] !== jointEqualityType) continue;
-        const sourceJoint = model.eq_obj2id[equalityId];
-        const column = independentColumns.get(sourceJoint);
-        if (column === undefined) continue;
-        const dependentJoint = model.eq_obj1id[equalityId];
-        const sourceQpos = model.jnt_qposadr[sourceJoint];
-        const dependentQpos = model.jnt_qposadr[dependentJoint];
-        const coefficients = new Float64Array(5);
-        for (let coefficient = 0; coefficient < 5; coefficient += 1) {
-            coefficients[coefficient] = model.eq_data[equalityId * equalityStride + coefficient];
-        }
-        const evaluated = polynomialValueAndDerivative(coefficients, data.qpos[sourceQpos]);
-        data.qpos[dependentQpos] = evaluated.value;
+    for (const mapping of context.equalityMappings) {
+        const evaluated = polynomialValueAndDerivative(mapping.coefficients, data.qpos[mapping.sourceQpos]);
+        assert(Number.isFinite(evaluated.value) && Number.isFinite(evaluated.derivative),
+            `Region ${context.id} equality ${mapping.equalityId} produced a non-finite result.`);
+        data.qpos[mapping.dependentQpos] = evaluated.value;
         equalityDerivatives.push({
-            column,
-            dependentDof: model.jnt_dofadr[dependentJoint],
+            column: mapping.column,
+            dependentDof: mapping.dependentDof,
             derivative: evaluated.derivative
         });
     }
 
     mujoco.mj_forward(model, data);
-    const reduction = coordinateSpecs.map((coordinate) => {
+    const reduction = context.coordinates.map((coordinate) => {
         const column = new Float64Array(model.nv);
         column[coordinate.dofAddress] = 1;
         return column;
@@ -512,10 +1006,10 @@ function projectedActuatorLengthGradient(muscle, reduction) {
     return Number.NaN;
 }
 
-function momentArmsFromRuntime(reduction) {
-    const result = muscleDescriptors.map(() => ({}));
-    for (const [muscleIndex, muscle] of muscleDescriptors.entries()) {
-        for (const [coordinateIndex, coordinate] of coordinateSpecs.entries()) {
+function momentArmsFromRuntime(context, reduction) {
+    const result = context.muscles.map(() => ({}));
+    for (const [muscleIndex, muscle] of context.muscles.entries()) {
+        for (const [coordinateIndex, coordinate] of context.coordinates.entries()) {
             // MuJoCo's actuator moment is d(length)/dq. Anatomical moment arm
             // uses the opposite sign, matching OpenSim's computeMomentArm.
             const value = -projectedActuatorLengthGradient(muscle, reduction[coordinateIndex]);
@@ -526,15 +1020,15 @@ function momentArmsFromRuntime(reduction) {
     return result;
 }
 
-function currentTendonLengths() {
-    return Float64Array.from(muscleDescriptors, (muscle) => data.ten_length[muscle.tendonId]);
+function currentTendonLengths(context) {
+    return Float64Array.from(context.muscles, (muscle) => data.ten_length[muscle.tendonId]);
 }
 
-function finiteDifferenceMomentArms(coordinates) {
-    const result = muscleDescriptors.map(() => ({}));
+function finiteDifferenceMomentArms(context, coordinates) {
+    const result = context.muscles.map(() => ({}));
     const stepRadians = 1e-6;
     const stepDegrees = stepRadians * RADIANS_TO_DEGREES;
-    for (const coordinate of coordinateSpecs) {
+    for (const coordinate of context.coordinates) {
         const base = coordinates[coordinate.name];
         const lowerRoom = base - coordinate.minimum;
         const upperRoom = coordinate.maximum - base;
@@ -545,21 +1039,21 @@ function finiteDifferenceMomentArms(coordinates) {
         let minusLengths = null;
         let plusLengths = null;
         if (minusDegrees === base) {
-            realizeCoordinates(coordinates);
-            minusLengths = currentTendonLengths();
+            realizeCoordinates(context, coordinates);
+            minusLengths = currentTendonLengths(context);
         } else {
-            realizeCoordinates({ ...coordinates, [coordinate.name]: minusDegrees });
-            minusLengths = currentTendonLengths();
+            realizeCoordinates(context, { ...coordinates, [coordinate.name]: minusDegrees });
+            minusLengths = currentTendonLengths(context);
         }
         if (plusDegrees === base) {
-            realizeCoordinates(coordinates);
-            plusLengths = currentTendonLengths();
+            realizeCoordinates(context, coordinates);
+            plusLengths = currentTendonLengths(context);
         } else {
-            realizeCoordinates({ ...coordinates, [coordinate.name]: plusDegrees });
-            plusLengths = currentTendonLengths();
+            realizeCoordinates(context, { ...coordinates, [coordinate.name]: plusDegrees });
+            plusLengths = currentTendonLengths(context);
         }
         const intervalRadians = (plusDegrees - minusDegrees) * DEGREES_TO_RADIANS;
-        for (let muscleIndex = 0; muscleIndex < muscleDescriptors.length; muscleIndex += 1) {
+        for (let muscleIndex = 0; muscleIndex < context.muscles.length; muscleIndex += 1) {
             result[muscleIndex][coordinate.name] = -(
                 (plusLengths[muscleIndex] - minusLengths[muscleIndex]) / intervalRadians
             );
@@ -568,10 +1062,10 @@ function finiteDifferenceMomentArms(coordinates) {
     return result;
 }
 
-function capturePaths(momentArms) {
+function capturePaths(context, momentArms) {
     const wrapPoints = data.wrap_xpos;
     const wrapObjects = data.wrap_obj;
-    return muscleDescriptors.map((descriptor, muscleIndex) => {
+    return context.muscles.map((descriptor, muscleIndex) => {
         const start = data.ten_wrapadr[descriptor.tendonId];
         const count = data.ten_wrapnum[descriptor.tendonId];
         const points = [];
@@ -641,42 +1135,45 @@ function captureBodies() {
     return bodies;
 }
 
-function realizePoseData(coordinates) {
-    let reduction = realizeCoordinates(coordinates);
-    let momentArms = momentArmsFromRuntime(reduction);
+function realizePoseData(context, coordinates) {
+    let reduction = realizeCoordinates(context, coordinates);
+    let momentArms = momentArmsFromRuntime(context, reduction);
     if (!momentArms) {
-        momentArms = finiteDifferenceMomentArms(coordinates);
-        reduction = realizeCoordinates(coordinates);
+        momentArms = finiteDifferenceMomentArms(context, coordinates);
+        reduction = realizeCoordinates(context, coordinates);
     }
     return {
         reduction,
         bodies: captureBodies(),
-        muscles: capturePaths(momentArms)
+        muscles: capturePaths(context, momentArms)
     };
 }
 
-function poseIdentifier(coordinates) {
-    const signature = coordinateSpecs
+function poseIdentifier(context, coordinates) {
+    const signature = context.coordinates
         .map((coordinate) => `${coordinate.name}=${coordinates[coordinate.name].toFixed(8)}`)
         .join('|');
-    return `${MODEL_ID}:${EXPECTED_SOURCE_TREE_SHA256.slice(0, 12)}:${signature}`;
+    const regionSignature = context === defaultRegionContext ? '' : `:${context.id}`;
+    return `${MODEL_ID}:${EXPECTED_SOURCE_TREE_SHA256.slice(0, 12)}${regionSignature}:${signature}`;
 }
 
-function makeState(requestId, mode, coordinates, selected, realized) {
+function makeState(context, requestId, mode, coordinates, selected, realized) {
     const bodies = realized.bodies;
     const bodyTransforms = Object.fromEntries(bodies.map((body) => [String(body.bodyId), body]));
     return {
         schemaVersion: STATE_SCHEMA_VERSION,
         contractVersion: CONTRACT_VERSION,
         requestId,
-        poseId: poseIdentifier(coordinates),
+        poseId: poseIdentifier(context, coordinates),
         model: MODEL_ID,
         modelId: MODEL_ID,
         modelDigest: EXPECTED_SOURCE_TREE_SHA256,
         runtimeModelSha256: ASSET_SHA256.runtime,
-        solverConfigId: solverConfig.id,
+        regionId: context.id,
+        regionDigest: context.digest,
+        solverConfigId: context.solverConfig.id,
         mode,
-        calculationSide: 'right',
+        calculationSide: context.semantics.calculationSide,
         displayMirrored: false,
         coordinates: { ...coordinates },
         coordinateUnits: 'degrees',
@@ -691,7 +1188,7 @@ function makeState(requestId, mode, coordinates, selected, realized) {
             segmentInsideWrapAlignedWithSegments: true,
             coordinates: 'MuJoCo world coordinates, Z-up'
         },
-        assumptions: [...rawMetadata.staticHold.assumptions],
+        assumptions: [...context.semantics.assumptions],
         activationSource: null,
         staticHolding: null,
         interpretation: 'Exact compiled-model pose geometry only. No activation, patient force, pain, injury, or diagnosis is inferred.'
@@ -823,17 +1320,18 @@ function rms(values) {
     return Math.sqrt(values.reduce((sum, value) => sum + value * value, 0) / values.length);
 }
 
-function staticQualityStatus(result) {
+function staticQualityStatus(context, result) {
+    const config = context.solverConfig;
     if (!result.converged) return ['solver_failed', result.detail || 'The bounded static equilibrium solve did not converge.'];
     if (!result.finite) return ['nonfinite_result', 'The solve produced a non-finite value.'];
     if (!result.pathsValid) return ['invalid_paths', 'One or more compiled muscle paths was incomplete or non-finite.'];
-    if (result.maxResidualNm > solverConfig.maximumResidualNm) {
+    if (result.maxResidualNm > config.maximumResidualNm) {
         return ['equilibrium_residual_too_high', 'The replayed generalized-force equilibrium residual exceeded the numerical limit.'];
     }
-    if (result.maxReserveNm > solverConfig.maximumReserveNm) {
+    if (result.maxReserveNm > config.maximumReserveNm) {
         return [
             'reserve_torque_too_high',
-            `The model needed ${result.maxReserveNm.toFixed(3)} N·m of reserve torque, above the ${solverConfig.maximumReserveNm.toFixed(2)} N·m display limit.`
+            `The model needed ${result.maxReserveNm.toFixed(3)} N·m of reserve torque, above the ${config.maximumReserveNm.toFixed(2)} N·m display limit.`
         ];
     }
     if (result.capacityLimited) {
@@ -842,10 +1340,11 @@ function staticQualityStatus(result) {
     return ['usable', 'The static result passed the finite-value, path, replayed-equilibrium, reserve, and capacity checks.'];
 }
 
-function calculateStaticHold(reduction, muscles) {
+function calculateStaticHold(context, reduction, muscles) {
     const started = performance.now();
-    const coordinateCount = coordinateSpecs.length;
-    const muscleCount = muscleDescriptors.length;
+    const config = context.solverConfig;
+    const coordinateCount = context.coordinates.length;
+    const muscleCount = context.muscles.length;
     const baselineActuatorGeneralized = Float64Array.from(data.qfrc_actuator);
     const baselineActuatorForce = Float64Array.from(data.actuator_force);
     const baselineFull = new Float64Array(model.nv);
@@ -857,7 +1356,7 @@ function calculateStaticHold(reduction, muscles) {
     const activeForceCapacity = new Float64Array(muscleCount);
 
     try {
-        for (const [muscleIndex, muscle] of muscleDescriptors.entries()) {
+        for (const [muscleIndex, muscle] of context.muscles.entries()) {
             const activationAddress = model.actuator_actadr[muscle.actuatorId];
             assert(activationAddress >= 0, `Muscle ${muscle.name} has no activation state.`);
             data.act[activationAddress] = 1;
@@ -886,7 +1385,7 @@ function calculateStaticHold(reduction, muscles) {
         const lower = new Float64Array(variableCount);
         const upper = new Float64Array(variableCount);
         weights.fill(1, 0, muscleCount);
-        weights.fill(solverConfig.reserveObjectiveWeightPerNm2, muscleCount);
+        weights.fill(config.reserveObjectiveWeightPerNm2, muscleCount);
         lower.fill(0, 0, muscleCount);
         upper.fill(1, 0, muscleCount);
         lower.fill(Number.NEGATIVE_INFINITY, muscleCount);
@@ -902,7 +1401,7 @@ function calculateStaticHold(reduction, muscles) {
         const reserves = solved.solution.slice(muscleCount);
 
         data.act.fill(0);
-        for (const [index, muscle] of muscleDescriptors.entries()) {
+        for (const [index, muscle] of context.muscles.entries()) {
             data.act[model.actuator_actadr[muscle.actuatorId]] = activations[index];
         }
         mujoco.mj_forward(model, data);
@@ -914,7 +1413,7 @@ function calculateStaticHold(reduction, muscles) {
         const maxResidualNm = Math.max(...residuals.map((value) => Math.abs(value)));
         const maxReserveNm = Math.max(...reserves.map((value) => Math.abs(value)));
         const musclesAtCapacity = [...activations]
-            .filter((value) => value >= solverConfig.capacityActivation).length;
+            .filter((value) => value >= config.capacityActivation).length;
         const finite = [...activations, ...reserves, ...residuals, ...activeForceCapacity]
             .every((value) => Number.isFinite(value));
         const pathsValid = muscles.every((muscle) =>
@@ -926,14 +1425,14 @@ function calculateStaticHold(reduction, muscles) {
             && muscle.segments.every((segment) => segment.every((value) => Number.isFinite(value)))
             && Object.values(muscle.momentArms).every((value) => Number.isFinite(value))
         );
-        const capacityLimited = musclesAtCapacity > 0 && maxReserveNm > solverConfig.capacityReserveNm;
+        const capacityLimited = musclesAtCapacity > 0 && maxReserveNm > config.capacityReserveNm;
         const usable = finite
             && pathsValid
-            && maxResidualNm <= solverConfig.maximumResidualNm
-            && maxReserveNm <= solverConfig.maximumReserveNm
+            && maxResidualNm <= config.maximumResidualNm
+            && maxReserveNm <= config.maximumReserveNm
             && !capacityLimited;
         const objective = [...activations].reduce((sum, value) => sum + value * value, 0)
-            + solverConfig.reserveObjectiveWeightPerNm2
+            + config.reserveObjectiveWeightPerNm2
                 * [...reserves].reduce((sum, value) => sum + value * value, 0);
 
         return {
@@ -986,15 +1485,16 @@ function failedStaticResult(error, muscles, started) {
     };
 }
 
-function valueByCoordinate(values) {
-    return Object.fromEntries(coordinateSpecs.map((coordinate, index) => [
+function valueByCoordinate(context, values) {
+    return Object.fromEntries(context.coordinates.map((coordinate, index) => [
         coordinate.name,
         values?.length > index && Number.isFinite(values[index]) ? values[index] : null
     ]));
 }
 
-function buildStaticHolding(result, coordinates) {
-    const [status, reason] = staticQualityStatus(result);
+function buildStaticHolding(context, result, coordinates) {
+    const config = context.solverConfig;
+    const [status, reason] = staticQualityStatus(context, result);
     return {
         ready: result.usable,
         method: 'MuJoCo pose-linearized active-muscle torque balance with bounded weighted minimum-norm optimization',
@@ -1002,13 +1502,13 @@ function buildStaticHolding(result, coordinates) {
         assumptions: {
             velocity: 'zero',
             acceleration: 'zero',
-            externalLoad: 'none',
-            contact: 'none',
-            gravityMPerS2: [...solverConfig.gravityMPerS2],
+            externalLoad: context.semantics.externalLoad || 'none',
+            contact: context.semantics.contact || 'none',
+            gravityMPerS2: [...config.gravityMPerS2],
             segmentWeights: 'model-defined',
             passiveModelForcesIncluded: true,
-            equilibrium: 'Seven reduced right-arm coordinate torques; authored joint-equality derivatives included.',
-            fixedSupport: solverConfig.fixedSupport
+            equilibrium: context.semantics.equilibrium,
+            fixedSupport: context.semantics.fixedSupport
         },
         activeActuatorForce: {
             available: result.usable,
@@ -1023,16 +1523,16 @@ function buildStaticHolding(result, coordinates) {
             interpretation: 'Generic-model solver output; not measured fiber force, tissue load, pain, injury, fatigue, or diagnosis.'
         },
         solver: {
-            algorithm: solverConfig.algorithm,
-            configId: solverConfig.id,
-            configDigest: solverConfig.digest,
+            algorithm: config.algorithm,
+            configId: config.id,
+            configDigest: config.digest,
             converged: result.converged,
             iterations: result.iterations,
             durationMs: result.durationMilliseconds,
             objective: result.objective,
-            activationExponent: solverConfig.activationExponent,
-            activationBounds: [...solverConfig.activationBounds],
-            reserveObjectiveWeightPerNm2: solverConfig.reserveObjectiveWeightPerNm2,
+            activationExponent: config.activationExponent,
+            activationBounds: [...config.activationBounds],
+            reserveObjectiveWeightPerNm2: config.reserveObjectiveWeightPerNm2,
             detail: result.detail || null
         },
         quality: {
@@ -1041,47 +1541,49 @@ function buildStaticHolding(result, coordinates) {
             reason,
             finite: result.finite,
             pathsValid: result.pathsValid,
-            activationCount: result.usable ? muscleDescriptors.length : 0,
-            activeActuatorForceCount: result.usable ? muscleDescriptors.length : 0,
+            activationCount: result.usable ? context.muscles.length : 0,
+            activeActuatorForceCount: result.usable ? context.muscles.length : 0,
             maxGeneralizedForceEquilibriumResidual: result.maxResidualNm,
             rmsGeneralizedForceEquilibriumResidual: result.rmsResidualNm,
-            equilibriumResidualLimit: solverConfig.maximumResidualNm,
-            equilibriumResidualUnits: 'N·m for the seven rotational coordinates',
+            equilibriumResidualLimit: config.maximumResidualNm,
+            equilibriumResidualUnits: context.semantics.generalizedForceUnits,
             maxReserveTorqueNm: result.maxReserveNm,
             rmsReserveTorqueNm: result.rmsReserveNm,
-            reserveTorqueLimitNm: solverConfig.maximumReserveNm,
-            capacityLimitedReserveThresholdNm: solverConfig.capacityReserveNm,
-            muscleCapacityThreshold: solverConfig.capacityActivation,
+            reserveTorqueLimitNm: config.maximumReserveNm,
+            capacityLimitedReserveThresholdNm: config.capacityReserveNm,
+            muscleCapacityThreshold: config.capacityActivation,
             musclesAtUpperControlLimit: result.musclesAtCapacity,
             capacityLimited: result.capacityLimited,
-            reserveTorqueNmByCoordinate: valueByCoordinate(result.reserves),
-            residualTorqueNmByCoordinate: valueByCoordinate(result.residuals)
+            reserveTorqueNmByCoordinate: valueByCoordinate(context, result.reserves),
+            residualTorqueNmByCoordinate: valueByCoordinate(context, result.residuals)
         }
     };
 }
 
-async function poseState(requestId, rawCoordinates, rawSelectedMuscle) {
+async function poseState(requestId, rawCoordinates, rawSelectedMuscle, regionId) {
     await initializeRuntime();
-    const coordinates = resolveCoordinates(rawCoordinates);
-    const selected = resolveSelectedMuscle(rawSelectedMuscle);
-    const realized = realizePoseData(coordinates);
-    return makeState(requestId, 'pose', coordinates, selected, realized);
+    const context = resolveRegion(regionId);
+    const coordinates = resolveCoordinates(context, rawCoordinates);
+    const selected = resolveSelectedMuscle(context, rawSelectedMuscle);
+    const realized = realizePoseData(context, coordinates);
+    return makeState(context, requestId, 'pose', coordinates, selected, realized);
 }
 
-async function staticHoldState(requestId, rawCoordinates, rawSelectedMuscle) {
+async function staticHoldState(requestId, rawCoordinates, rawSelectedMuscle, regionId) {
     await initializeRuntime();
-    const coordinates = resolveCoordinates(rawCoordinates);
-    const selected = resolveSelectedMuscle(rawSelectedMuscle);
-    const realized = realizePoseData(coordinates);
-    const state = makeState(requestId, 'static', coordinates, selected, realized);
+    const context = resolveRegion(regionId);
+    const coordinates = resolveCoordinates(context, rawCoordinates);
+    const selected = resolveSelectedMuscle(context, rawSelectedMuscle);
+    const realized = realizePoseData(context, coordinates);
+    const state = makeState(context, requestId, 'static', coordinates, selected, realized);
     const started = performance.now();
     let result;
     try {
-        result = calculateStaticHold(realized.reduction, state.muscles);
+        result = calculateStaticHold(context, realized.reduction, state.muscles);
     } catch (error) {
         result = failedStaticResult(error, state.muscles, started);
     }
-    state.staticHolding = buildStaticHolding(result, coordinates);
+    state.staticHolding = buildStaticHolding(context, result, coordinates);
     if (result.usable) {
         for (const [index, muscle] of state.muscles.entries()) {
             muscle.activation = result.activations[index];
@@ -1117,6 +1619,11 @@ function releaseRuntime() {
     }
     publicMetadata = null;
     rawMetadata = null;
+    rawRegionManifest = null;
+    defaultRegionContext = null;
+    regionContexts = new Map();
+    regionManifestDigest = null;
+    solverConfig = null;
     mujoco = null;
 }
 
@@ -1134,9 +1641,14 @@ self.addEventListener('message', async (event) => {
         let result;
         if (message.action === 'initialize') result = await initializeRuntime();
         else if (message.action === 'pose') {
-            result = await poseState(message.requestId, message.coordinates, message.selectedMuscle);
+            result = await poseState(message.requestId, message.coordinates, message.selectedMuscle, message.regionId);
         } else if (message.action === 'staticHold') {
-            result = await staticHoldState(message.requestId, message.coordinates, message.selectedMuscle);
+            result = await staticHoldState(
+                message.requestId,
+                message.coordinates,
+                message.selectedMuscle,
+                message.regionId
+            );
         } else {
             const error = new Error(`Unknown MS-Human worker action: ${String(message.action)}.`);
             error.code = 'UNKNOWN_ACTION';

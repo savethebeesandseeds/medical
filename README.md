@@ -7,7 +7,8 @@ source, verification, and licensing boundary while sharing one public catalog.
 ## Published routes
 
 - `/` - catalog of available medical tools
-- `/muscles/` - MS-Human-700 musculoskeletal explorer
+- `/en/tools/muscles/` - MS-Human-700 musculoskeletal explorer
+- `/muscles/` - compatibility redirect to the canonical Muscles route
 
 The public site is assembled by `.github/workflows/pages.yml`. Only `site/`,
 the catalog logo, and each explicitly selected tool's static distribution are

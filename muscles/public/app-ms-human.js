@@ -2,19 +2,21 @@ import * as THREE from './vendor/three.module.min.js';
 import { createMsHumanEngine, StaleRequestError } from './ms-human-engine.js';
 import { createDiagnosisWorkflow } from './diagnosis.js';
 
-const GEOMETRY_URL = new URL('./models/ms_human_700/right-arm.meshbin?v=5cbdf2ae', import.meta.url);
+const PROFILE_DEFINITIONS = Object.freeze({
+    primary: Object.freeze({
+        id: 'primary',
+        geometryUrl: new URL('./models/ms_human_700/right-arm.meshbin?v=5cbdf2ae', import.meta.url),
+        workerUrl: new URL('./ms-human-worker.js', import.meta.url)
+    }),
+    hand: Object.freeze({
+        id: 'hand',
+        geometryUrl: new URL('./models/ms_human_700/right-hand.meshbin?v=5054f8ff', import.meta.url),
+        workerUrl: new URL('./ms-human-worker.js?profile=hand', import.meta.url)
+    })
+});
 
 const $ = (selector) => document.querySelector(selector);
-const CANONICAL_KEYS = [
-    'elv_angle', 'shoulder_elv', 'shoulder_rot', 'elbow_flexion',
-    'pro_sup', 'deviation', 'flexion'
-];
-const MS_HUMAN_ROTATION_SIGN = Object.freeze({
-    shoulderExternal: -1,
-    shoulderInternal: 1,
-    forearmSupination: -1,
-    forearmPronation: 1
-});
+const DEFAULT_REGION_ID = 'right-upper-limb';
 const ACTIVATION_STOPS = [
     [0, new THREE.Color(0x2f78a7)],
     [0.25, new THREE.Color(0x36b6b0)],
@@ -29,40 +31,184 @@ const MAX_CAMERA_RADIUS = 8;
 const POSE_DELAY_MS = 45;
 const SOLVE_DELAY_MS = 280;
 const CONTROL_STEP_DEGREES = 0.1;
+const ANATOMICAL_BODY_RADIAL_SEGMENTS = 12;
+const ANATOMICAL_BODY_SAMPLE_SPACING = 0.012;
+const compactViewer = () => globalThis.matchMedia?.('(max-width: 700px)').matches === true;
+const REGION_OPTION_ORDER = Object.freeze([
+    'right-upper-limb',
+    'left-upper-limb',
+    'right-lower-limb',
+    'left-lower-limb',
+    'trunk',
+    'head-neck',
+    'right-hand'
+]);
+const REGION_OPTION_LABELS = Object.freeze({
+    'right-upper-limb': 'Right arm',
+    'left-upper-limb': 'Left arm',
+    'right-lower-limb': 'Right leg',
+    'left-lower-limb': 'Left leg',
+    trunk: 'Back & trunk',
+    'head-neck': 'Head & neck',
+    'right-hand': 'Right hand'
+});
 
-const POSE_PRESETS = {
-    'arm-side': {},
-    'forward-reach': { elv_angle: 90, shoulder_elv: 45, elbow_flexion: 30 },
-    'hand-to-mouth': { elv_angle: 90, shoulder_elv: 35, elbow_flexion: 120, pro_sup: MS_HUMAN_ROTATION_SIGN.forearmSupination * 45 },
-    'cross-body-reach': { elv_angle: 120, shoulder_elv: 90, elbow_flexion: 30 },
-    'hand-behind-head': { elv_angle: 30, shoulder_elv: 120, shoulder_rot: MS_HUMAN_ROTATION_SIGN.shoulderExternal * 35, elbow_flexion: 120 },
-    'high-forward-reach': { elv_angle: 90, shoulder_elv: 110 },
-    'flexion-90': { elv_angle: 90, shoulder_elv: 90 },
-    'abduction-90': { shoulder_elv: 90 },
-    'scaption-90': { elv_angle: 30, shoulder_elv: 90 },
-    'external-side': { shoulder_rot: MS_HUMAN_ROTATION_SIGN.shoulderExternal * 35, elbow_flexion: 90 },
-    'internal-side': { shoulder_rot: MS_HUMAN_ROTATION_SIGN.shoulderInternal * 45, elbow_flexion: 90 },
-    'rotation-90-90': { shoulder_elv: 90, shoulder_rot: MS_HUMAN_ROTATION_SIGN.shoulderExternal * 35, elbow_flexion: 90 },
-    'scaption-ir': { elv_angle: 30, shoulder_elv: 90, shoulder_rot: MS_HUMAN_ROTATION_SIGN.shoulderInternal * 45 },
-    'elbow-90': { elbow_flexion: 90 },
-    'elbow-120': { elbow_flexion: 120 },
-    'elbow-supinated': { elbow_flexion: 90, pro_sup: MS_HUMAN_ROTATION_SIGN.forearmSupination * 60 },
-    'forearm-pronated': { elbow_flexion: 90, pro_sup: MS_HUMAN_ROTATION_SIGN.forearmPronation * 60 },
-    'wrist-extension-30': { elbow_flexion: 90, flexion: -30 },
-    'wrist-flexion-30': { elbow_flexion: 90, flexion: 30 },
-    'wrist-deviation-positive': { elbow_flexion: 90, deviation: 20 },
-    'wrist-deviation-negative': { elbow_flexion: 90, deviation: -9.7 }
-};
+// Keep upstream actuator names as stable calculation/export identifiers, but
+// translate them at the interface boundary.  Several MS-Human identifiers are
+// fascicle codes rather than names a reader can reasonably recognize.
+const MUSCLE_DISPLAY_RULES = Object.freeze([
+    [/^DELT1(?:_|$)/i, 'Anterior deltoid'],
+    [/^DELT2(?:_|$)/i, 'Middle deltoid'],
+    [/^DELT3(?:_|$)/i, 'Posterior deltoid'],
+    [/^BIClong(?:_|$)/i, 'Biceps brachii · long head'],
+    [/^BICshort(?:_|$)/i, 'Biceps brachii · short head'],
+    [/^TRIlong(?:_|$)/i, 'Triceps brachii · long head'],
+    [/^TRIlat(?:_|$)/i, 'Triceps brachii · lateral head'],
+    [/^TRImed(?:_|$)/i, 'Triceps brachii · medial head'],
+    [/^BRA(?:_|$)/i, 'Brachialis'],
+    [/^BRD(?:_|$)/i, 'Brachioradialis'],
+    [/^CORB(?:_|$)/i, 'Coracobrachialis'],
+    [/^ANC(?:_|$)/i, 'Anconeus'],
+    [/^SUPSP(?:_|$)/i, 'Supraspinatus'],
+    [/^INFSP(?:_|$)/i, 'Infraspinatus'],
+    [/^SUBSC(?:_|$)/i, 'Subscapularis'],
+    [/^TMAJ(?:_|$)/i, 'Teres major'],
+    [/^TMIN(?:_|$)/i, 'Teres minor'],
+    [/^PECM1(?:_|$)/i, 'Pectoralis major · clavicular'],
+    [/^PECM2(?:_|$)/i, 'Pectoralis major · sternal'],
+    [/^PECM3(?:_|$)/i, 'Pectoralis major · costal'],
+    [/^SerrAnt/i, 'Serratus anterior'],
+    [/^trap_/i, 'Trapezius'],
+    [/^levator_scap/i, 'Levator scapulae'],
+    [/^cleid_/i, 'Sternocleidomastoid'],
+    [/^LD_/i, 'Latissimus dorsi'],
+    [/^ECRL(?:_|$)/i, 'Extensor carpi radialis longus'],
+    [/^ECRB(?:_|$)/i, 'Extensor carpi radialis brevis'],
+    [/^ECU(?:_|$)/i, 'Extensor carpi ulnaris'],
+    [/^FCR(?:_|$)/i, 'Flexor carpi radialis'],
+    [/^FCU(?:_|$)/i, 'Flexor carpi ulnaris'],
+    [/^PL(?:_|$)/i, 'Palmaris longus'],
+    [/^PT(?:_|$)/i, 'Pronator teres'],
+    [/^PQ(?:_|$)/i, 'Pronator quadratus'],
+    [/^SUP(?:_|$)/i, 'Supinator'],
+    [/^EDCI(?:_|$)/i, 'Extensor digitorum · index'],
+    [/^EDCM(?:_|$)/i, 'Extensor digitorum · middle'],
+    [/^EDCR(?:_|$)/i, 'Extensor digitorum · ring'],
+    [/^EDCL(?:_|$)/i, 'Extensor digitorum · little'],
+    [/^EDM(?:_|$)/i, 'Extensor digiti minimi'],
+    [/^EIP(?:_|$)/i, 'Extensor indicis'],
+    [/^EPL(?:_|$)/i, 'Extensor pollicis longus'],
+    [/^EPB(?:_|$)/i, 'Extensor pollicis brevis'],
+    [/^APL(?:_|$)/i, 'Abductor pollicis longus'],
+    [/^FPL(?:_|$)/i, 'Flexor pollicis longus'],
+    [/^FDPI(?:_|$)/i, 'Flexor digitorum profundus · index'],
+    [/^FDPM(?:_|$)/i, 'Flexor digitorum profundus · middle'],
+    [/^FDPR(?:_|$)/i, 'Flexor digitorum profundus · ring'],
+    [/^FDPL(?:_|$)/i, 'Flexor digitorum profundus · little'],
+    [/^FDSI(?:_|$)/i, 'Flexor digitorum superficialis · index'],
+    [/^FDSM(?:_|$)/i, 'Flexor digitorum superficialis · middle'],
+    [/^FDSR(?:_|$)/i, 'Flexor digitorum superficialis · ring'],
+    [/^FDSL(?:_|$)/i, 'Flexor digitorum superficialis · little'],
+    [/^APB(?:_|$)/i, 'Abductor pollicis brevis'],
+    [/^FPB(?:_|$)/i, 'Flexor pollicis brevis'],
+    [/^OPP(?:_|$)/i, 'Opponens pollicis'],
+    [/^ADPt(?:_|$)/i, 'Adductor pollicis · transverse head'],
+    [/^ADPo(?:_|$)/i, 'Adductor pollicis · oblique head'],
+    [/^ADM(?:_|$)/i, 'Abductor digiti minimi'],
+    [/^FDM(?:_|$)/i, 'Flexor digiti minimi brevis'],
+    [/^ODM(?:_|$)/i, 'Opponens digiti minimi'],
+    [/^(\d)(?:st|nd|rd|th)?PI(?:_|$)/i, 'Palmar interosseous'],
+    [/^(\d)(?:st|nd|rd|th)?DI(?:_|$)/i, 'Dorsal interosseous'],
+    [/^LUMI(?:_|$)/i, 'Index lumbrical'],
+    [/^LUMM(?:_|$)/i, 'Middle lumbrical'],
+    [/^LUMR(?:_|$)/i, 'Ring lumbrical'],
+    [/^LUML(?:_|$)/i, 'Little-finger lumbrical'],
+    [/^glmax/i, 'Gluteus maximus'],
+    [/^glmed/i, 'Gluteus medius'],
+    [/^glmin/i, 'Gluteus minimus'],
+    [/^addbrev/i, 'Adductor brevis'],
+    [/^addlong/i, 'Adductor longus'],
+    [/^addmag/i, 'Adductor magnus'],
+    [/^iliacus/i, 'Iliacus'],
+    [/^piri/i, 'Piriformis'],
+    [/^tfl/i, 'Tensor fasciae latae'],
+    [/^sart/i, 'Sartorius'],
+    [/^grac/i, 'Gracilis'],
+    [/^recfem/i, 'Rectus femoris'],
+    [/^vaslat/i, 'Vastus lateralis'],
+    [/^vasmed/i, 'Vastus medialis'],
+    [/^vasint/i, 'Vastus intermedius'],
+    [/^bflh/i, 'Biceps femoris · long head'],
+    [/^bfsh/i, 'Biceps femoris · short head'],
+    [/^semimem/i, 'Semimembranosus'],
+    [/^semiten/i, 'Semitendinosus'],
+    [/^gasmed/i, 'Gastrocnemius · medial head'],
+    [/^gaslat/i, 'Gastrocnemius · lateral head'],
+    [/^soleus/i, 'Soleus'],
+    [/^tibant/i, 'Tibialis anterior'],
+    [/^tibpost/i, 'Tibialis posterior'],
+    [/^perlong/i, 'Fibularis longus'],
+    [/^perbrev/i, 'Fibularis brevis'],
+    [/^ehl/i, 'Extensor hallucis longus'],
+    [/^edl/i, 'Extensor digitorum longus'],
+    [/^fhl/i, 'Flexor hallucis longus'],
+    [/^fdl/i, 'Flexor digitorum longus'],
+    [/^rect_abd/i, 'Rectus abdominis'],
+    [/^EO_/i, 'External oblique'],
+    [/^IO\d/i, 'Internal oblique'],
+    [/^TR\d/i, 'Transversus abdominis'],
+    [/^Ps_/i, 'Psoas major'],
+    [/^QL_/i, 'Quadratus lumborum'],
+    [/^(?:MF_|multifidus_)/i, 'Multifidus'],
+    [/^LTpL_/i, 'Longissimus lumborum'],
+    [/^LTpT_/i, 'Longissimus thoracis'],
+    [/^IL_/i, 'Iliocostalis'],
+    [/^longissi_cerv/i, 'Longissimus cervicis'],
+    [/^iliocost_cerv/i, 'Iliocostalis cervicis'],
+    [/^splen_cap/i, 'Splenius capitis'],
+    [/^splen_cerv/i, 'Splenius cervicis'],
+    [/^semi_cap/i, 'Semispinalis capitis'],
+    [/^semi_cerv/i, 'Semispinalis cervicis'],
+    [/^(?:supmult|deepmult)/i, 'Cervical multifidus'],
+    [/^scalenus_ant/i, 'Anterior scalene'],
+    [/^scalenus_med/i, 'Middle scalene'],
+    [/^scalenus_post/i, 'Posterior scalene'],
+    [/^stern_mast/i, 'Sternocleidomastoid'],
+    [/^long_col/i, 'Longus colli']
+]);
 
+function muscleModelId(name) {
+    return String(name ?? '').replace(/_[rl]$/i, '');
+}
+
+function muscleDisplayName(name) {
+    const raw = String(name ?? 'Unknown muscle');
+    for (const [pattern, label] of MUSCLE_DISPLAY_RULES) {
+        if (pattern.test(raw)) return label;
+    }
+    return muscleModelId(raw).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+const primaryEngine = createMsHumanEngine({ onFatalError: handleFatalEngineError });
 const app = {
-    engine: createMsHumanEngine({ onFatalError: handleFatalEngineError }),
+    engine: primaryEngine,
+    profileId: 'primary',
+    profileGeneration: 0,
+    profiles: new Map([['primary', { ...PROFILE_DEFINITIONS.primary, engine: primaryEngine, metadata: null, geometry: null }]]),
+    engineMetadata: null,
     metadata: null,
+    regionId: DEFAULT_REGION_ID,
+    regionGeneration: 0,
+    musclePresentation: 'overview',
+    presentationMuscleNames: null,
+    regionView: 'front',
     model: null,
     state: null,
     coordinates: {},
     selectedMuscle: 'DELT1_r',
     pathView: 'all',
-    activationPanelVisible: true,
+    muscleRendering: 'anatomical',
+    activationPanelVisible: !compactViewer(),
     activationRankingExpanded: false,
     musclePanelVisible: false,
     presetLibraryVisible: false,
@@ -70,7 +216,7 @@ const app = {
     showContext: true,
     showLongOrigins: false,
     bodyMeshes: [],
-    armGroup: new THREE.Group(),
+    activeRegionGroup: new THREE.Group(),
     contextGroup: new THREE.Group(),
     pathGroup: new THREE.Group(),
     selectedGroup: new THREE.Group(),
@@ -80,7 +226,9 @@ const app = {
     solveGeneration: 0,
     diagnosisViewerSnapshot: null,
     diagnosis: null,
-    cameraFitted: false
+    cameraFitted: false,
+    inDiagnosis: false,
+    initialized: false
 };
 
 const sceneHost = $('#scene');
@@ -90,14 +238,14 @@ renderer.setClearColor(0xe8ece9, 1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.domElement.tabIndex = 0;
 renderer.domElement.setAttribute('role', 'application');
-renderer.domElement.setAttribute('aria-label', 'Interactive right-arm rendering of MS-Human-700. Drag or use arrow keys to rotate; scroll or use plus and minus to zoom.');
+renderer.domElement.setAttribute('aria-label', 'Interactive regional rendering of MS-Human-700. Click a muscle to inspect it alone; left-drag or use arrow keys to rotate; right-drag to move; scroll to zoom at the pointer; use plus and minus to zoom at the center.');
 sceneHost.append(renderer.domElement);
 
 const scene = new THREE.Scene();
 const displayRoot = new THREE.Group();
 const modelRoot = new THREE.Group();
 modelRoot.rotation.x = -Math.PI / 2;
-modelRoot.add(app.contextGroup, app.armGroup, app.pathGroup, app.selectedGroup);
+modelRoot.add(app.contextGroup, app.activeRegionGroup, app.pathGroup, app.selectedGroup);
 displayRoot.add(modelRoot);
 scene.add(displayRoot);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x64706b, 2.35));
@@ -121,7 +269,8 @@ const cameraState = {
     radius: 1.7,
     initialRadius: 1.7,
     target: new THREE.Vector3(0, 1.25, -0.2),
-    initialTarget: new THREE.Vector3(0, 1.25, -0.2)
+    initialTarget: new THREE.Vector3(0, 1.25, -0.2),
+    framingOffset: new THREE.Vector2()
 };
 
 const boneMaterial = new THREE.MeshStandardMaterial({ color: 0xd9d0bf, roughness: 0.78, metalness: 0, side: THREE.DoubleSide });
@@ -132,13 +281,185 @@ const axisY = new THREE.Vector3(0, 1, 0);
 const scratchStart = new THREE.Vector3();
 const scratchEnd = new THREE.Vector3();
 const scratchDirection = new THREE.Vector3();
+const pickStart = new THREE.Vector3();
+const pickEnd = new THREE.Vector3();
+const pickRayPoint = new THREE.Vector3();
+const pickSegmentPoint = new THREE.Vector3();
+const muscleRaycaster = new THREE.Raycaster();
+const pointerNdc = new THREE.Vector2();
 let diagnosisViewerSnapshot = null;
 let viewerExporting = false;
 let renderFrame = 0;
+let renderingContextLost = false;
 
 function setText(selector, value) {
     const element = $(selector);
     if (element) element.textContent = value;
+}
+
+function availableRegions() {
+    if (Array.isArray(app.engineMetadata?.regions) && app.engineMetadata.regions.length) return app.engineMetadata.regions;
+    if (!app.engineMetadata) return [];
+    return [{
+        id: DEFAULT_REGION_ID,
+        presentationName: 'Right upper limb',
+        area: 'upper-limb',
+        laterality: 'right',
+        calculationSide: 'right',
+        status: 'ready',
+        coordinates: app.engineMetadata.coordinates,
+        muscles: app.engineMetadata.muscles,
+        defaultSelectedMuscle: { name: 'DELT1_r' },
+        activeBodyIds: [...new Set(app.engineMetadata.geometry.geoms
+            .filter((geom) => geom.role === 'arm')
+            .map((geom) => geom.bodyId))],
+        presets: app.engineMetadata.presets,
+        solverConfig: app.engineMetadata.solverConfig
+    }];
+}
+
+function regionArea(region) {
+    if (region?.area === 'upper-limb' || region?.id?.includes('upper-limb')) return 'upper-limb';
+    if (region?.area === 'lower-limb' || region?.id?.includes('lower-limb')) return 'lower-limb';
+    if (region?.area === 'hand' || region?.id?.includes('hand')) return 'hand';
+    if (region?.area === 'head-neck' || region?.id === 'head-neck') return 'head-neck';
+    return region?.area || region?.id || 'trunk';
+}
+
+function regionDisplayName(region) {
+    if (regionArea(region) === 'trunk') return 'Back & trunk';
+    return region?.presentationName || region?.label || region?.id || 'Selected region';
+}
+
+function profileRegions(profileId) {
+    const metadata = app.profiles.get(profileId)?.metadata;
+    return Array.isArray(metadata?.regions) ? metadata.regions : [];
+}
+
+function explorerRegionOptions() {
+    const byId = new Map(profileRegions('primary').map((region) => [region.id, region]));
+    const handRegion = profileRegions('hand')[0] || {
+        id: 'right-hand',
+        presentationName: 'Right hand',
+        status: 'data-ready'
+    };
+    byId.set(handRegion.id, handRegion);
+    return REGION_OPTION_ORDER
+        .map((id) => byId.get(id))
+        .filter((region) => region && (!region.status || ['ready', 'data-ready'].includes(region.status)));
+}
+
+function syncRegionControls() {
+    const region = app.metadata?.region;
+    if (!region) return;
+    $('#focus-region').value = region.id;
+}
+
+function regionViewYaw() {
+    if (app.regionView === 'back') return -Math.PI / 2;
+    if (app.regionView === 'side') return 0;
+    return Math.PI / 2;
+}
+
+function syncRegionPresentationControls() {
+    const back = app.regionId === 'trunk';
+    $('#back-presentation-controls').classList.toggle('hidden', !back);
+    if (!back) return;
+    $('#back-muscle-filter').value = app.musclePresentation;
+    for (const button of document.querySelectorAll('[data-region-view]')) {
+        const active = button.dataset.regionView === app.regionView;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+    }
+}
+
+function setRegionView(view) {
+    app.regionView = ['front', 'back', 'side'].includes(view) ? view : 'front';
+    cameraState.yaw = regionViewYaw();
+    syncRegionPresentationControls();
+    updateCamera();
+}
+
+function setMusclePresentation(value) {
+    app.musclePresentation = Object.hasOwn(BACK_MUSCLE_PATTERNS, value) || value === 'overview' ? value : 'back';
+    app.presentationMuscleNames = buildPresentationMuscleSet();
+    app.activationRankingExpanded = false;
+    syncRegionPresentationControls();
+    updateInventory();
+    renderPaths();
+    updateActivationRanking();
+}
+
+function normalizedCoordinate(coordinate) {
+    return {
+        ...coordinate,
+        name: coordinate.name || coordinate.engineName,
+        engineName: coordinate.engineName || coordinate.name,
+        minimum: coordinate.minimum ?? coordinate.minimumDegrees,
+        maximum: coordinate.maximum ?? coordinate.maximumDegrees,
+        default: coordinate.default ?? coordinate.defaultDegrees ?? 0,
+        units: coordinate.units || 'degrees'
+    };
+}
+
+function normalizedMuscle(muscle, region) {
+    return {
+        ...muscle,
+        id: muscle.id || `${app.engineMetadata.identity.modelId}:${region.id}:actuator:${muscle.actuatorId}`,
+        group: muscle.group || 'Regional muscles',
+        visibleByDefault: muscle.visibleByDefault !== false
+    };
+}
+
+function regionPresetGroups(region) {
+    if (Array.isArray(region.presetGroups)) return region.presetGroups;
+    if (Array.isArray(region.presets)) {
+        return [{ id: 'reference', label: 'Reference postures', presets: region.presets }];
+    }
+    return [];
+}
+
+function activateRegionMetadata(regionId) {
+    const region = availableRegions().find((candidate) => candidate.id === regionId);
+    if (!region) throw new RangeError(`Unknown Explorer region: ${regionId}.`);
+    const coordinates = (region.coordinates || []).map(normalizedCoordinate);
+    const muscles = (region.muscles || region.candidateMuscles || [])
+        .map((muscle) => normalizedMuscle(muscle, region));
+    const activeBodyIds = [...(region.activeBodyIds || region.geometryActiveBodyIds || region.geometry?.activeBodyIds || [])];
+    const presets = regionPresetGroups(region).flatMap((group) => group.presets || []);
+    const solverConfig = region.solverConfig || region.solver || app.engineMetadata.solverConfig;
+    const calculationSide = region.calculationSide || region.laterality || 'midline';
+    app.regionId = region.id;
+    app.metadata = {
+        ...app.engineMetadata,
+        region,
+        regionId: region.id,
+        regionDigest: region.digest || region.regionDigest || region.regionDigestSha256 || region.contractDigest || region.contentDigestSha256,
+        coordinates,
+        muscles,
+        muscleNames: muscles.map((muscle) => muscle.name),
+        presets,
+        presetGroups: regionPresetGroups(region),
+        solverConfig,
+        activeBodyIds,
+        capabilities: {
+            ...app.engineMetadata.capabilities,
+            ...region.capabilities,
+            calculationSide
+        },
+        model: {
+            ...app.engineMetadata.model,
+            functionalMuscles: muscles.length,
+            independentCoordinates: coordinates.length,
+            regionBodies: activeBodyIds.length
+        }
+    };
+    app.selectedMuscle = (typeof region.defaultSelectedMuscle === 'string' ? region.defaultSelectedMuscle : region.defaultSelectedMuscle?.name)
+        || region.defaultSelectedMuscleName
+        || muscles[0]?.name
+        || '';
+    app.coordinates = Object.fromEntries(coordinates.map((coordinate) => [coordinate.name, coordinate.default]));
+    return app.metadata;
 }
 
 function showError(message) {
@@ -175,12 +496,30 @@ function setLoading(message, visible = true) {
 }
 
 function requestRender() {
+    if (renderingContextLost) return;
     if (renderFrame) return;
     renderFrame = requestAnimationFrame(() => {
         renderFrame = 0;
         renderer.render(scene, camera);
     });
 }
+
+renderer.domElement.addEventListener('webglcontextlost', (event) => {
+    event.preventDefault();
+    renderingContextLost = true;
+    setLoading('Restoring the 3D view…');
+});
+
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+    renderingContextLost = false;
+    resizeRenderer();
+    if (app.state) {
+        applyBodyTransforms(app.state);
+        renderPaths();
+    }
+    setLoading('', false);
+    requestRender();
+});
 
 function formatDegrees(value) {
     const rounded = Math.abs(value) < 0.05 ? 0 : value;
@@ -201,6 +540,8 @@ function activationColor(value) {
 
 function activationAvailable(state = app.state) {
     if (state?.mode !== 'static' || state.staticHolding?.quality?.usable !== true) return false;
+    if (state.regionId && state.regionId !== app.regionId) return false;
+    if (app.metadata?.regionDigest && state.regionDigest !== app.metadata.regionDigest) return false;
     if (state.modelDigest !== app.metadata?.identity?.modelDigest) return false;
     if (state.solverConfigId !== app.metadata?.solverConfig?.id) return false;
     if (!Array.isArray(state.muscles) || state.muscles.length !== app.metadata.muscles.length) return false;
@@ -223,22 +564,22 @@ async function verifiedGeometryBuffer(response, expectedDigest) {
     const buffer = await response.arrayBuffer();
     const actualDigest = await sha256Hex(buffer);
     if (actualDigest !== expectedDigest) {
-        throw new Error(`Right-arm geometry SHA-256 mismatch. Expected ${expectedDigest}; received ${actualDigest}.`);
+        throw new Error(`Model geometry SHA-256 mismatch. Expected ${expectedDigest}; received ${actualDigest}.`);
     }
     return buffer;
 }
 
 function parseGeometry(buffer) {
-    if (buffer.byteLength < 16) throw new Error('Right-arm geometry file is incomplete.');
+    if (buffer.byteLength < 16) throw new Error('Model geometry file is incomplete.');
     const magic = new TextDecoder().decode(new Uint8Array(buffer, 0, 8));
-    if (magic !== 'MSHARM01') throw new Error('Right-arm geometry has an unsupported format.');
+    if (magic !== 'MSHARM01') throw new Error('Model geometry has an unsupported format.');
     const header = new DataView(buffer, 8, 8);
     const vertexCount = header.getUint32(0, true);
     const indexCount = header.getUint32(4, true);
     const positionsOffset = 16;
     const indicesOffset = positionsOffset + vertexCount * 3 * 4;
     const expectedBytes = indicesOffset + indexCount * 4;
-    if (expectedBytes !== buffer.byteLength) throw new Error('Right-arm geometry size does not match its header.');
+    if (expectedBytes !== buffer.byteLength) throw new Error('Model geometry size does not match its header.');
     return {
         positions: new Float32Array(buffer, positionsOffset, vertexCount * 3),
         indices: new Uint32Array(buffer, indicesOffset, indexCount)
@@ -246,26 +587,49 @@ function parseGeometry(buffer) {
 }
 
 function buildBodyMeshes(asset) {
+    const activeBodyIds = new Set(app.metadata.activeBodyIds);
     for (const descriptor of app.metadata.geometry.geoms) {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(asset.positions.slice(descriptor.vertexStart * 3, (descriptor.vertexStart + descriptor.vertexCount) * 3), 3));
         geometry.setIndex(new THREE.Uint32BufferAttribute(asset.indices.slice(descriptor.indexStart, descriptor.indexStart + descriptor.indexCount), 1));
         geometry.computeVertexNormals();
         geometry.computeBoundingSphere();
-        const mesh = new THREE.Mesh(geometry, descriptor.role === 'arm' ? boneMaterial : contextMaterial);
+        const active = activeBodyIds.has(descriptor.bodyId);
+        const mesh = new THREE.Mesh(geometry, active ? boneMaterial : contextMaterial);
         mesh.matrixAutoUpdate = false;
         mesh.name = descriptor.name;
         mesh.userData.bodyId = descriptor.bodyId;
-        mesh.userData.role = descriptor.role;
+        mesh.userData.activeRegion = active;
         app.bodyMeshes.push(mesh);
-        (descriptor.role === 'arm' ? app.armGroup : app.contextGroup).add(mesh);
+        (active ? app.activeRegionGroup : app.contextGroup).add(mesh);
     }
 }
 
+function clearBodyMeshes() {
+    for (const mesh of app.bodyMeshes) {
+        mesh.parent?.remove(mesh);
+        mesh.geometry?.dispose();
+    }
+    app.bodyMeshes = [];
+}
+
+function assignRegionGeometry() {
+    const activeBodyIds = new Set(app.metadata.activeBodyIds);
+    for (const mesh of app.bodyMeshes) {
+        const active = activeBodyIds.has(mesh.userData.bodyId);
+        mesh.userData.activeRegion = active;
+        mesh.material = active ? boneMaterial : contextMaterial;
+        (active ? app.activeRegionGroup : app.contextGroup).add(mesh);
+    }
+    app.contextGroup.visible = app.showContext;
+    requestRender();
+}
+
 function thumbnailCoordinates(preset) {
+    const values = preset?.coordinates || preset || {};
     return Object.fromEntries(app.metadata.coordinates.map((coordinate) => [
         coordinate.name,
-        preset?.[coordinate.name] ?? coordinate.default
+        values[coordinate.name] ?? coordinate.default
     ]));
 }
 
@@ -283,9 +647,9 @@ function createThumbnailRenderer() {
     const scene = new THREE.Scene();
     const root = new THREE.Group();
     const context = new THREE.Group();
-    const arm = new THREE.Group();
+    const activeRegion = new THREE.Group();
     root.rotation.x = -Math.PI / 2;
-    root.add(context, arm);
+    root.add(context, activeRegion);
     scene.add(root);
     scene.add(new THREE.HemisphereLight(0xffffff, 0x6d7873, 2.5));
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -311,12 +675,12 @@ function createThumbnailRenderer() {
     const meshes = app.bodyMeshes.map((source) => {
         const mesh = new THREE.Mesh(
             source.geometry,
-            source.userData.role === 'arm' ? armMaterial : contextMaterial
+            source.userData.activeRegion ? armMaterial : contextMaterial
         );
         mesh.matrixAutoUpdate = false;
         mesh.userData.bodyId = source.userData.bodyId;
-        mesh.userData.role = source.userData.role;
-        (mesh.userData.role === 'arm' ? arm : context).add(mesh);
+        mesh.userData.activeRegion = source.userData.activeRegion;
+        (mesh.userData.activeRegion ? activeRegion : context).add(mesh);
         return mesh;
     });
     const camera = new THREE.PerspectiveCamera(27, 1, 0.005, 50);
@@ -325,7 +689,7 @@ function createThumbnailRenderer() {
         renderer,
         scene,
         root,
-        arm,
+        activeRegion,
         meshes,
         camera,
         dispose() {
@@ -348,7 +712,7 @@ function applyThumbnailPose(thumbnail, state) {
 }
 
 function frameThumbnail(thumbnail) {
-    const bounds = new THREE.Box3().setFromObject(thumbnail.arm);
+    const bounds = new THREE.Box3().setFromObject(thumbnail.activeRegion);
     if (bounds.isEmpty()) return false;
     const sphere = bounds.getBoundingSphere(new THREE.Sphere());
     const direction = new THREE.Vector3(1, 0.14, 0.38).normalize();
@@ -373,11 +737,16 @@ function copyThumbnailToCanvas(source, canvas) {
 }
 
 async function renderPoseThumbnails() {
+    const engine = app.engine;
+    const regionId = app.regionId;
+    const presetById = new Map(app.metadata.presets.map((preset) => [preset.id || preset.name, preset]));
     const targets = new Map();
     for (const canvas of document.querySelectorAll('canvas.preset-thumbnail')) {
+        const requestedRegion = canvas.dataset.thumbnailRegion || app.regionId;
+        if (requestedRegion !== app.regionId) continue;
         const presetName = canvas.dataset.thumbnailPreset
             || canvas.closest('[data-preset]')?.dataset.preset;
-        if (!POSE_PRESETS[presetName]) continue;
+        if (!presetById.has(presetName)) continue;
         if (!targets.has(presetName)) targets.set(presetName, []);
         targets.get(presetName).push(canvas);
     }
@@ -386,10 +755,12 @@ async function renderPoseThumbnails() {
     const thumbnail = createThumbnailRenderer();
     try {
         for (const [presetName, canvases] of targets) {
-            const state = await app.engine.pose(
-                thumbnailCoordinates(POSE_PRESETS[presetName]),
-                app.selectedMuscle
+            const state = await engine.pose(
+                thumbnailCoordinates(presetById.get(presetName)),
+                app.selectedMuscle,
+                regionId
             );
+            if (engine !== app.engine || regionId !== app.regionId) return;
             applyThumbnailPose(thumbnail, state);
             if (!frameThumbnail(thumbnail)) continue;
             thumbnail.renderer.render(thumbnail.scene, thumbnail.camera);
@@ -449,8 +820,232 @@ function positionSegment(mesh, segment, radius) {
     mesh.scale.set(radius, length, radius);
 }
 
+const BACK_MUSCLE_PATTERNS = Object.freeze({
+    back: /^(?:LTpT|LTpL|IL_|MF_|multifidus_|QL_|LD_)/i,
+    extensors: /^(?:LTpT|LTpL|IL_)/i,
+    multifidus: /^(?:MF_|multifidus_)/i,
+    ql: /^QL_/i,
+    core: /^(?:EO_|IO\d|rect_abd|TR\d|Ps_|iliacus)/i
+});
+
+function muscleSelectionScore(muscle) {
+    const value = muscle.selection?.maximumProjectedMomentNmPerUnitActivation;
+    return Number.isFinite(value) ? value : 0;
+}
+
+function presentationCandidates(pattern, limit = 48) {
+    return app.metadata.muscles
+        .filter((muscle) => pattern.test(muscle.name))
+        .sort((left, right) => muscleSelectionScore(right) - muscleSelectionScore(left))
+        .slice(0, limit);
+}
+
+function buildPresentationMuscleSet() {
+    if (app.regionId !== 'trunk') return null;
+    if (app.musclePresentation === 'overview') {
+        return new Set(app.metadata.muscles.filter((muscle) => muscle.visibleByDefault !== false).map((muscle) => muscle.name));
+    }
+    if (app.musclePresentation === 'back') {
+        const balanced = [
+            [/^(?:LTpT|LTpL|IL_)/i, 16],
+            [/^(?:MF_|multifidus_)/i, 14],
+            [/^QL_/i, 12],
+            [/^LD_/i, 6]
+        ].flatMap(([pattern, limit]) => presentationCandidates(pattern, limit));
+        return new Set(balanced.map((muscle) => muscle.name));
+    }
+    const pattern = BACK_MUSCLE_PATTERNS[app.musclePresentation] || BACK_MUSCLE_PATTERNS.back;
+    return new Set(presentationCandidates(pattern).map((muscle) => muscle.name));
+}
+
+function muscleMatchesActivePresentation(muscle) {
+    return !app.presentationMuscleNames || app.presentationMuscleNames.has(muscle.name);
+}
+
 function pathVisible(muscle) {
+    if (app.presentationMuscleNames) return app.presentationMuscleNames.has(muscle.name);
     return muscle.visibleByDefault !== false || app.showLongOrigins;
+}
+
+function muscleSegmentChains(segments) {
+    const chains = [];
+    let current = null;
+    for (const segment of segments ?? []) {
+        if (!Array.isArray(segment) || segment.length < 6) continue;
+        const start = new THREE.Vector3(segment[0], segment[1], segment[2]);
+        const end = new THREE.Vector3(segment[3], segment[4], segment[5]);
+        if (!start.toArray().every(Number.isFinite) || !end.toArray().every(Number.isFinite)) continue;
+        if (start.distanceToSquared(end) < 1e-16) continue;
+        const previous = current?.[current.length - 1];
+        if (!previous || previous.distanceToSquared(start) > 1e-12) {
+            current = [start, end];
+            chains.push(current);
+        } else {
+            current.push(end);
+        }
+    }
+    return chains;
+}
+
+function anatomicalMuscleProfile(muscle) {
+    const name = String(muscle.name ?? '').toUpperCase();
+    const group = String(muscle.group ?? '').toLowerCase();
+    if (/DELT|PECM|LD_|TRAP|SERRANT|SUPSP|INFSP|SUBSC|TMAJ|TMIN|LEVATOR/.test(name) || group.includes('shoulder')) {
+        return { width: 1.32, depth: 0.52, fullness: 0.56, skew: -0.08, attachmentFlare: 0.55, size: 1.08 };
+    }
+    if (/BIC|TRI|BRA|BRD|CORB/.test(name)) {
+        return { width: 1.02, depth: 0.78, fullness: 0.72, skew: 0.02, attachmentFlare: 0.34, size: 1.08 };
+    }
+    if (/GLUT|QUAD|RECT_FEM|VAS|BIFEM|SEMIM|SEMIT|ADD|GRAC|SART|TFL|GAS|SOL|TIB|PER|FHL|FDL|EHL|EDL/.test(name)
+            || group.includes('lower limb')) {
+        return { width: 1.08, depth: 0.72, fullness: 0.68, skew: 0.01, attachmentFlare: 0.32, size: 1.12 };
+    }
+    if (/OBLIQ|RECTUS|MULT|PSOAS|ILIOC|LONGISS|QUAD_LUMB|TRANSVERS|SPINAL|SEMISP|SPLEN|SCALEN|STERNOMAST/.test(name)
+            || group.includes('trunk') || group.includes('neck')) {
+        return { width: 1.12, depth: 0.48, fullness: 0.62, skew: 0, attachmentFlare: 0.42, size: 1.02 };
+    }
+    return { width: 0.88, depth: 0.56, fullness: 0.92, skew: 0.08, attachmentFlare: 0.38, size: 0.9 };
+}
+
+function sampleAnatomicalChain(chain, length) {
+    const divisions = Math.min(52, Math.max(
+        (chain.length - 1) * 4,
+        Math.ceil(length / ANATOMICAL_BODY_SAMPLE_SPACING)
+    ));
+    if (chain.length === 2) {
+        return Array.from({ length: divisions + 1 }, (_, index) => (
+            chain[0].clone().lerp(chain[1], index / divisions)
+        ));
+    }
+    const curve = new THREE.CatmullRomCurve3(chain, false, 'centripetal');
+    return curve.getPoints(divisions);
+}
+
+function createAnatomicalMuscleBodyGeometry(muscle, muscleColor, emphasized) {
+    const sourceChains = muscleSegmentChains(muscle.segments);
+    const sourceLengths = sourceChains.map((chain) => chain.slice(1).reduce(
+        (sum, point, index) => sum + point.distanceTo(chain[index]),
+        0
+    ));
+    const chains = sourceChains.map((chain, index) => sampleAnatomicalChain(chain, sourceLengths[index]));
+    const chainLengths = chains.map((chain) => chain.slice(1).reduce(
+        (sum, point, index) => sum + point.distanceTo(chain[index]),
+        0
+    ));
+    const totalLength = chainLengths.reduce((sum, length) => sum + length, 0);
+    if (!Number.isFinite(totalLength) || totalLength < 1e-8) return null;
+
+    const profile = anatomicalMuscleProfile(muscle);
+    const positions = [];
+    const normals = [];
+    const colors = [];
+    const indices = [];
+    const tendonRadius = emphasized ? 0.0017 : 0.00072;
+    const requestedBellyRadius = (emphasized ? 0.0135 : 0.00365) * profile.size;
+    const bellyRadius = Math.max(tendonRadius * 1.5, Math.min(requestedBellyRadius, totalLength * 0.052));
+    const reference = new THREE.Vector3();
+    const tangent = new THREE.Vector3();
+    const previousTangent = new THREE.Vector3();
+    const firstTangent = new THREE.Vector3();
+    const lastTangent = new THREE.Vector3();
+    const normal = new THREE.Vector3();
+    const binormal = new THREE.Vector3();
+    const radial = new THREE.Vector3();
+    const surfaceNormal = new THREE.Vector3();
+    const transport = new THREE.Quaternion();
+    let travelled = 0;
+
+    for (const [chainIndex, chain] of chains.entries()) {
+        if (chain.length < 2 || chainLengths[chainIndex] < 1e-8) continue;
+        const ringStart = positions.length / 3;
+        let localTravel = 0;
+
+        for (let pointIndex = 0; pointIndex < chain.length; pointIndex += 1) {
+            const point = chain[pointIndex];
+            if (pointIndex > 0) localTravel += point.distanceTo(chain[pointIndex - 1]);
+            if (pointIndex === 0) tangent.copy(chain[1]).sub(point);
+            else if (pointIndex === chain.length - 1) tangent.copy(point).sub(chain[pointIndex - 1]);
+            else tangent.copy(chain[pointIndex + 1]).sub(chain[pointIndex - 1]);
+            tangent.normalize();
+
+            if (pointIndex === 0) {
+                reference.set(0, 0, 1);
+                if (Math.abs(tangent.dot(reference)) > 0.92) reference.set(1, 0, 0);
+                normal.copy(reference).addScaledVector(tangent, -reference.dot(tangent)).normalize();
+                firstTangent.copy(tangent);
+            } else {
+                transport.setFromUnitVectors(previousTangent, tangent);
+                normal.applyQuaternion(transport);
+                normal.addScaledVector(tangent, -normal.dot(tangent)).normalize();
+            }
+            binormal.crossVectors(tangent, normal).normalize();
+            previousTangent.copy(tangent);
+            lastTangent.copy(tangent);
+
+            const pathPosition = THREE.MathUtils.clamp((travelled + localTravel) / totalLength, 0, 1);
+            const shapedPosition = THREE.MathUtils.clamp(
+                pathPosition + profile.skew * Math.sin(Math.PI * pathPosition),
+                0,
+                1
+            );
+            const belly = Math.pow(Math.max(0, Math.sin(Math.PI * shapedPosition)), profile.fullness);
+            const endDistance = Math.min(pathPosition, 1 - pathPosition);
+            const attachmentBlend = 1 - THREE.MathUtils.smoothstep(endDistance, 0, 0.13);
+            const radius = tendonRadius + (bellyRadius - tendonRadius) * belly;
+            const majorRadius = radius * profile.width * (1 + attachmentBlend * profile.attachmentFlare);
+            const minorRadius = radius * profile.depth * (1 - attachmentBlend * 0.2);
+
+            for (let side = 0; side < ANATOMICAL_BODY_RADIAL_SEGMENTS; side += 1) {
+                const angle = side / ANATOMICAL_BODY_RADIAL_SEGMENTS * Math.PI * 2;
+                const cosine = Math.cos(angle);
+                const sine = Math.sin(angle);
+                radial.copy(normal).multiplyScalar(cosine * majorRadius).addScaledVector(binormal, sine * minorRadius);
+                positions.push(point.x + radial.x, point.y + radial.y, point.z + radial.z);
+                surfaceNormal.copy(normal).multiplyScalar(cosine / majorRadius)
+                    .addScaledVector(binormal, sine / minorRadius)
+                    .normalize();
+                normals.push(surfaceNormal.x, surfaceNormal.y, surfaceNormal.z);
+                colors.push(muscleColor.r, muscleColor.g, muscleColor.b);
+            }
+            if (pointIndex > 0) {
+                const previousRing = ringStart + (pointIndex - 1) * ANATOMICAL_BODY_RADIAL_SEGMENTS;
+                const currentRing = ringStart + pointIndex * ANATOMICAL_BODY_RADIAL_SEGMENTS;
+                for (let side = 0; side < ANATOMICAL_BODY_RADIAL_SEGMENTS; side += 1) {
+                    const next = (side + 1) % ANATOMICAL_BODY_RADIAL_SEGMENTS;
+                    indices.push(
+                        previousRing + side, currentRing + side, currentRing + next,
+                        previousRing + side, currentRing + next, previousRing + next
+                    );
+                }
+            }
+        }
+
+        const endRing = ringStart + (chain.length - 1) * ANATOMICAL_BODY_RADIAL_SEGMENTS;
+        const startCenter = positions.length / 3;
+        positions.push(chain[0].x, chain[0].y, chain[0].z);
+        normals.push(-firstTangent.x, -firstTangent.y, -firstTangent.z);
+        colors.push(muscleColor.r, muscleColor.g, muscleColor.b);
+        const endCenter = positions.length / 3;
+        const chainEnd = chain[chain.length - 1];
+        positions.push(chainEnd.x, chainEnd.y, chainEnd.z);
+        normals.push(lastTangent.x, lastTangent.y, lastTangent.z);
+        colors.push(muscleColor.r, muscleColor.g, muscleColor.b);
+        for (let side = 0; side < ANATOMICAL_BODY_RADIAL_SEGMENTS; side += 1) {
+            const next = (side + 1) % ANATOMICAL_BODY_RADIAL_SEGMENTS;
+            indices.push(startCenter, ringStart + next, ringStart + side);
+            indices.push(endCenter, endRing + side, endRing + next);
+        }
+        travelled += chainLengths[chainIndex];
+    }
+
+    if (!indices.length) return null;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.setIndex(indices);
+    geometry.computeBoundingSphere();
+    return geometry;
 }
 
 function renderPaths() {
@@ -458,20 +1053,52 @@ function renderPaths() {
     const available = activationAvailable();
     const showOnly = app.pathView === 'one';
     for (const muscle of app.state?.muscles ?? []) {
-        if (!pathVisible(muscle) || (showOnly && muscle.name !== app.selectedMuscle)) continue;
         const selected = muscle.name === app.selectedMuscle;
+        if ((!pathVisible(muscle) && !(showOnly && selected)) || (showOnly && !selected)) continue;
         const color = available ? activationColor(muscle.activation) : (selected && showOnly ? SELECTED_COLOR : NEUTRAL_COLOR);
-        const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: selected ? 1 : available ? 0.82 : 0.58, depthWrite: false });
-        for (const [index, segment] of (muscle.segments ?? []).entries()) {
-            const mesh = new THREE.Mesh(unitCylinder, material);
+        if (app.muscleRendering === 'anatomical') {
+            const geometry = createAnatomicalMuscleBodyGeometry(muscle, color, selected && showOnly);
+            if (!geometry) continue;
+            const material = new THREE.MeshStandardMaterial({
+                vertexColors: true,
+                roughness: 0.54,
+                metalness: 0,
+                transparent: true,
+                opacity: selected && showOnly ? 0.98 : available ? 0.84 : 0.56,
+                depthWrite: selected && showOnly,
+                side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(geometry, material);
             mesh.renderOrder = 2;
             mesh.frustumCulled = false;
-            positionSegment(mesh, segment, muscle.segmentInsideWrap?.[index] ? 0.0011 : selected && showOnly ? 0.003 : 0.00155);
+            mesh.userData.muscleName = muscle.name;
             app.pathGroup.add(mesh);
+        } else {
+            const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: selected ? 1 : available ? 0.82 : 0.58, depthWrite: false });
+            for (const [index, segment] of (muscle.segments ?? []).entries()) {
+                const mesh = new THREE.Mesh(unitCylinder, material);
+                mesh.renderOrder = 2;
+                mesh.frustumCulled = false;
+                mesh.userData.muscleName = muscle.name;
+                positionSegment(mesh, segment, muscle.segmentInsideWrap?.[index] ? 0.0011 : selected && showOnly ? 0.003 : 0.00155);
+                app.pathGroup.add(mesh);
+            }
         }
     }
     renderSelected();
     requestRender();
+}
+
+function setMuscleRendering(mode) {
+    app.muscleRendering = mode === 'lines' ? 'lines' : 'anatomical';
+    const anatomical = app.muscleRendering === 'anatomical';
+    const lines = app.muscleRendering === 'lines';
+    $('#render-anatomical-bodies').classList.toggle('active', anatomical);
+    $('#render-path-lines').classList.toggle('active', lines);
+    $('#render-anatomical-bodies').setAttribute('aria-pressed', String(anatomical));
+    $('#render-path-lines').setAttribute('aria-pressed', String(lines));
+    setText('#muscle-rendering-legend', anatomical ? 'Anatomical bodies' : 'Path lines');
+    renderPaths();
 }
 
 function renderSelected() {
@@ -494,6 +1121,13 @@ function renderSelected() {
     }
 }
 
+function updateCameraProjection() {
+    camera.updateProjectionMatrix();
+    camera.projectionMatrix.elements[8] = -cameraState.framingOffset.x;
+    camera.projectionMatrix.elements[9] = -cameraState.framingOffset.y;
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+}
+
 function updateCamera() {
     const cosPitch = Math.cos(cameraState.pitch);
     camera.position.set(
@@ -502,12 +1136,13 @@ function updateCamera() {
         cameraState.target.z + cameraState.radius * Math.cos(cameraState.yaw) * cosPitch
     );
     camera.lookAt(cameraState.target);
+    updateCameraProjection();
     requestRender();
 }
 
 function fitCameraToModel() {
     displayRoot.updateMatrixWorld(true);
-    const bounds = new THREE.Box3().setFromObject(app.armGroup);
+    const bounds = new THREE.Box3().setFromObject(app.activeRegionGroup);
     if (app.showContext) bounds.union(new THREE.Box3().setFromObject(app.contextGroup));
     if (bounds.isEmpty()) return;
     const size = bounds.getSize(new THREE.Vector3());
@@ -517,11 +1152,11 @@ function fitCameraToModel() {
     cameraState.radius = THREE.MathUtils.clamp(radius, 0.6, MAX_CAMERA_RADIUS);
     cameraState.initialRadius = cameraState.radius;
     cameraState.initialTarget.copy(cameraState.target);
-    cameraState.yaw = Math.PI / 2;
+    cameraState.framingOffset.set(0, 0);
+    cameraState.yaw = regionViewYaw();
     cameraState.pitch = 0.025;
     camera.near = Math.max(cameraState.radius / 500, 0.001);
     camera.far = Math.max(cameraState.radius * 20, 10);
-    camera.updateProjectionMatrix();
     grid.position.y = bounds.min.y - Math.max(size.y * 0.025, 0.005);
     grid.scale.setScalar(Math.max(size.length() / 2.4, 0.5));
     app.cameraFitted = true;
@@ -529,10 +1164,11 @@ function fitCameraToModel() {
 }
 
 function resetView() {
-    cameraState.yaw = Math.PI / 2;
+    cameraState.yaw = regionViewYaw();
     cameraState.pitch = 0.025;
     cameraState.radius = cameraState.initialRadius;
     cameraState.target.copy(cameraState.initialTarget);
+    cameraState.framingOffset.set(0, 0);
     updateCamera();
 }
 
@@ -542,12 +1178,19 @@ function setMirroredView(mirrored) {
     const button = $('#mirror-view');
     button.classList.toggle('active', app.mirrored);
     button.setAttribute('aria-pressed', String(app.mirrored));
-    button.setAttribute('aria-label', app.mirrored ? 'Show right' : 'Mirror left');
-    button.dataset.tooltip = app.mirrored ? 'Show right' : 'Mirror left';
-    setText('#viewer-title', app.mirrored ? 'Left display (mirrored right-arm calculation)' : 'Right upper limb');
-    setText('#viewer-instructions', app.mirrored
-        ? 'Visual mirror only · right-arm calculation · drag or use arrow keys to rotate · scroll or use zoom buttons'
-        : 'Drag or use arrow keys to rotate · scroll or use zoom buttons');
+    const mirrorLabel = app.mirrored ? 'Show unmirrored display — calculation unchanged' : 'Mirror display — calculation unchanged';
+    button.setAttribute('aria-label', mirrorLabel);
+    button.dataset.tooltip = mirrorLabel;
+    const regionName = regionDisplayName(app.metadata?.region);
+    if (app.inDiagnosis) {
+        setText('#viewer-title', app.mirrored ? 'Left display (mirrored right upper-limb calculation)' : 'Right upper limb');
+        setText('#viewer-instructions', app.mirrored
+            ? 'Visual mirror only · right upper-limb calculation · left-drag to rotate · right-drag to move · scroll to zoom at the pointer'
+            : 'Left-drag to rotate · right-drag to move · scroll to zoom at the pointer');
+    } else {
+        setText('#viewer-title', app.mirrored ? `${regionName} · mirrored display` : regionName);
+        setText('#viewer-instructions', 'Click a muscle to inspect · left-drag to rotate · right-drag to move · scroll to zoom');
+    }
     requestRender();
 }
 
@@ -569,8 +1212,32 @@ function coordinateControlBounds(coordinate) {
     };
 }
 
+function handCoordinateGroup(coordinateName) {
+    if (coordinateName === 'deviation_r' || coordinateName === 'flexion_r') return 'Wrist';
+    if (/^(?:cmc_|mp_|ip_)/.test(coordinateName)) return 'Thumb';
+    if (coordinateName.startsWith('2')) return 'Index finger';
+    if (coordinateName.startsWith('3')) return 'Middle finger';
+    if (coordinateName.startsWith('4')) return 'Ring finger';
+    return 'Little finger';
+}
+
 function buildCoordinateControls() {
     const fragment = document.createDocumentFragment();
+    const handGroups = new Map();
+    if (app.regionId === 'right-hand') {
+        for (const name of ['Wrist', 'Thumb', 'Index finger', 'Middle finger', 'Ring finger', 'Little finger']) {
+            const details = document.createElement('details');
+            details.className = 'coordinate-group';
+            details.open = name === 'Wrist' || name === 'Thumb';
+            const summary = document.createElement('summary');
+            summary.textContent = name;
+            const body = document.createElement('div');
+            body.className = 'coordinate-group-body';
+            details.append(summary, body);
+            fragment.append(details);
+            handGroups.set(name, body);
+        }
+    }
     for (const coordinate of app.metadata.coordinates) {
         const bounds = coordinateControlBounds(coordinate);
         app.coordinates[coordinate.name] = coordinate.default;
@@ -604,10 +1271,69 @@ function buildCoordinateControls() {
         });
         input.addEventListener('change', () => schedulePostureUpdate(0, 80));
         wrapper.append(label, input, limits);
-        fragment.append(wrapper);
+        const group = handGroups.get(handCoordinateGroup(coordinate.name));
+        (group || fragment).append(wrapper);
         updateRangeProgress(input);
     }
     $('#coordinate-controls').replaceChildren(fragment);
+}
+
+function buildRegionPicker() {
+    const select = $('#focus-region');
+    const fragment = document.createDocumentFragment();
+    for (const region of explorerRegionOptions()) {
+        const option = document.createElement('option');
+        option.value = region.id;
+        option.textContent = REGION_OPTION_LABELS[region.id] || regionDisplayName(region);
+        option.selected = region.id === app.regionId;
+        fragment.append(option);
+    }
+    select.replaceChildren(fragment);
+    select.disabled = !app.initialized;
+    syncRegionControls();
+}
+
+function buildPresetLibrary() {
+    const host = $('#pose-presets');
+    const fragment = document.createDocumentFragment();
+    let presetCount = 0;
+    for (const [groupIndex, group] of app.metadata.presetGroups.entries()) {
+        const section = document.createElement('section');
+        section.className = 'preset-group';
+        const heading = document.createElement('h4');
+        const headingId = `preset-${app.regionId}-${group.id || groupIndex}`;
+        heading.id = headingId;
+        heading.textContent = group.label || 'Reference postures';
+        section.setAttribute('aria-labelledby', headingId);
+        const buttons = document.createElement('div');
+        buttons.className = 'pose-presets';
+        for (const preset of group.presets || []) {
+            const id = preset.id || preset.name;
+            if (!id) continue;
+            presetCount += 1;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.preset = id;
+            button.setAttribute('aria-pressed', 'false');
+            if (preset.description) button.title = preset.description;
+            const canvas = document.createElement('canvas');
+            canvas.className = 'preset-thumbnail';
+            canvas.width = 104;
+            canvas.height = 104;
+            canvas.dataset.thumbnailRegion = app.regionId;
+            canvas.dataset.thumbnailPreset = id;
+            canvas.setAttribute('aria-hidden', 'true');
+            const label = document.createElement('span');
+            label.textContent = preset.label || id;
+            button.append(canvas, label);
+            buttons.append(button);
+        }
+        section.append(heading, buttons);
+        fragment.append(section);
+    }
+    host.replaceChildren(fragment);
+    setText('#preset-count', String(presetCount));
+    setText('#preset-summary', `${presetCount} reference posture${presetCount === 1 ? '' : 's'}`);
 }
 
 function clearPresetSelection() {
@@ -618,10 +1344,11 @@ function clearPresetSelection() {
 }
 
 function applyPosePreset(name) {
-    const preset = POSE_PRESETS[name];
+    const preset = app.metadata.presets.find((candidate) => (candidate.id || candidate.name) === name);
     if (!preset) return;
+    const values = preset.coordinates || {};
     for (const coordinate of app.metadata.coordinates) {
-        const value = preset[coordinate.name] ?? coordinate.default;
+        const value = values[coordinate.name] ?? coordinate.default;
         if (value < coordinate.minimum || value > coordinate.maximum) return;
         app.coordinates[coordinate.name] = value;
         const input = document.getElementById(`coordinate-${coordinate.name}`);
@@ -671,7 +1398,7 @@ function buildMuscleSelect() {
         for (const muscle of muscles) {
             const option = document.createElement('option');
             option.value = muscle.name;
-            option.textContent = muscle.name;
+            option.textContent = `${muscleDisplayName(muscle.name)} — ${muscleModelId(muscle.name)}`;
             option.selected = muscle.name === app.selectedMuscle;
             options.append(option);
         }
@@ -702,9 +1429,9 @@ function syncViewerDrawers() {
 }
 
 function setPathView(view) {
-    app.pathView = view === 'one' || view === 'focus' ? view : 'all';
+    app.pathView = view === 'one' ? 'one' : 'all';
     const details = app.pathView !== 'all';
-    app.activationPanelVisible = !details;
+    app.activationPanelVisible = !details && !compactViewer();
     app.musclePanelVisible = details;
     $('#view-all-muscles').classList.toggle('active', app.pathView === 'all');
     $('#view-one-muscle').classList.toggle('active', app.pathView === 'one');
@@ -715,7 +1442,7 @@ function setPathView(view) {
     updateDetails();
 }
 
-function selectMuscle(name, view = app.pathView === 'all' ? 'focus' : app.pathView) {
+function selectMuscle(name, view = 'one') {
     if (!app.metadata.muscleNames.includes(name)) return;
     app.selectedMuscle = name;
     $('#muscle-select').value = name;
@@ -741,7 +1468,8 @@ function updateMomentArms(muscle) {
 function updateDetails() {
     const muscle = app.state?.muscles?.find((candidate) => candidate.name === app.selectedMuscle);
     if (!muscle) return;
-    setText('#muscle-title', muscle.name);
+    setText('#muscle-title', muscleDisplayName(muscle.name));
+    setText('#muscle-model-id', `Model ID: ${muscle.name}`);
     setText('#muscle-length', Number.isFinite(muscle.lengthM) ? (muscle.lengthM * 100).toFixed(2) : '—');
     setText('#path-points', String(muscle.points?.length ?? 0));
     updateMomentArms(muscle);
@@ -756,20 +1484,24 @@ function updateActivationRanking() {
     const host = $('#activation-ranking');
     host.replaceChildren();
     if (!activationAvailable()) return;
-    const ranked = [...app.state.muscles].sort((left, right) => right.activation - left.activation);
+    const ranked = [...app.state.muscles]
+        .filter((muscle) => muscleMatchesActivePresentation(muscle))
+        .sort((left, right) => right.activation - left.activation);
     const visible = app.activationRankingExpanded ? ranked : ranked.slice(0, 12);
     for (const muscle of visible) {
         const row = document.createElement('button');
         row.type = 'button';
         row.className = 'activation-row';
-        row.title = `${muscle.group} · select ${muscle.name}`;
-        row.innerHTML = '<span class="rank-name"></span><span class="rank-track"><span class="rank-fill"></span></span><span class="rank-value"></span>';
-        row.querySelector('.rank-name').textContent = muscle.name;
+        const displayName = muscleDisplayName(muscle.name);
+        row.title = `${displayName} · ${muscle.name} · ${muscle.group}`;
+        row.innerHTML = '<span class="rank-label"><span class="rank-name"></span><small class="rank-id"></small></span><span class="rank-track"><span class="rank-fill"></span></span><span class="rank-value"></span>';
+        row.querySelector('.rank-name').textContent = displayName;
+        row.querySelector('.rank-id').textContent = muscleModelId(muscle.name);
         row.querySelector('.rank-fill').style.width = `${THREE.MathUtils.clamp(muscle.activation, 0, 1) * 100}%`;
         row.querySelector('.rank-fill').style.background = `#${activationColor(muscle.activation).getHexString()}`;
         row.querySelector('.rank-value').textContent = muscle.activation.toFixed(3);
-        row.setAttribute('aria-label', `${muscle.name}, ${muscle.group}, activation ${muscle.activation.toFixed(3)}`);
-        row.addEventListener('click', () => selectMuscle(muscle.name, 'focus'));
+        row.setAttribute('aria-label', `${displayName}, model ID ${muscle.name}, ${muscle.group}, activation ${muscle.activation.toFixed(3)}`);
+        row.addEventListener('click', () => selectMuscle(muscle.name, 'one'));
         host.append(row);
     }
     const toggle = $('#toggle-all-activations');
@@ -807,6 +1539,8 @@ function neutralizeDisplayedActivation() {
 }
 
 function applyState(state) {
+    if (state.regionId && state.regionId !== app.regionId) throw new Error('A result from a different body region was rejected.');
+    if (app.metadata.regionDigest && state.regionDigest !== app.metadata.regionDigest) throw new Error('A result from a different region definition was rejected.');
     if (state.modelDigest !== app.metadata.identity.modelDigest) throw new Error('A result from a different model build was rejected.');
     if (state.selectedMuscle && app.metadata.muscleNames.includes(state.selectedMuscle)) app.selectedMuscle = state.selectedMuscle;
     app.state = state;
@@ -846,9 +1580,11 @@ function applyState(state) {
 
 async function requestPose(coordinates = app.coordinates, selectedMuscle = app.selectedMuscle) {
     const generation = ++app.poseGeneration;
+    const regionId = app.regionId;
+    const engine = app.engine;
     try {
-        const state = await app.engine.pose(coordinates, selectedMuscle);
-        if (generation !== app.poseGeneration) return null;
+        const state = await engine.pose(coordinates, selectedMuscle, regionId);
+        if (generation !== app.poseGeneration || regionId !== app.regionId || engine !== app.engine) return null;
         applyState(state);
         return state;
     } catch (error) {
@@ -860,12 +1596,14 @@ async function requestPose(coordinates = app.coordinates, selectedMuscle = app.s
 
 async function requestStaticHold(coordinates = app.coordinates, selectedMuscle = app.selectedMuscle) {
     const generation = ++app.solveGeneration;
+    const regionId = app.regionId;
+    const engine = app.engine;
     $('#calculate-static').disabled = true;
     $('#calculate-static').textContent = 'Calculating…';
     setPositionStatus('static', 'Calculating activation…', 'Colors remain gray until every quality check passes.');
     try {
-        const state = await app.engine.staticHold(coordinates, selectedMuscle);
-        if (generation !== app.solveGeneration) return null;
+        const state = await engine.staticHold(coordinates, selectedMuscle, regionId);
+        if (generation !== app.solveGeneration || regionId !== app.regionId || engine !== app.engine) return null;
         applyState(state);
         return state;
     } catch (error) {
@@ -892,12 +1630,181 @@ function schedulePostureUpdate(poseDelay = POSE_DELAY_MS, solveDelay = SOLVE_DEL
     app.solveTimer = window.setTimeout(() => requestStaticHold(coordinates, selected), solveDelay);
 }
 
+async function ensureEngineProfile(profileId) {
+    let profile = app.profiles.get(profileId);
+    if (profile?.metadata && profile.geometry) return profile;
+    if (!profile) {
+        const definition = PROFILE_DEFINITIONS[profileId];
+        if (!definition) throw new RangeError(`Unknown model profile: ${profileId}.`);
+        const engine = createMsHumanEngine({
+            workerUrl: definition.workerUrl,
+            workerName: `ms-human-${profileId}-engine`,
+            onFatalError: (error) => {
+                if (app.profileId === profileId) handleFatalEngineError(error);
+                else showError(`The ${profileId === 'hand' ? 'hand' : 'primary'} model profile stopped unexpectedly: ${error.message}`);
+            }
+        });
+        profile = { ...definition, engine, metadata: null, geometry: null };
+        app.profiles.set(profileId, profile);
+    }
+    if (profile.loading) return profile.loading;
+    profile.loading = (async () => {
+        const [metadata, geometryResponse] = await Promise.all([
+            profile.engine.initialize(),
+            fetch(profile.geometryUrl, { cache: 'force-cache' })
+        ]);
+        if (!geometryResponse.ok) throw new Error(`Model geometry request failed (${geometryResponse.status}).`);
+        const geometryBuffer = await verifiedGeometryBuffer(geometryResponse, metadata.geometry.sha256);
+        profile.metadata = metadata;
+        profile.geometry = parseGeometry(geometryBuffer);
+        return profile;
+    })().finally(() => { profile.loading = null; });
+    return profile.loading;
+}
+
+function activateEngineProfile(profileId, regionId) {
+    const profile = app.profiles.get(profileId);
+    if (!profile?.metadata || !profile.geometry) throw new Error(`The ${profileId} model profile is not ready.`);
+    app.profileId = profileId;
+    app.engine = profile.engine;
+    app.engineMetadata = profile.metadata;
+    disposeChildren(app.pathGroup);
+    disposeChildren(app.selectedGroup);
+    clearBodyMeshes();
+    activateRegionMetadata(regionId || profile.metadata.defaultRegionId);
+    buildBodyMeshes(profile.geometry);
+    configureRegion(app.regionId);
+    buildRegionPicker();
+}
+
+async function switchEngineProfile(profileId, regionId) {
+    const generation = ++app.profileGeneration;
+    const label = REGION_OPTION_LABELS[regionId] || 'model region';
+    window.clearTimeout(app.poseTimer);
+    window.clearTimeout(app.solveTimer);
+    app.poseGeneration += 1;
+    app.solveGeneration += 1;
+    $('#focus-region').disabled = true;
+    setLoading(`Loading ${label}…`);
+    const profile = await ensureEngineProfile(profileId);
+    if (generation !== app.profileGeneration) return;
+    const region = profileRegions(profileId).find((candidate) => candidate.id === regionId);
+    if (!region) throw new Error(`${label} is not available in this model profile.`);
+    activateEngineProfile(profileId, region.id);
+    const pose = await requestPose();
+    if (!pose || generation !== app.profileGeneration) return;
+    fitCameraToModel();
+    try {
+        await renderPoseThumbnails();
+    } catch (error) {
+        console.warn('Posture previews could not be rendered.', error);
+    }
+    if (generation !== app.profileGeneration) return;
+    await requestStaticHold();
+    if (generation === app.profileGeneration) {
+        setLoading('', false);
+        $('#focus-region').disabled = false;
+    }
+}
+
+async function switchExplorerRegionSelection(regionId) {
+    const profileId = regionId === 'right-hand' ? 'hand' : 'primary';
+    if (app.profileId !== profileId) {
+        await switchEngineProfile(profileId, regionId);
+        return;
+    }
+    if (availableRegions().some((region) => region.id === regionId)) await switchExplorerRegion(regionId);
+}
+
+function configureRegion(regionId) {
+    window.clearTimeout(app.poseTimer);
+    window.clearTimeout(app.solveTimer);
+    app.poseGeneration += 1;
+    app.solveGeneration += 1;
+    app.regionGeneration += 1;
+    $('#focus-region').disabled = !app.initialized;
+    app.state = null;
+    app.activationRankingExpanded = false;
+    app.showLongOrigins = false;
+    app.presetLibraryVisible = false;
+    activateRegionMetadata(regionId);
+    app.musclePresentation = regionId === 'trunk' ? 'back' : 'overview';
+    app.presentationMuscleNames = buildPresentationMuscleSet();
+    app.regionView = regionId === 'trunk' ? 'back' : 'front';
+    assignRegionGeometry();
+    buildCoordinateControls();
+    buildMuscleSelect();
+    buildPresetLibrary();
+    updateInventory();
+    syncRegionControls();
+    $('#toggle-long-origins').classList.remove('active');
+    $('#toggle-long-origins').setAttribute('aria-pressed', 'false');
+    syncPresetLibrary();
+    syncRegionPresentationControls();
+    setMirroredView(false);
+    neutralizeDisplayedActivation();
+}
+
+async function switchExplorerRegion(regionId) {
+    if (regionId === app.regionId && app.state) return;
+    configureRegion(regionId);
+    const generation = app.regionGeneration;
+    setLoading(`Loading ${regionDisplayName(app.metadata.region)}…`);
+    $('#focus-region').disabled = true;
+    try {
+        const pose = await requestPose();
+        if (!pose || generation !== app.regionGeneration) return;
+        fitCameraToModel();
+        try {
+            await renderPoseThumbnails();
+        } catch (error) {
+            console.warn('Posture previews could not be rendered.', error);
+        }
+        if (generation !== app.regionGeneration) return;
+        await requestStaticHold();
+    } finally {
+        if (generation === app.regionGeneration) {
+            setLoading('', false);
+            $('#focus-region').disabled = false;
+        }
+    }
+}
+
 function updateInventory() {
-    setText('#count-bodies', app.metadata.model.armBodies);
+    const region = app.metadata.region;
+    const regionName = regionDisplayName(region);
+    const activeIds = new Set(app.metadata.activeBodyIds);
+    const activeMeshes = app.metadata.geometry.geoms.filter((geom) => activeIds.has(geom.bodyId)).length;
+    setText('#count-region-name', regionName.toLowerCase());
+    setText('#count-bodies', app.metadata.activeBodyIds.length);
     setText('#count-muscles', app.metadata.model.functionalMuscles);
-    setText('#count-meshes', app.metadata.geometry.geoms.filter((geom) => geom.role === 'arm').length);
-    setText('#runtime-note', `${app.metadata.model.runtime}; ${app.metadata.capabilities.calculationSide}-arm static posture only.`);
+    setText('#count-meshes', activeMeshes);
+    setText('#active-region-legend', regionName);
+    const shown = app.presentationMuscleNames?.size;
+    const shownCopy = Number.isInteger(shown) ? ` · ${shown} shown` : '';
+    setText('#region-scope', `${app.metadata.model.functionalMuscles} modeled muscles${shownCopy} · ${app.metadata.coordinates.length} posture controls`);
+    const supportCopy = app.regionId.includes('lower-limb')
+        ? 'Pelvis fixed · no foot contact · not stance or gait'
+        : app.regionId === 'right-hand'
+            ? 'Forearm fixed · unloaded finger posture · no grip force or contact'
+        : app.regionId === 'trunk'
+            ? 'Pelvis and all non-selected coordinates fixed'
+            : app.regionId === 'head-neck'
+                ? 'Model fixed below T1'
+                : 'Rest of body fixed · no external load or contact';
+    setText('#region-support-note', supportCopy);
+    $('#region-support-note').title = region.semantics?.supportDescription || region.semantics?.fixedSupport || supportCopy;
+    setText('#runtime-note', `${app.metadata.model.runtime}; ${regionName} static posture only.`);
     setText('#model-hash', 'Model files verified in this browser.');
+    renderer.domElement.setAttribute(
+        'aria-label',
+        `Interactive ${regionName} rendering of MS-Human-700. Click a muscle to inspect it alone; use arrow keys to rotate, plus and minus to zoom, and Home to reset the view.`
+    );
+    const hasOptionalPaths = app.metadata.muscles.some((muscle) => muscle.visibleByDefault === false);
+    const optionalPaths = $('#toggle-long-origins');
+    optionalPaths.classList.toggle('hidden', app.regionId === 'trunk' || app.regionId === 'right-hand');
+    optionalPaths.disabled = !hasOptionalPaths;
+    optionalPaths.title = hasOptionalPaths ? 'Show additional regional muscle paths' : 'This region has no hidden muscle paths';
 }
 
 function rawPointToView(point) {
@@ -911,13 +1818,14 @@ function focusSelectedPath() {
     const sphere = bounds.getBoundingSphere(new THREE.Sphere());
     cameraState.target.copy(sphere.center);
     cameraState.radius = THREE.MathUtils.clamp(Math.max(sphere.radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.35, 0.22), MIN_CAMERA_RADIUS, cameraState.initialRadius);
+    cameraState.framingOffset.set(0, 0);
     updateCamera();
 }
 
 function viewerImageFilename({ transparent, scale, includeActivation }) {
-    const side = app.mirrored ? 'left-mirrored-right-calculation' : 'right';
+    const region = app.mirrored ? `${app.regionId}-mirrored-view` : app.regionId;
     const background = transparent ? 'transparent' : 'background';
-    return `waajacu-ms-human-${side}-static-${background}${includeActivation ? '-activation-table' : ''}-${scale}x.png`;
+    return `waajacu-ms-human-${region}-static-${background}${includeActivation ? '-activation-table' : ''}-${scale}x.png`;
 }
 
 function canvasToPngBlob(canvas) {
@@ -942,7 +1850,8 @@ function drawActivationExportOverlay(context, pixelScale, sourceWidth, sourceHei
     context.fillText('MS-Human static activation · generic model', x + 8, y + 16);
     context.font = '8px system-ui, sans-serif';
     context.fillStyle = '#5d6864';
-    context.fillText(app.mirrored ? 'Mirrored display; calculation side remains right' : 'Right-arm calculation', x + 8, y + 31);
+    const regionName = app.metadata.region.presentationName || app.metadata.region.label || app.regionId;
+    context.fillText(app.mirrored ? `${regionName}; mirrored display` : `${regionName} calculation`, x + 8, y + 31);
     if (!visibleRows.length) {
         context.fillText('No activation result available.', x + 8, y + 49);
         context.restore();
@@ -952,7 +1861,7 @@ function drawActivationExportOverlay(context, pixelScale, sourceWidth, sourceHei
         const rowY = y + 49 + index * 12;
         context.fillStyle = '#17201d';
         context.font = '600 8px system-ui, sans-serif';
-        context.fillText(muscle.name, x + 8, rowY);
+        context.fillText(muscleDisplayName(muscle.name), x + 8, rowY);
         context.fillStyle = `#${activationColor(muscle.activation).getHexString()}`;
         context.fillRect(x + 104, rowY - 7, Math.max(1, (width - 148) * muscle.activation), 6);
         context.fillStyle = '#17201d';
@@ -1020,41 +1929,126 @@ function resizeRenderer() {
     const height = Math.max(sceneHost.clientHeight, 1);
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-    requestRender();
+    updateCamera();
+}
+
+function pickMuscleAt(clientX, clientY) {
+    if (!app.state?.muscles?.length) return false;
+    const canvas = renderer.domElement;
+    const bounds = canvas.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return false;
+    pointerNdc.set(
+        ((clientX - bounds.left) / bounds.width) * 2 - 1,
+        1 - ((clientY - bounds.top) / bounds.height) * 2
+    );
+    scene.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    muscleRaycaster.setFromCamera(pointerNdc, camera);
+
+    const renderedMeshes = app.pathGroup.children.filter((child) => child.visible && child.userData.muscleName);
+    const directHit = muscleRaycaster.intersectObjects(renderedMeshes, false)
+        .find((intersection) => intersection.object.userData.muscleName);
+    let muscleName = directHit?.object.userData.muscleName;
+
+    if (!muscleName) {
+        const worldPerPixel = 2 * cameraState.radius * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
+            / Math.max(bounds.height, 1);
+        const toleranceSquared = Math.pow(Math.max(0.0022, worldPerPixel * 9), 2);
+        let bestDistanceSquared = toleranceSquared;
+        let bestDepth = Number.POSITIVE_INFINITY;
+        const showOnly = app.pathView === 'one';
+        for (const muscle of app.state.muscles) {
+            const selected = muscle.name === app.selectedMuscle;
+            if ((!pathVisible(muscle) && !(showOnly && selected)) || (showOnly && !selected)) continue;
+            for (const segment of muscle.segments ?? []) {
+                pickStart.set(segment[0], segment[1], segment[2]);
+                pickEnd.set(segment[3], segment[4], segment[5]);
+                app.pathGroup.localToWorld(pickStart);
+                app.pathGroup.localToWorld(pickEnd);
+                const distanceSquared = muscleRaycaster.ray.distanceSqToSegment(
+                    pickStart,
+                    pickEnd,
+                    pickRayPoint,
+                    pickSegmentPoint
+                );
+                const depth = pickRayPoint.distanceToSquared(muscleRaycaster.ray.origin);
+                if (distanceSquared < bestDistanceSquared
+                        || (Math.abs(distanceSquared - bestDistanceSquared) < 1e-12 && depth < bestDepth)) {
+                    bestDistanceSquared = distanceSquared;
+                    bestDepth = depth;
+                    muscleName = muscle.name;
+                }
+            }
+        }
+    }
+
+    if (!muscleName) return false;
+    selectMuscle(muscleName, 'one');
+    renderer.domElement.focus({ preventScroll: true });
+    return true;
 }
 
 function attachViewerInteraction() {
     const canvas = renderer.domElement;
-    let dragging = false;
+    let dragMode = null;
     let lastX = 0;
     let lastY = 0;
+    let pointerStartX = 0;
+    let pointerStartY = 0;
+    let pointerTravelSquared = 0;
+    let activePointerId = null;
     canvas.addEventListener('pointerdown', (event) => {
-        if (event.button !== 0) return;
-        dragging = true;
+        if (event.button !== 0 && event.button !== 2) return;
+        event.preventDefault();
+        dragMode = event.button === 2 ? 'pan' : 'rotate';
         lastX = event.clientX;
         lastY = event.clientY;
+        pointerStartX = event.clientX;
+        pointerStartY = event.clientY;
+        pointerTravelSquared = 0;
+        activePointerId = event.pointerId;
+        canvas.style.cursor = event.button === 2 ? 'move' : 'grabbing';
         canvas.focus({ preventScroll: true });
-        canvas.setPointerCapture(event.pointerId);
+        canvas.setPointerCapture?.(event.pointerId);
     });
     canvas.addEventListener('pointermove', (event) => {
-        if (!dragging) return;
-        cameraState.yaw -= (event.clientX - lastX) * 0.008;
-        cameraState.pitch = THREE.MathUtils.clamp(cameraState.pitch + (event.clientY - lastY) * 0.006, -1.25, 1.25);
+        if (!dragMode) return;
+        const deltaX = event.clientX - lastX;
+        const deltaY = event.clientY - lastY;
+        const travelX = event.clientX - pointerStartX;
+        const travelY = event.clientY - pointerStartY;
+        pointerTravelSquared = Math.max(pointerTravelSquared, travelX * travelX + travelY * travelY);
+        if (dragMode === 'rotate') {
+            cameraState.yaw -= deltaX * 0.008;
+            cameraState.pitch = THREE.MathUtils.clamp(cameraState.pitch + deltaY * 0.006, -1.25, 1.25);
+        } else {
+            cameraState.framingOffset.x += 2 * deltaX / Math.max(canvas.clientWidth, 1);
+            cameraState.framingOffset.y -= 2 * deltaY / Math.max(canvas.clientHeight, 1);
+        }
         lastX = event.clientX;
         lastY = event.clientY;
         updateCamera();
     });
-    const finish = (event) => {
-        dragging = false;
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    const finish = (event, cancelled = false) => {
+        const shouldPick = !cancelled
+            && dragMode === 'rotate'
+            && event.pointerId === activePointerId
+            && pointerTravelSquared <= 36;
+        dragMode = null;
+        activePointerId = null;
+        canvas.style.cursor = 'grab';
+        if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture?.(event.pointerId);
+        if (shouldPick) pickMuscleAt(event.clientX, event.clientY);
     };
     canvas.addEventListener('pointerup', finish);
-    canvas.addEventListener('pointercancel', finish);
+    canvas.addEventListener('pointercancel', (event) => finish(event, true));
+    canvas.addEventListener('contextmenu', (event) => event.preventDefault());
     canvas.addEventListener('wheel', (event) => {
         event.preventDefault();
-        cameraState.radius = THREE.MathUtils.clamp(cameraState.radius * Math.exp(event.deltaY * 0.0012), MIN_CAMERA_RADIUS, MAX_CAMERA_RADIUS);
-        updateCamera();
+        const bounds = canvas.getBoundingClientRect();
+        const pointerX = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * 2 - 1;
+        const pointerY = 1 - ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * 2;
+        zoomAtNdc(Math.exp(event.deltaY * 0.0012), pointerX, pointerY);
     }, { passive: false });
     canvas.addEventListener('keydown', (event) => {
         const step = 0.12;
@@ -1062,29 +2056,55 @@ function attachViewerInteraction() {
         else if (event.key === 'ArrowRight') cameraState.yaw -= step;
         else if (event.key === 'ArrowUp') cameraState.pitch = THREE.MathUtils.clamp(cameraState.pitch - step, -1.25, 1.25);
         else if (event.key === 'ArrowDown') cameraState.pitch = THREE.MathUtils.clamp(cameraState.pitch + step, -1.25, 1.25);
-        else if (event.key === '+' || event.key === '=') cameraState.radius = THREE.MathUtils.clamp(cameraState.radius / 1.12, MIN_CAMERA_RADIUS, MAX_CAMERA_RADIUS);
-        else if (event.key === '-' || event.key === '_') cameraState.radius = THREE.MathUtils.clamp(cameraState.radius * 1.12, MIN_CAMERA_RADIUS, MAX_CAMERA_RADIUS);
+        else if (event.key === '+' || event.key === '=') zoomAtNdc(1 / 1.12, 0, 0);
+        else if (event.key === '-' || event.key === '_') zoomAtNdc(1.12, 0, 0);
         else if (event.key === 'Home') resetView();
         else return;
         event.preventDefault();
-        updateCamera();
+        if (!['+', '=', '-', '_', 'Home'].includes(event.key)) updateCamera();
     });
 }
 
-function zoomView(factor) {
-    cameraState.radius = THREE.MathUtils.clamp(cameraState.radius * factor, MIN_CAMERA_RADIUS, MAX_CAMERA_RADIUS);
+function zoomAtNdc(factor, pointerX, pointerY) {
+    const oldRadius = cameraState.radius;
+    const nextRadius = THREE.MathUtils.clamp(oldRadius * factor, MIN_CAMERA_RADIUS, MAX_CAMERA_RADIUS);
+    if (nextRadius === oldRadius) return;
+    const radiusRatio = nextRadius / oldRadius;
+    cameraState.framingOffset.x = pointerX - (pointerX - cameraState.framingOffset.x) / radiusRatio;
+    cameraState.framingOffset.y = pointerY - (pointerY - cameraState.framingOffset.y) / radiusRatio;
+    cameraState.radius = nextRadius;
     updateCamera();
+}
+
+function zoomView(factor) {
+    zoomAtNdc(factor, 0, 0);
 }
 
 function enterDiagnosisWorkspace() {
     const viewer = document.querySelector('.viewer-panel');
     const slot = $('#diagnosis-viewer-slot');
     if (!viewer || !slot || viewer.parentElement === slot) return;
-    diagnosisViewerSnapshot = { pathView: app.pathView, activationPanelVisible: app.activationPanelVisible, musclePanelVisible: app.musclePanelVisible, mirrored: app.mirrored };
+    diagnosisViewerSnapshot = {
+        profileId: app.profileId,
+        regionId: app.regionId,
+        coordinates: { ...app.coordinates },
+        selectedMuscle: app.selectedMuscle,
+        pathView: app.pathView,
+        activationPanelVisible: app.activationPanelVisible,
+        musclePanelVisible: app.musclePanelVisible,
+        musclePresentation: app.musclePresentation,
+        regionView: app.regionView,
+        mirrored: app.mirrored
+    };
     window.clearTimeout(app.poseTimer);
     window.clearTimeout(app.solveTimer);
     app.poseGeneration += 1;
     app.solveGeneration += 1;
+    app.profileGeneration += 1;
+    app.inDiagnosis = true;
+    $('#focus-region').disabled = !app.initialized;
+    if (app.profileId !== 'primary') activateEngineProfile('primary', DEFAULT_REGION_ID);
+    else if (app.regionId !== DEFAULT_REGION_ID) configureRegion(DEFAULT_REGION_ID);
     app.pathView = 'all';
     app.activationPanelVisible = false;
     app.musclePanelVisible = false;
@@ -1098,18 +2118,57 @@ function leaveDiagnosisWorkspace() {
     const viewer = document.querySelector('.viewer-panel');
     if (viewer && viewer.parentElement !== $('#explorer-workspace')) $('#explorer-workspace').append(viewer);
     if (diagnosisViewerSnapshot) {
+        app.inDiagnosis = false;
+        const snapshot = diagnosisViewerSnapshot;
+        if (app.profileId !== snapshot.profileId) activateEngineProfile(snapshot.profileId, snapshot.regionId);
+        else if (app.regionId !== snapshot.regionId) configureRegion(snapshot.regionId);
+        app.selectedMuscle = app.metadata.muscleNames.includes(snapshot.selectedMuscle)
+            ? snapshot.selectedMuscle
+            : app.selectedMuscle;
+        $('#muscle-select').value = app.selectedMuscle;
+        for (const coordinate of app.metadata.coordinates) {
+            const value = snapshot.coordinates[coordinate.name] ?? coordinate.default;
+            app.coordinates[coordinate.name] = value;
+            const input = document.getElementById(`coordinate-${coordinate.name}`);
+            if (input) {
+                input.value = value;
+                updateRangeProgress(input);
+            }
+            setText(`#coordinate-output-${coordinate.name}`, formatDegrees(value));
+        }
         app.pathView = diagnosisViewerSnapshot.pathView;
         app.activationPanelVisible = diagnosisViewerSnapshot.activationPanelVisible;
         app.musclePanelVisible = diagnosisViewerSnapshot.musclePanelVisible;
+        app.musclePresentation = snapshot.musclePresentation || app.musclePresentation;
+        app.presentationMuscleNames = buildPresentationMuscleSet();
+        app.regionView = snapshot.regionView || app.regionView;
+        syncRegionPresentationControls();
         setMirroredView(diagnosisViewerSnapshot.mirrored);
         diagnosisViewerSnapshot = null;
     }
+    $('#focus-region').disabled = !app.initialized;
     syncViewerDrawers();
     resizeRenderer();
     schedulePostureUpdate(0, 80);
 }
 
 function bindInterface() {
+    $('#focus-region').addEventListener('change', async () => {
+        if (!app.initialized) return;
+        try {
+            await switchExplorerRegionSelection($('#focus-region').value);
+        } catch (error) {
+            showError(`The selected body region could not be loaded: ${error.message}`);
+            buildRegionPicker();
+            setLoading('', false);
+            $('#focus-region').disabled = false;
+        }
+    });
+    $('#back-presentation-controls').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-region-view]');
+        if (button) setRegionView(button.dataset.regionView);
+    });
+    $('#back-muscle-filter').addEventListener('change', () => setMusclePresentation($('#back-muscle-filter').value));
     $('#reset-view').addEventListener('click', resetView);
     $('#zoom-in').addEventListener('click', () => zoomView(1 / 1.18));
     $('#zoom-out').addEventListener('click', () => zoomView(1.18));
@@ -1117,9 +2176,11 @@ function bindInterface() {
     $('#reset-pose').addEventListener('click', resetPose);
     $('#calculate-static').addEventListener('click', () => requestStaticHold());
     $('#toggle-preset-library').addEventListener('click', () => { app.presetLibraryVisible = !app.presetLibraryVisible; syncPresetLibrary(); });
+    $('#render-anatomical-bodies').addEventListener('click', () => setMuscleRendering('anatomical'));
+    $('#render-path-lines').addEventListener('click', () => setMuscleRendering('lines'));
     $('#view-all-muscles').addEventListener('click', () => setPathView('all'));
     $('#view-one-muscle').addEventListener('click', () => setPathView('one'));
-    $('#muscle-select').addEventListener('change', () => selectMuscle($('#muscle-select').value));
+    $('#muscle-select').addEventListener('change', () => selectMuscle($('#muscle-select').value, 'one'));
     $('#toggle-activation-panel').addEventListener('click', () => { app.activationPanelVisible = !app.activationPanelVisible; syncViewerDrawers(); });
     $('#toggle-all-activations').addEventListener('click', () => {
         app.activationRankingExpanded = !app.activationRankingExpanded;
@@ -1140,7 +2201,10 @@ function bindInterface() {
         $('#toggle-long-origins').setAttribute('aria-pressed', String(app.showLongOrigins));
         renderPaths();
     });
-    for (const button of document.querySelectorAll('[data-preset]')) button.addEventListener('click', () => applyPosePreset(button.dataset.preset));
+    $('#pose-presets').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-preset]');
+        if (button) applyPosePreset(button.dataset.preset);
+    });
     for (const button of document.querySelectorAll('[data-viewer-download]')) button.addEventListener('click', () => downloadViewerImage({ scale: Number(button.dataset.scale), transparent: button.dataset.transparent === 'true', includeActivation: button.dataset.includeActivation === 'true' }));
     $('#viewer-download-menu').addEventListener('toggle', (event) => event.currentTarget.querySelector('summary').setAttribute('aria-expanded', String(event.currentTarget.open)));
     window.addEventListener('resize', resizeRenderer);
@@ -1154,10 +2218,11 @@ async function initialize() {
         setLoading('Loading the model…');
         const [metadata, geometryResponse] = await Promise.all([
             app.engine.initialize(),
-            fetch(GEOMETRY_URL, { cache: 'force-cache' })
+            fetch(PROFILE_DEFINITIONS.primary.geometryUrl, { cache: 'force-cache' })
         ]);
-        if (!geometryResponse.ok) throw new Error(`Right-arm geometry request failed (${geometryResponse.status}).`);
-        app.metadata = metadata;
+        if (!geometryResponse.ok) throw new Error(`Model geometry request failed (${geometryResponse.status}).`);
+        app.engineMetadata = metadata;
+        activateRegionMetadata(metadata.defaultRegionId || DEFAULT_REGION_ID);
         app.model = {
             id: metadata.identity.modelId,
             modelDigest: metadata.identity.modelDigest,
@@ -1167,6 +2232,8 @@ async function initialize() {
             runtime: metadata.model.runtime,
             source: metadata.source,
             solverConfigurationId: metadata.solverConfig.id,
+            regionId: metadata.defaultRegionId || DEFAULT_REGION_ID,
+            regionDigest: metadata.regions?.find((region) => region.id === (metadata.defaultRegionId || DEFAULT_REGION_ID))?.digest,
             staticHold: metadata.solverConfig,
             analysisType: metadata.solverConfig.algorithm,
             controlFloor: 0,
@@ -1180,15 +2247,20 @@ async function initialize() {
         };
         const geometryBuffer = await verifiedGeometryBuffer(geometryResponse, metadata.geometry.sha256);
         const geometry = parseGeometry(geometryBuffer);
+        const primaryProfile = app.profiles.get('primary');
+        primaryProfile.metadata = metadata;
+        primaryProfile.geometry = geometry;
+        buildRegionPicker();
         buildBodyMeshes(geometry);
         buildCoordinateControls();
         buildMuscleSelect();
+        buildPresetLibrary();
         updateInventory();
         $('#server-status').className = 'server-status online';
         $('#server-status span:last-child').textContent = 'Model ready · runs locally';
         app.diagnosis = createDiagnosisWorkflow({
-            pose: (coordinates, selected) => app.engine.pose(coordinates, selected),
-            staticHold: (coordinates, selected) => app.engine.staticHold(coordinates, selected),
+            pose: (coordinates, selected) => app.profiles.get('primary').engine.pose(coordinates, selected, DEFAULT_REGION_ID),
+            staticHold: (coordinates, selected) => app.profiles.get('primary').engine.staticHold(coordinates, selected, DEFAULT_REGION_ID),
             applyState,
             getModel: () => app.model,
             getSelectedMuscle: () => app.selectedMuscle,
@@ -1200,7 +2272,10 @@ async function initialize() {
             resizeViewer: resizeRenderer
         });
         const pose = await requestPose();
-        if (!pose) throw new Error('The initial posture was superseded before it loaded.');
+        if (!pose) {
+            if (app.regionGeneration > 0) return;
+            throw new Error('The initial posture could not be loaded.');
+        }
         fitCameraToModel();
         setLoading('Preparing posture previews…');
         try {
@@ -1210,6 +2285,8 @@ async function initialize() {
         }
         setLoading('', false);
         syncViewerDrawers();
+        app.initialized = true;
+        $('#focus-region').disabled = false;
         app.diagnosis.setReady(true);
         await requestStaticHold();
     } catch (error) {
@@ -1222,5 +2299,7 @@ async function initialize() {
     }
 }
 
-window.addEventListener('beforeunload', () => app.engine.dispose());
+window.addEventListener('beforeunload', () => {
+    for (const profile of app.profiles.values()) profile.engine?.dispose();
+});
 initialize();
