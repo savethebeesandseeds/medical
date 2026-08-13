@@ -564,8 +564,10 @@ export function createDiagnosisWorkflow(controller) {
                         : 'Incomplete';
 
             const recordCell = document.createElement('td');
-            recordCell.className = 'saved-report-record';
+            recordCell.className = 'saved-report-record-cell';
             recordCell.dataset.label = 'Record';
+            const recordDetails = document.createElement('div');
+            recordDetails.className = 'saved-report-record';
             const code = document.createElement('strong');
             code.className = 'saved-report-code';
             code.textContent = reportCode;
@@ -577,21 +579,24 @@ export function createDiagnosisWorkflow(controller) {
             const status = document.createElement('span');
             status.className = `saved-report-status ${statusText.toLowerCase().replaceAll(' ', '-')}`;
             status.textContent = statusText;
-            recordCell.append(code, date, status);
+            recordDetails.append(code, date, status);
+            recordCell.append(recordDetails);
             row.append(recordCell);
 
             const patientCell = document.createElement('td');
-            patientCell.className = 'saved-report-patient';
+            patientCell.className = 'saved-report-patient-cell';
             patientCell.dataset.label = 'Participant';
+            const patientDetails = document.createElement('div');
+            patientDetails.className = 'saved-report-patient';
             const patientName = document.createElement('strong');
             patientName.textContent = entry.patient?.name || 'No label provided';
-            patientCell.append(patientName);
+            patientDetails.append(patientName);
             const patientMeta = document.createElement('span');
             patientMeta.textContent = [
                 Number.isFinite(entry.patient?.ageYears) ? `${entry.patient.ageYears} years` : null,
                 entry.patient?.gender || null
             ].filter(Boolean).join(' · ') || 'Profile not recorded';
-            patientCell.append(patientMeta);
+            patientDetails.append(patientMeta);
             const measures = [
                 Number.isFinite(entry.patient?.heightCm) ? `${entry.patient.heightCm} cm` : null,
                 Number.isFinite(entry.patient?.weightKg) ? `${entry.patient.weightKg} kg` : null
@@ -599,18 +604,21 @@ export function createDiagnosisWorkflow(controller) {
             if (measures) {
                 const measureMeta = document.createElement('span');
                 measureMeta.textContent = measures;
-                patientCell.append(measureMeta);
+                patientDetails.append(measureMeta);
             }
             if (legacy) {
                 const legacyLabel = document.createElement('span');
                 legacyLabel.textContent = 'Archived report from an earlier model or protocol';
-                patientCell.append(legacyLabel);
+                patientDetails.append(legacyLabel);
             }
+            patientCell.append(patientDetails);
             row.append(patientCell);
 
             const assessmentCell = document.createElement('td');
-            assessmentCell.className = 'saved-report-assessment';
+            assessmentCell.className = 'saved-report-assessment-cell';
             assessmentCell.dataset.label = 'Assessment';
+            const assessmentDetails = document.createElement('div');
+            assessmentDetails.className = 'saved-report-assessment';
             const arm = entry.patient?.assessedArm || entry.report.assessment?.testedSide;
             const armValue = document.createElement('strong');
             armValue.textContent = arm ? `${arm.charAt(0).toUpperCase()}${arm.slice(1)} arm` : 'Arm not recorded';
@@ -620,12 +628,15 @@ export function createDiagnosisWorkflow(controller) {
             progress.textContent = recorded !== null && required !== null
                 ? `${recorded} of ${required} positions recorded`
                 : 'Position count unavailable';
-            assessmentCell.append(armValue, progress);
+            assessmentDetails.append(armValue, progress);
+            assessmentCell.append(assessmentDetails);
             row.append(assessmentCell);
 
             const actions = document.createElement('td');
-            actions.className = 'saved-report-actions';
+            actions.className = 'saved-report-actions-cell';
             actions.dataset.label = 'Actions';
+            const actionButtons = document.createElement('div');
+            actionButtons.className = 'saved-report-actions';
             const use = document.createElement('button');
             use.type = 'button';
             use.className = 'saved-report-action reuse';
@@ -641,8 +652,9 @@ export function createDiagnosisWorkflow(controller) {
             const remove = document.createElement('button');
             remove.type = 'button';
             remove.className = 'saved-report-action delete';
-            remove.textContent = 'Delete';
+            remove.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg>';
             remove.setAttribute('aria-label', `Delete report ${reportCode}`);
+            remove.title = 'Delete report';
             remove.addEventListener('click', () => {
                 showAppDialog({
                     title: 'Delete assessment report?',
@@ -652,7 +664,8 @@ export function createDiagnosisWorkflow(controller) {
                     onConfirm: () => removeSavedReport(entry)
                 });
             });
-            actions.append(view, use, remove);
+            actionButtons.append(view, use, remove);
+            actions.append(actionButtons);
             row.append(actions);
             body.append(row);
         }

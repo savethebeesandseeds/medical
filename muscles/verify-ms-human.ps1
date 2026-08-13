@@ -332,7 +332,7 @@ Assert-True (-not $Index.Contains('id="render-muscle-bodies"')) 'Removed simple 
 Assert-True $Index.Contains('id="render-path-lines"') 'Technical path-line rendering control is missing'
 Assert-True $Index.Contains('Body shape and thickness are illustrative') 'Illustrative muscle-body shape and thickness disclosure is missing'
 Assert-True $Index.Contains('15 guided positions') 'Current assessment position count is missing from the interface'
-Assert-True $Index.Contains('Assessment drafts and reports are saved automatically in this browser profile.') 'Device-storage behavior is not disclosed in the interface'
+Assert-True $Index.Contains('Everything you enter—including assessment answers and reports—is saved only in this browser on your device.') 'Device-storage behavior is not disclosed in the interface'
 Assert-True (-not $Index.Contains('name="email"')) 'Unused email collection remains in the assessment'
 Assert-True (-not $Index.Contains('name="city"')) 'Unused city collection remains in the assessment'
 Assert-True $Index.Contains('Waajacu™') 'Waajacu trademark footer is missing'
