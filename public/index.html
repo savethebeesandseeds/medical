@@ -62,7 +62,7 @@
                         <span id="analysis-source-title" class="toolbar-label">Geometry</span>
                         <div class="source-controls">
                             <div class="mode-switch compact model-layer-switch" role="group" aria-labelledby="analysis-source-title">
-                                <button id="toggle-context" class="mode-button active" type="button" aria-pressed="true">Torso context</button>
+                                <button id="toggle-context" class="mode-button active" type="button" aria-pressed="true">Whole-body context</button>
                                 <button id="toggle-long-origins" class="mode-button" type="button" aria-pressed="false">Long muscle origins</button>
                             </div>
                         </div>
@@ -140,7 +140,7 @@
                         </div>
                         <div id="geometry-legend" class="scene-legend" aria-label="Viewer legend">
                             <span><i class="bone-key"></i>Arm geometry</span>
-                            <span><i class="context-key"></i>Attachment context</span>
+                            <span><i class="context-key"></i>Whole-body context</span>
                             <span><i class="path-key"></i>Muscle paths</span>
                             <span id="selected-path-legend" class="hidden"><i class="selected-key"></i>Selected</span>
                         </div>
@@ -560,7 +560,7 @@
                 <details open>
                     <summary>What the model shows</summary>
                     <div class="model-information-body">
-                        <p><strong>Model:</strong> <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">MS-Human-700</a>, primary variant. This view contains <span id="count-muscles">—</span> relevant right-arm and shoulder-girdle muscles, <span id="count-bodies">—</span> articulated arm bodies, and <span id="count-meshes">—</span> arm surface meshes.</p>
+                        <p><strong>Model:</strong> <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">MS-Human-700</a>, primary variant. The complete skeleton is shown as quiet context; <span id="count-muscles">—</span> relevant right-arm and shoulder-girdle muscles, <span id="count-bodies">—</span> articulated arm bodies, and <span id="count-meshes">—</span> active-arm surface meshes remain the focus.</p>
                         <p><strong>Posture and paths:</strong> seven right-arm controls drive the shoulder girdle, arm and wrist. Muscle paths are recalculated through the model's attachment sites and wrapping surfaces at every posture.</p>
                         <p><strong>Activation:</strong> colors show a static, gravity-only model estimate. The calculation includes passive model forces and assumes the rest of the body is externally supported.</p>
                     </div>

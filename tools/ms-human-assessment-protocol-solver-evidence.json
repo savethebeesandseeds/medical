@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "protocolId": "MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1",
   "protocolVersion": "1.0.0",
-  "protocolDigestSha256": "d1bda29dc1bc69d9d6aaa1f6766c39128cf032f55194bb5356be146279734501",
+  "protocolDigestSha256": "dd1775262214462c39440f6b461c2562fa8d7addd58ab4ceb6b56643e63b18b1",
   "modelId": "MS_HUMAN_700_RIGHT_ARM_STATIC_V1",
   "modelDigest": "38815fed122d1beb61155f0afd85e72a52093111fcae183bbb273f2483291971",
   "runtimeModelSha256": "13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3",

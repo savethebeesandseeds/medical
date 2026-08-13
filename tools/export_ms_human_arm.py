@@ -3,8 +3,9 @@
 
 The browser uses two complementary artifacts:
 
-* ``right-arm.meshbin`` keeps the selected bone meshes in geom-local space so
-  Three.js can articulate them from MuJoCo's live ``geom_xpos``/``geom_xmat``.
+* ``right-arm.meshbin`` keeps the complete body skeleton in geom-local space
+  so Three.js can articulate it from MuJoCo's live body transforms.  Right-arm
+  meshes are tagged as the active subject; every other mesh is faint context.
 * ``right-arm-runtime.mjb`` omits visual-only meshes but retains the complete
   model mechanics, muscle wrapping, passive forces, and authored equalities.
 
@@ -42,20 +43,6 @@ COORDINATES = (
 )
 
 ARM_ROOT = "clavicle_r"
-CONTEXT_BODIES = {
-    "sternum",
-    *(f"thoracic{number}" for number in range(1, 13)),
-    *(f"rib{number}_R" for number in range(1, 13)),
-}
-CONTEXT_HEAD_GEOMS = {
-    "rotatedcerv7",
-    "cerv6",
-    "cerv5",
-    "cerv4",
-    "cerv3",
-    "cerv2",
-    "cerv1",
-}
 
 PRESETS = (
     {
@@ -193,17 +180,18 @@ def group_for(actuator_id: int, name: str) -> tuple[str, bool]:
 def selected_mesh_geoms(
     model: mujoco.MjModel, arm_bodies: set[int]
 ) -> list[tuple[int, str]]:
+    """Select the complete skeleton and distinguish the calculated arm.
+
+    Only the descendants of ``ARM_ROOT`` are rendered as the active bone
+    group.  All other mesh geoms are visual context; they never expand the
+    right-arm actuator or coordinate inventory used by the static solver.
+    """
     selected: list[tuple[int, str]] = []
     for geom_id in range(model.ngeom):
         if int(model.geom_type[geom_id]) != int(mujoco.mjtGeom.mjGEOM_MESH):
             continue
         body_id = int(model.geom_bodyid[geom_id])
-        body_name = name_for(model, mujoco.mjtObj.mjOBJ_BODY, body_id)
-        geom_name = name_for(model, mujoco.mjtObj.mjOBJ_GEOM, geom_id)
-        if body_id in arm_bodies:
-            selected.append((geom_id, "arm"))
-        elif body_name in CONTEXT_BODIES or geom_name in CONTEXT_HEAD_GEOMS:
-            selected.append((geom_id, "context"))
+        selected.append((geom_id, "arm" if body_id in arm_bodies else "context"))
     return selected
 
 

@@ -167,7 +167,7 @@ export const MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT = Object.freeze({
         modelId: 'MS_HUMAN_700_RIGHT_ARM_STATIC_V1',
         modelDigest: '38815fed122d1beb61155f0afd85e72a52093111fcae183bbb273f2483291971',
         runtimeModelSha256: '13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3',
-        coordinateMetadataSha256: '998e3e4f0a5da1a1ff48d4994d5a40eae586104c6d4f71163c8f2b03b94b2e4a'
+        coordinateMetadataSha256: '4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e'
     }),
     derivation: Object.freeze({
         algorithm: 'authored-range-normalized-paired-contrast-v1',
@@ -188,7 +188,7 @@ export const MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT = Object.freeze({
 // SHA-256 of canonical JSON for MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT. The
 // repository validator recomputes it so any posture or wording change requires
 // an intentional protocol version/digest update.
-export const MS_HUMAN_ASSESSMENT_PROTOCOL_DIGEST = 'd1bda29dc1bc69d9d6aaa1f6766c39128cf032f55194bb5356be146279734501';
+export const MS_HUMAN_ASSESSMENT_PROTOCOL_DIGEST = 'dd1775262214462c39440f6b461c2562fa8d7addd58ab4ceb6b56643e63b18b1';
 
 export const MS_HUMAN_ASSESSMENT_PROTOCOL = Object.freeze({
     ...MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT,

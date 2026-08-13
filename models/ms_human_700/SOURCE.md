@@ -34,8 +34,9 @@ The generated files under `public/models/ms_human_700/` are browser-oriented
 derivatives for the articulated right-arm application. `right-arm-runtime.mjb`
 retains the complete compiled kinematics, passive forces, actuator inventory,
 and tendon wrapping needed for posture realization and the static calculation;
-`right-arm.meshbin` stores the displayed arm and attachment-context geometry in
-body-local coordinates; and `right-arm.json` records their exact mapping and
+`right-arm.meshbin` stores the complete displayed skeleton in body-local
+coordinates. The right arm is tagged as the active subject and every other
+mesh is faint visual context; `right-arm.json` records the exact mapping and
 validation metadata. Their source is the package in this directory, and they
 remain subject to Apache-2.0. The project's own viewer and solver-integration
 code is separately MIT-licensed.

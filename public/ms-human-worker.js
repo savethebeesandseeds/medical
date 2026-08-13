@@ -21,8 +21,8 @@ const URLS = Object.freeze({
 // executes directly. The geometry digest is exported for the renderer, which
 // owns and verifies the separate mesh download.
 const ASSET_SHA256 = Object.freeze({
-    metadata: '998e3e4f0a5da1a1ff48d4994d5a40eae586104c6d4f71163c8f2b03b94b2e4a',
-    geometry: 'a5dba6568c86165ab3aaf795d443f81f7713489b300c590bfd898503aab99f44',
+    metadata: '4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e',
+    geometry: '5cbdf2aebd44da09dbd9b546cca35abc7b3b2f64e927f879c0d03595e087f68c',
     runtime: '13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3',
     mujocoJs: '45e8e0e1617c19fbf7f00b36a6a72d1c0c980c0a4f38523e04f0641e8fbab7b9',
     mujocoWasm: '832597ae0a0e306c97ed43d2a9bbca033cf3e547eced410fb9011d87a68d4207'

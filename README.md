@@ -1,7 +1,8 @@
 # Waajacu's Medical musculoskeletal explorer
 
 Waajacu's Medical is a browser-based, static-posture explorer for the
-MS-Human-700 musculoskeletal model. It renders an articulated right arm,
+MS-Human-700 musculoskeletal model. It renders a complete skeleton as quiet
+anatomical context around an articulated right arm,
 recompiles wrapping-aware muscle paths for every selected posture, and runs a
 quality-gated static-hold estimate locally with MuJoCo WebAssembly.
 
@@ -27,7 +28,8 @@ The page is served at <http://localhost:8080> and bound to `127.0.0.1`.
 
 - Seven independent right-arm posture controls with the authored scapula,
   clavicle, shoulder, and wrist equality couplings.
-- Body-local arm and hand geometry, plus faint torso attachment context.
+- Body-local complete-skeleton geometry in a faint context layer, with the
+  calculated right arm and hand visually emphasized.
 - Current MuJoCo tendon paths with authored via sites, wrapping contacts, and
   pulley discontinuities preserved.
 - 88 functionally relevant muscles: 47 arm actuators, 27 shoulder-girdle

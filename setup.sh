@@ -78,10 +78,10 @@ printf '%s  %s\n' \
     "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30" \
     "${WEB_ROOT}/vendor/MUJOCO_LICENSE.txt" | sha256sum --check --strict
 printf '%s  %s\n' \
-    "998e3e4f0a5da1a1ff48d4994d5a40eae586104c6d4f71163c8f2b03b94b2e4a" \
+    "4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e" \
     "${WEB_ROOT}/models/ms_human_700/right-arm.json" | sha256sum --check --strict
 printf '%s  %s\n' \
-    "a5dba6568c86165ab3aaf795d443f81f7713489b300c590bfd898503aab99f44" \
+    "5cbdf2aebd44da09dbd9b546cca35abc7b3b2f64e927f879c0d03595e087f68c" \
     "${WEB_ROOT}/models/ms_human_700/right-arm.meshbin" | sha256sum --check --strict
 printf '%s  %s\n' \
     "13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3" \

@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.min.js';
 import { createMsHumanEngine, StaleRequestError } from './ms-human-engine.js';
 import { createDiagnosisWorkflow } from './diagnosis.js';
 
-const GEOMETRY_URL = new URL('./models/ms_human_700/right-arm.meshbin', import.meta.url);
+const GEOMETRY_URL = new URL('./models/ms_human_700/right-arm.meshbin?v=5cbdf2ae', import.meta.url);
 
 const $ = (selector) => document.querySelector(selector);
 const CANONICAL_KEYS = [
@@ -259,6 +259,146 @@ function buildBodyMeshes(asset) {
         mesh.userData.role = descriptor.role;
         app.bodyMeshes.push(mesh);
         (descriptor.role === 'arm' ? app.armGroup : app.contextGroup).add(mesh);
+    }
+}
+
+function thumbnailCoordinates(preset) {
+    return Object.fromEntries(app.metadata.coordinates.map((coordinate) => [
+        coordinate.name,
+        preset?.[coordinate.name] ?? coordinate.default
+    ]));
+}
+
+function createThumbnailRenderer() {
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        preserveDrawingBuffer: true
+    });
+    renderer.setPixelRatio(1);
+    renderer.setSize(104, 104, false);
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    const root = new THREE.Group();
+    const context = new THREE.Group();
+    const arm = new THREE.Group();
+    root.rotation.x = -Math.PI / 2;
+    root.add(context, arm);
+    scene.add(root);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x6d7873, 2.5));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const light = new THREE.DirectionalLight(0xffffff, 2.8);
+    light.position.set(3, 5, 4);
+    scene.add(light);
+
+    const armMaterial = new THREE.MeshStandardMaterial({
+        color: 0xbfae90,
+        roughness: 0.82,
+        metalness: 0,
+        side: THREE.DoubleSide
+    });
+    const contextMaterial = new THREE.MeshStandardMaterial({
+        color: 0x789189,
+        roughness: 0.92,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        side: THREE.DoubleSide
+    });
+    const meshes = app.bodyMeshes.map((source) => {
+        const mesh = new THREE.Mesh(
+            source.geometry,
+            source.userData.role === 'arm' ? armMaterial : contextMaterial
+        );
+        mesh.matrixAutoUpdate = false;
+        mesh.userData.bodyId = source.userData.bodyId;
+        mesh.userData.role = source.userData.role;
+        (mesh.userData.role === 'arm' ? arm : context).add(mesh);
+        return mesh;
+    });
+    const camera = new THREE.PerspectiveCamera(27, 1, 0.005, 50);
+
+    return {
+        renderer,
+        scene,
+        root,
+        arm,
+        meshes,
+        camera,
+        dispose() {
+            armMaterial.dispose();
+            contextMaterial.dispose();
+            renderer.dispose();
+        }
+    };
+}
+
+function applyThumbnailPose(thumbnail, state) {
+    for (const mesh of thumbnail.meshes) {
+        const transform = state.bodyTransforms?.[mesh.userData.bodyId]
+            ?? state.bodies?.find((body) => body.bodyId === mesh.userData.bodyId);
+        mesh.visible = Boolean(transform);
+        if (transform) bodyMatrix(transform, mesh.matrix);
+        mesh.matrixWorldNeedsUpdate = true;
+    }
+    thumbnail.root.updateMatrixWorld(true);
+}
+
+function frameThumbnail(thumbnail) {
+    const bounds = new THREE.Box3().setFromObject(thumbnail.arm);
+    if (bounds.isEmpty()) return false;
+    const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+    const direction = new THREE.Vector3(1, 0.14, 0.38).normalize();
+    const halfFov = THREE.MathUtils.degToRad(thumbnail.camera.fov / 2);
+    const distance = Math.max(sphere.radius / Math.sin(halfFov) * 1.16, 0.24);
+    thumbnail.camera.position.copy(sphere.center).addScaledVector(direction, distance);
+    thumbnail.camera.near = Math.max(distance / 100, 0.002);
+    thumbnail.camera.far = Math.max(distance * 8, 4);
+    thumbnail.camera.lookAt(sphere.center);
+    thumbnail.camera.updateProjectionMatrix();
+    return true;
+}
+
+function copyThumbnailToCanvas(source, canvas) {
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    canvas.classList.add('ready');
+}
+
+async function renderPoseThumbnails() {
+    const targets = new Map();
+    for (const canvas of document.querySelectorAll('canvas.preset-thumbnail')) {
+        const presetName = canvas.dataset.thumbnailPreset
+            || canvas.closest('[data-preset]')?.dataset.preset;
+        if (!POSE_PRESETS[presetName]) continue;
+        if (!targets.has(presetName)) targets.set(presetName, []);
+        targets.get(presetName).push(canvas);
+    }
+    if (!targets.size) return;
+
+    const thumbnail = createThumbnailRenderer();
+    try {
+        for (const [presetName, canvases] of targets) {
+            const state = await app.engine.pose(
+                thumbnailCoordinates(POSE_PRESETS[presetName]),
+                app.selectedMuscle
+            );
+            applyThumbnailPose(thumbnail, state);
+            if (!frameThumbnail(thumbnail)) continue;
+            thumbnail.renderer.render(thumbnail.scene, thumbnail.camera);
+            for (const canvas of canvases) {
+                copyThumbnailToCanvas(thumbnail.renderer.domElement, canvas);
+            }
+        }
+    } finally {
+        thumbnail.dispose();
     }
 }
 
@@ -1062,6 +1202,12 @@ async function initialize() {
         const pose = await requestPose();
         if (!pose) throw new Error('The initial posture was superseded before it loaded.');
         fitCameraToModel();
+        setLoading('Preparing posture previews…');
+        try {
+            await renderPoseThumbnails();
+        } catch (error) {
+            console.warn('Pose previews could not be rendered.', error);
+        }
         setLoading('', false);
         syncViewerDrawers();
         app.diagnosis.setReady(true);

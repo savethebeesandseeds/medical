@@ -3,8 +3,9 @@
 `right-arm.json`, `right-arm.meshbin`, and `right-arm-runtime.mjb` are generated
 together by `tools/export_ms_human_arm.py` with pinned MuJoCo 3.10.0.
 
-- `right-arm.meshbin` stores 32 right-arm bone meshes and faint supporting
-  thorax geometry in body-local coordinates for exact articulation.
+- `right-arm.meshbin` stores the complete skeleton in body-local coordinates:
+  32 right-arm meshes are emphasized and 100 remaining meshes form faint
+  whole-body context.
 - `right-arm-runtime.mjb` discards visual-only meshes but preserves the full
   model kinematics, passive forces, 700 actuators, and tendon wrapping needed
   to pose and solve the functionally selected 88 right-arm muscles.

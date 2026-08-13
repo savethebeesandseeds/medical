@@ -43,8 +43,8 @@ $ProtocolEvidencePath = Join-Path $ProjectRoot 'tools\ms-human-assessment-protoc
 
 Assert-Hash $ModelPath 'D524F32FB22D18773674E5E5768B3272347A77F82CB507DAC19589D59D016CC5' 'MS-Human source model checksum mismatch'
 Assert-Hash $LicensePath '1EB85FC97224598DAD1852B5D6483BBCF0AA8608790DCC657A5A2A761AE9C8C6' 'MS-Human license checksum mismatch'
-Assert-Hash $MetadataPath '998E3E4F0A5DA1A1FF48D4994D5A40EAE586104C6D4F71163C8F2B03B94B2E4A' 'Right-arm metadata checksum mismatch'
-Assert-Hash $GeometryPath 'A5DBA6568C86165AB3AAF795D443F81F7713489B300C590BFD898503AAB99F44' 'Right-arm geometry checksum mismatch'
+Assert-Hash $MetadataPath '4278FFE5171328047DD240711386AC2EA84BA7BCC54E1740DF359F263956414E' 'Right-arm metadata checksum mismatch'
+Assert-Hash $GeometryPath '5CBDF2AEBD44DA09DBD9B546CCA35ABC7B3B2F64E927F879C0D03595E087F68C' 'Complete-body context geometry checksum mismatch'
 Assert-Hash $RuntimePath '13D2B0BED35DB2B07F3B8076931ABEF4EC4E149CA8D89F326BDE22B84F821AD3' 'Right-arm runtime checksum mismatch'
 Assert-Hash $MujocoJsPath '45E8E0E1617C19FBF7F00B36A6A72D1C0C980C0A4F38523E04F0641E8FBAB7B9' 'MuJoCo JavaScript checksum mismatch'
 Assert-Hash $MujocoWasmPath '832597AE0A0E306C97ED43D2A9BBCA033CF3E547ECED410FB9011D87A68D4207' 'MuJoCo WebAssembly checksum mismatch'
@@ -83,7 +83,17 @@ Assert-Equal ($Metadata.muscles | Where-Object group -eq 'Arm').Count 47 'Unexpe
 Assert-Equal ($Metadata.muscles | Where-Object group -eq 'Shoulder stabilizer').Count 27 'Unexpected shoulder stabilizer count'
 Assert-Equal ($Metadata.muscles | Where-Object group -eq 'Long torso origin').Count 14 'Unexpected long-origin muscle count'
 Assert-Equal ($Metadata.geometry.geoms | Where-Object role -eq 'arm').Count 32 'Unexpected arm geometry count'
-Assert-Equal ($Metadata.geometry.geoms | Where-Object role -eq 'context').Count 32 'Unexpected context geometry count'
+Assert-Equal ($Metadata.geometry.geoms | Where-Object role -eq 'context').Count 100 'Unexpected complete-body context geometry count'
+Assert-Equal $Metadata.geometry.geoms.Count 132 'Unexpected complete skeleton geometry count'
+$RequiredContextBodies = @(
+    'head_neck', 'pelvis',
+    'clavicle_l', 'humerus_l', 'ulna_l', 'radius_l', 'hand_l',
+    'femur_l', 'tibia_l', 'calcn_l', 'toes_l',
+    'femur_r', 'tibia_r', 'calcn_r', 'toes_r'
+)
+foreach ($BodyName in $RequiredContextBodies) {
+    Assert-True (@($Metadata.geometry.geoms | Where-Object { $_.role -eq 'context' -and $_.body -eq $BodyName }).Count -gt 0) "Complete-body context is missing $BodyName"
+}
 Assert-Equal $Metadata.source.sourceTreeSha256 $ExpectedSourceTreeHash.ToLowerInvariant() 'Metadata source hash mismatch'
 Assert-Equal $Metadata.source.mujocoVersion '3.10.0' 'Unexpected MuJoCo version'
 Assert-Equal $Metadata.source.modelLicense 'Apache-2.0' 'Unexpected model license'
