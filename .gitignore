@@ -1,8 +1,5 @@
-build/
-runtime/
-**/__pycache__/
-*.pyc
-*.pyo
-*.tmp
-*.log
-tools/.report-v5-under-test-*.mjs
+/tmp/
+/_site/
+
+.DS_Store
+Thumbs.db

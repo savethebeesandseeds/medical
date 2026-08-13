@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Browser-based medical research and educational tools from Waajacu.">
+    <title>Waajacu Medical</title>
+    <link rel="icon" type="image/png" href="./waajacu_medical_no_bg.png">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="./" aria-label="Waajacu Medical home">
+            <img src="./waajacu_medical_no_bg.png" width="56" height="56" alt="">
+            <span>Waajacu Medical</span>
+        </a>
+        <span class="research-label">Research software</span>
+    </header>
+
+    <main>
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-copy">
+                <p class="eyebrow">Medical models, in your browser</p>
+                <h1 id="hero-title">Explore the body through transparent computational tools.</h1>
+                <p class="hero-summary">
+                    Waajacu Medical brings interactive research models to the web. Calculations stay
+                    on your device, methods and limitations remain visible, and no installation is required.
+                </p>
+            </div>
+            <div class="hero-mark" aria-hidden="true">
+                <span class="orbit orbit-one"></span>
+                <span class="orbit orbit-two"></span>
+                <img src="./waajacu_medical_no_bg.png" width="240" height="240" alt="">
+            </div>
+        </section>
+
+        <section class="tools" aria-labelledby="tools-title">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Available tools</p>
+                    <h2 id="tools-title">Start exploring</h2>
+                </div>
+                <p>One focused model today, with room for more medical packages as they are developed.</p>
+            </div>
+
+            <article class="tool-card">
+                <div class="tool-visual" aria-hidden="true">
+                    <span class="joint joint-shoulder"></span>
+                    <span class="joint joint-elbow"></span>
+                    <span class="joint joint-wrist"></span>
+                    <span class="limb limb-upper"></span>
+                    <span class="limb limb-lower"></span>
+                </div>
+                <div class="tool-content">
+                    <div class="tool-meta">
+                        <span class="status-dot"></span>
+                        Available now
+                    </div>
+                    <h3>Muscles</h3>
+                    <p>
+                        Explore regional posture, muscle paths, and quality-gated static activation
+                        estimates using the MS-Human-700 model and MuJoCo WebAssembly.
+                    </p>
+                    <ul aria-label="Muscles tool features">
+                        <li>Runs locally in the browser</li>
+                        <li>Upper limb, lower limb, trunk, and head/neck regions</li>
+                        <li>Research and educational use</li>
+                    </ul>
+                    <a class="tool-link" href="./muscles/">
+                        Open Muscles
+                        <span aria-hidden="true">&rarr;</span>
+                    </a>
+                </div>
+            </article>
+        </section>
+
+        <aside class="use-boundary">
+            <strong>Research use only</strong>
+            <p>These tools provide generic model estimates. They are not medical devices, diagnoses, measurements of an individual, or medical advice.</p>
+        </aside>
+    </main>
+
+    <footer>
+        <span>Waajacu&trade; &middot; Medical research software</span>
+        <a href="https://github.com/savethebeesandseeds/medical">Source on GitHub</a>
+    </footer>
+</body>
+</html>

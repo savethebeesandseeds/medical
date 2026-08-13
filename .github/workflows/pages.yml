@@ -1,0 +1,63 @@
+name: Verify and deploy medical tools
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  verify-muscles:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Verify the Muscles static release
+        shell: powershell
+        working-directory: muscles
+        run: >-
+          powershell.exe -NoProfile -ExecutionPolicy Bypass
+          -File .\release.ps1
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: verify-muscles
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Assemble static catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/muscles
+          cp -R site/. _site/
+          cp waajacu_medical_no_bg.png _site/waajacu_medical_no_bg.png
+          cp -R muscles/public/. _site/muscles/
+          touch _site/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

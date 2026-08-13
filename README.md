@@ -1,152 +1,29 @@
-# Waajacu's Medical musculoskeletal explorer
+# Waajacu Medical
 
-Waajacu's Medical is a browser-based, static-posture explorer for the
-MS-Human-700 musculoskeletal model. It renders a complete skeleton as quiet
-anatomical context around an articulated right arm,
-recompiles wrapping-aware muscle paths for every selected posture, and runs a
-quality-gated static-hold estimate locally with MuJoCo WebAssembly.
+Waajacu Medical is a collection of browser-based research and educational
+tools. The repository is organized as a monorepo so each tool can keep its own
+source, verification, and licensing boundary while sharing one public catalog.
 
-The model and solver run entirely in the browser; a web server is needed only
-to serve the static files with the correct MIME types and content-security
-policy. No native model-computation backend is required.
+## Published routes
 
-The current build uses module- and document-relative URLs. It can be served at
-an origin root such as `https://example.org/` or below a subpath such as
-`https://example.org/medical/`, provided the host serves `index.html` from that
-directory with the documented MIME types and content-security policy.
+- `/` - catalog of available medical tools
+- `/muscles/` - MS-Human-700 musculoskeletal explorer
 
-## Start locally
+The public site is assembled by `.github/workflows/pages.yml`. Only `site/`,
+the catalog logo, and each explicitly selected tool's static distribution are
+included in the GitHub Pages artifact. Development files and `tmp/` are never
+published.
 
-```powershell
-cd C:\Work\medical\muscles
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run.ps1
-```
+## Tools
 
-The page is served at <http://localhost:8080> and bound to `127.0.0.1`.
+### Muscles
 
-## What the application shows
-
-- Seven independent right-arm posture controls with the authored scapula,
-  clavicle, shoulder, and wrist equality couplings.
-- Body-local complete-skeleton geometry in a faint context layer, with the
-  calculated right arm and hand visually emphasized.
-- Current MuJoCo tendon paths with authored via sites, wrapping contacts, and
-  pulley discontinuities preserved.
-- 88 functionally relevant muscles: 47 arm actuators, 27 shoulder-girdle
-  stabilizers, and 14 long latissimus fascicles.
-- A bounded, minimum-squared-activation static estimate for the displayed
-  posture, with explicit equilibrium, reserve, capacity, path, and finite-value
-  quality gates.
-- A versioned MS-Human-native observation panel, activation ranking, muscle
-  inspector, moment arms, PNG export, responsive layout, safety screen, and
-  report export.
-
-Long latissimus origins participate in every solve but are hidden in the
-default path layer for readability. A mirrored left display remains a visual
-reflection of a right-arm calculation.
-
-## Static calculation boundary
-
-The solver balances only the seven displayed right-arm coordinates. It resets
-the complete model to the authored initial keyframe, applies those coordinates
-and their equality dependents, and treats all remaining coordinates as
-externally prescribed support. It assumes zero velocity and acceleration,
-gravity and model self-weight, authored passive model forces, and no hand load,
-contact, measured support, or other external force.
-
-Activation colors are withheld unless the result has 88 unique finite muscle
-values, valid compiled paths, replayed reduced-coordinate equilibrium residual
-at or below 0.0001 newton-metres, reserve torque at or below 0.05
-newton-metres, and no model-rule capacity failure. Reserve use means the
-modeled actuator set did not balance
-the posture under these assumptions; it does not prove physiological weakness.
-
-The result is a generic model estimate, not measured effort, patient force,
-tissue load, pain, injury, fatigue, diagnosis, treatment guidance, or a
-patient-specific result. Dynamic motion may require materially different
-activation.
-
-The movement-observation panel is application-designed for MS-Human-700 and
-mechanically screened against the same range, path, equilibrium, and reserve
-gates used by the viewer. That screening shows only that the generic model can
-realize and balance each reference posture under the stated assumptions. The
-panel is not a clinically validated examination and its comparisons cannot
-identify a painful tissue or diagnose a condition.
-
-## One-command release gate
-
-From Windows PowerShell, run the complete local gate with:
+The source is in `muscles/`. Its browser distribution is `muscles/public/`,
+and its independent verification command is:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\muscles\release.ps1
 ```
 
-This checks the exact deploy allowlist, UTF-8 text, browser-module syntax, the
-versioned assessment protocol, report/privacy/migration behavior, pinned model
-hashes, HTTP headers and routes, retired-route absence, and a clean Git
-baseline. It locates Node.js and Python from `PATH` or from Codex's bundled
-workspace runtime. HTTP verification is required: the command starts and stops
-an isolated localhost server automatically, so the application does not need
-to be running first.
-
-To produce the reviewed static distribution after the gate passes:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release.ps1 -Package
-```
-
-The package is `build/waajacu-medical-static.zip`. It contains only the active
-browser application, model/runtime assets, provenance records, and licenses;
-it excludes Git history, source tooling, caches, and retired files. The
-archive includes `MANIFEST.sha256` and an SPDX 2.3 `SBOM.spdx.json`, with a
-sidecar archive checksum. The Git revision time supplies the reproducible SBOM
-timestamp; `SOURCE_DATE_EPOCH` can override it for formal reproducible-build
-systems. `-SkipGitCleanCheck` exists only for
-testing an unfinished worktree and must not be used to approve a release.
-The same command runs on every push and pull request through
-`.github/workflows/release-gate.yml`; it installs no project dependencies from
-the network.
-
-## Individual verification and regeneration
-
-Run the verification suite while the application is running:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verify-ms-human.ps1
-```
-
-The articulated browser assets can be regenerated from the pinned complete
-source tree with `tools/export_ms_human_arm.py`. Source and runtime parity checks
-are implemented in `tools/validate_ms_human_arm.py`; isolated Python
-dependencies are pinned in `tools/requirements-ms-human.txt`.
-
-The assessment definition and its recorded browser-solver evidence are checked
-by `tools/validate-ms-human-assessment-protocol.mjs`. Report identity,
-migration, privacy, and comparison behavior are checked by
-`tools/verify-diagnosis-report.mjs`. Run both with a current Node.js runtime
-after changing the posture panel or report schema.
-
-## Licensing and provenance
-
-Original application code is MIT-licensed; see `LICENSE`. MS-Human-700 and its
-generated assets are Apache-2.0 licensed, MuJoCo is Apache-2.0 licensed, and
-Three.js is MIT-licensed. See `THIRD_PARTY_NOTICES.md` and the bundled upstream
-licenses for the exact boundaries and redistribution obligations.
-
-The deployable application does not include or execute the retired MoBL or
-OpenSim implementation. Historical commits may still contain retired files;
-publish from a clean repository history if excluding those historical bytes is
-a distribution requirement.
-
-MS-Human-700 is vendored from the pinned MuJoCo Menagerie source record under
-`models/ms_human_700/`. Two transparent bilateral path-coordinate corrections
-are documented in its `SOURCE.md`. Because the model publication describes
-earlier OpenSim models as parameter references, written provenance confirmation
-from the maintainers remains prudent before commercial release.
-
-## Medical boundary
-
-This is research and educational software, not a medical device. Clinical or
-patient-specific research would require validated subject data, uncertainty
-reporting, clinical ground truth, clinician oversight, privacy and security
-controls, and appropriate ethics and regulatory review.
+The application runs locally in the browser. It is research and educational
+software, not a medical device.
