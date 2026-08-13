@@ -202,8 +202,7 @@ h2 {
     min-height: 300px;
     overflow: hidden;
     background:
-        linear-gradient(145deg, rgb(25 80 116 / 96%), rgb(40 115 143 / 91%)),
-        var(--blue-dark);
+        linear-gradient(145deg, #f4e6d3 0%, #d7b38e 56%, #b97d65 100%);
 }
 
 .tool-visual::before,
@@ -218,7 +217,7 @@ h2 {
     height: 280px;
     top: -82px;
     left: -94px;
-    border: 46px solid rgb(255 255 255 / 7%);
+    border: 46px solid rgb(91 55 43 / 9%);
 }
 
 .tool-visual::after {
@@ -226,7 +225,7 @@ h2 {
     height: 210px;
     right: -90px;
     bottom: -85px;
-    background: rgb(101 184 189 / 19%);
+    background: rgb(255 244 220 / 24%);
 }
 
 .tool-figure {
@@ -237,7 +236,7 @@ h2 {
     height: 90%;
     object-fit: contain;
     object-position: center;
-    filter: drop-shadow(0 18px 22px rgb(8 40 53 / 28%));
+    filter: drop-shadow(0 18px 22px rgb(79 42 32 / 24%));
 }
 
 .tool-content {
@@ -271,6 +270,11 @@ h3 {
     margin-bottom: 15px;
     font-size: clamp(2rem, 4vw, 3.2rem);
     letter-spacing: -0.045em;
+}
+
+.tool-content h3 {
+    line-height: 1.02;
+    text-wrap: balance;
 }
 
 .tool-content > p {

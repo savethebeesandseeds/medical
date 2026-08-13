@@ -9,20 +9,20 @@ source, verification, and licensing boundary while sharing one public catalog.
 ### Medical catalog
 
 <a href="https://medical.waajacu.com/">
-  <img src="./docs/screenshots/waajacu-medical-home.png" width="960" alt="Waajacu Medical catalog homepage showing the available Muscles browser tool">
+  <img src="./docs/screenshots/waajacu-medical-home.png" width="960" alt="Waajacu Medical catalog homepage showing the available biomechanics research tool">
 </a>
 
-### Muscles assessment
+### Guided assessment
 
 <a href="https://medical.waajacu.com/en/tools/muscles/">
-  <img src="./docs/screenshots/muscles-assessment.png" width="960" alt="Muscles assessment workspace showing a guided upper-limb observation and the browser-based body model">
+  <img src="./docs/screenshots/muscles-assessment.png" width="960" alt="Biomechanics research tool assessment workspace showing a guided upper-limb observation and the browser-based body model">
 </a>
 
 ## Published routes
 
 - `/` - catalog of available medical tools
 - `/en/tools/muscles/` - MS-Human-700 musculoskeletal explorer
-- `/muscles/` - compatibility redirect to the canonical Muscles route
+- `/muscles/` - compatibility redirect to the canonical tool route
 
 The public site is assembled by `.github/workflows/pages.yml`. Only `site/`,
 the catalog logo, and each explicitly selected tool's static distribution are
@@ -31,7 +31,7 @@ published.
 
 ## Tools
 
-### Muscles
+### Biomechanics research tool
 
 The source is in `muscles/`. Its browser distribution is `muscles/public/`,
 and its independent verification command is:
