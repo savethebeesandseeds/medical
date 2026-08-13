@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "protocolId": "MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1",
+  "protocolVersion": "1.0.0",
+  "protocolDigestSha256": "d1bda29dc1bc69d9d6aaa1f6766c39128cf032f55194bb5356be146279734501",
+  "modelId": "MS_HUMAN_700_RIGHT_ARM_STATIC_V1",
+  "modelDigest": "38815fed122d1beb61155f0afd85e72a52093111fcae183bbb273f2483291971",
+  "runtimeModelSha256": "13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3",
+  "solverConfigurationId": "MS_HUMAN_700_RIGHT_ARM_STATIC_MIN_NORM_V1:e5be933467486f7f",
+  "solverConfigurationDigest": "e5be933467486f7f244eb5f1a5972aa4200364d6e2ffc2ffc49bc91d00e5cda0",
+  "solverQualityLimits": {
+    "maximumResidualNm": 0.0001,
+    "maximumReserveNm": 0.05,
+    "capacityActivation": 0.995,
+    "capacityReserveNm": 0.01
+  },
+  "summary": {
+    "attempted": 15,
+    "passed": 15,
+    "maximumObservedActivation": 0.5014461577657192,
+    "maximumObservedResidualNm": 6.0641663674095014e-15,
+    "maximumObservedReserveNm": 0.000023955993778342976,
+    "minimumPairedActivationDistance": 0.04792545437279905
+  },
+  "positions": [
+    { "id": "MSH-A01", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.030729017554749827, "maximumResidualNm": 2.360543181143806e-16, "maximumReserveNm": 0.000001091126451316503, "capacityLimited": false },
+    { "id": "MSH-A02", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.39302165151111484, "maximumResidualNm": 6.0641663674095014e-15, "maximumReserveNm": 0.000007934878307456077, "capacityLimited": false },
+    { "id": "MSH-A03", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.5014461577657192, "maximumResidualNm": 3.260799020122357e-15, "maximumReserveNm": 0.00001872250117933246, "capacityLimited": false },
+    { "id": "MSH-A04", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.30868847420156054, "maximumResidualNm": 3.3953891673092762e-15, "maximumReserveNm": 0.0000057614965050430235, "capacityLimited": false },
+    { "id": "MSH-A05", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.4369833355987933, "maximumResidualNm": 2.2432329295973483e-15, "maximumReserveNm": 0.000010410046354292795, "capacityLimited": false },
+    { "id": "MSH-A06", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.2804475555983328, "maximumResidualNm": 2.305160778920531e-15, "maximumReserveNm": 0.000003278903570520857, "capacityLimited": false },
+    { "id": "MSH-A07", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.2576889181222058, "maximumResidualNm": 2.5006273957848537e-15, "maximumReserveNm": 0.0000024062768976873953, "capacityLimited": false },
+    { "id": "MSH-A08", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.3011152848235015, "maximumResidualNm": 3.026621515260855e-15, "maximumReserveNm": 0.0000053801156388576096, "capacityLimited": false },
+    { "id": "MSH-A09", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.30682966359726555, "maximumResidualNm": 4.57868911242585e-15, "maximumReserveNm": 0.0000062636027163563795, "capacityLimited": false },
+    { "id": "MSH-A10", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.2632663325369072, "maximumResidualNm": 1.7719601031292902e-15, "maximumReserveNm": 0.000004749194958950944, "capacityLimited": false },
+    { "id": "MSH-A11", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.26579144769696694, "maximumResidualNm": 2.4845481693471254e-15, "maximumReserveNm": 0.000004959283684783761, "capacityLimited": false },
+    { "id": "MSH-A12", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.34022472465449244, "maximumResidualNm": 3.663926841608835e-15, "maximumReserveNm": 0.000013980838846077346, "capacityLimited": false },
+    { "id": "MSH-A13", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.3360535471282156, "maximumResidualNm": 3.5056460729335516e-15, "maximumReserveNm": 0.00001117380873962517, "capacityLimited": false },
+    { "id": "MSH-A14", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.34078013522975237, "maximumResidualNm": 4.569273805204082e-15, "maximumReserveNm": 0.000011889407196285966, "capacityLimited": false },
+    { "id": "MSH-A15", "usable": true, "status": "usable", "activationCount": 88, "maximumActivation": 0.33908823833055673, "maximumResidualNm": 2.910442429893341e-15, "maximumReserveNm": 0.000023955993778342976, "capacityLimited": false }
+  ],
+  "comparisons": [
+    { "id": "MSH-C01", "activationEuclideanDistance": 0.8536740788135103 },
+    { "id": "MSH-C02", "activationEuclideanDistance": 0.4962019808573225 },
+    { "id": "MSH-C03", "activationEuclideanDistance": 0.09002763400093065 },
+    { "id": "MSH-C04", "activationEuclideanDistance": 0.07198766119377184 },
+    { "id": "MSH-C05", "activationEuclideanDistance": 0.04792545437279905 },
+    { "id": "MSH-C06", "activationEuclideanDistance": 0.3659276856048032 },
+    { "id": "MSH-C07", "activationEuclideanDistance": 0.4569869772108899 }
+  ],
+  "qualification": "Mechanical solver QA only; not clinical validation or individual safety clearance."
+}

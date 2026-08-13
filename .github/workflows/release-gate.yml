@@ -1,0 +1,23 @@
+name: Release gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-static-release:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the reviewed source tree
+        uses: actions/checkout@v4
+
+      - name: Verify and package without network installs
+        shell: powershell
+        run: >-
+          powershell.exe -NoProfile -ExecutionPolicy Bypass
+          -File .\release.ps1 -Package

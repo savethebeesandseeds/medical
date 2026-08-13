@@ -1,61 +1,34 @@
 param(
     [ValidateRange(1, 65535)]
-    [int]$Port = 8080,
-
-    [ValidateRange(1, 128)]
-    [int]$BuildJobs = 4
+    [int]$Port = 8080
 )
 
 $ErrorActionPreference = 'Stop'
-$ProjectRoot = 'C:\Work\medical\muscles'
-$ContainerName = 'opensim-muscles'
-$CacheVolume = 'opensim-muscles-opt'
+$ProjectRoot = $PSScriptRoot
+$ContainerName = 'ms-human-muscles'
 
-function Get-PublishedWebPort {
-    param([int]$FallbackPort)
-
-    $binding = docker port $ContainerName '8080/tcp' 2>$null | Select-Object -First 1
-    if ($binding -match ':(\d+)$') {
-        return [int]$Matches[1]
-    }
-
-    return $FallbackPort
-}
-
-function Test-OpenSimWeb {
+function Test-Web {
     param([int]$WebPort)
-
     try {
-        Invoke-WebRequest `
-            -UseBasicParsing `
-            -Uri "http://localhost:$WebPort/api/health" `
-            -TimeoutSec 5 | Out-Null
-        return $true
+        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:$WebPort/" -TimeoutSec 5
+        return $response.StatusCode -eq 200 -and $response.Content -match 'app-ms-human.js'
     }
-    catch {
-        return $false
-    }
+    catch { return $false }
 }
 
-function Write-LaunchSummary {
-    param(
-        [string]$Status,
-        [int]$WebPort,
-        [bool]$Ready
-    )
-
-    $webAddress = "http://localhost:$WebPort"
-
-    Write-Host ''
-    Write-Host 'MoBL-ARMS Upper-Extremity Explorer'
-    Write-Host ('  Status  {0}' -f $Status)
-    if ($Ready) {
-        Write-Host ('  Web     {0}' -f $webAddress)
+function Get-PublishedPort {
+    param([string]$Name)
+    $mapping = @(docker port $Name 8080/tcp)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker could not inspect the published port for '$Name'."
     }
-    else {
-        Write-Host ('  Web     {0} (available after setup finishes)' -f $webAddress)
+    $ports = @($mapping | ForEach-Object {
+        if ($_ -match ':(\d+)$') { [int]$Matches[1] }
+    } | Select-Object -Unique)
+    if ($ports.Count -ne 1) {
+        throw "The existing '$Name' container does not have one unambiguous host port for 8080/tcp."
     }
-    Write-Host ('  Logs    docker logs -f {0}' -f $ContainerName)
+    return $ports[0]
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'setup.sh'))) {
@@ -68,39 +41,27 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if ($existing -eq $ContainerName) {
+    $publishedPort = Get-PublishedPort -Name $ContainerName
+    if ($publishedPort -ne $Port) {
+        throw "The existing '$ContainerName' container is published on port $publishedPort, not $Port. Run with -Port $publishedPort, or remove the container before choosing a different port."
+    }
     $running = docker ps --filter "name=^/$ContainerName$" --format '{{.Names}}'
-    if ($LASTEXITCODE -ne 0) {
-        throw "Docker could not inspect the '$ContainerName' container."
-    }
-
-    if ($running -ne $ContainerName) {
-        docker start $ContainerName | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            throw "Docker could not start the '$ContainerName' container."
-        }
-    }
-
-    $webPort = Get-PublishedWebPort -FallbackPort $Port
-    $ready = Test-OpenSimWeb -WebPort $webPort
-    $status = if ($ready) { 'ready' } else { 'starting' }
-    Write-LaunchSummary -Status $status -WebPort $webPort -Ready $ready
+    if ($running -ne $ContainerName) { docker start $ContainerName | Out-Null }
+    $ready = Test-Web -WebPort $Port
+    Write-Host ''
+    Write-Host 'MS-Human-700 Upper-Limb Explorer'
+    Write-Host ('  Status  {0}' -f $(if ($ready) { 'ready' } else { 'starting' }))
+    Write-Host ('  Web     http://localhost:{0}' -f $Port)
+    Write-Host ('  Logs    docker logs -f {0}' -f $ContainerName)
     exit 0
-}
-
-docker volume create $CacheVolume | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    throw "Docker could not create the '$CacheVolume' cache volume."
 }
 
 $containerId = docker run --detach `
     --name $ContainerName `
-    --hostname opensim-muscles `
-    --gpus all `
+    --hostname ms-human-muscles `
     --restart unless-stopped `
     --publish "127.0.0.1:${Port}:8080" `
     --mount "type=bind,source=$ProjectRoot,target=/workspace" `
-    --mount "type=volume,source=$CacheVolume,target=/opt" `
-    --env "OPENSIM_BUILD_JOBS=$BuildJobs" `
     debian:11 `
     bash /workspace/setup.sh
 
@@ -108,4 +69,8 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($containerId)) {
     throw "Docker could not create the '$ContainerName' container."
 }
 
-Write-LaunchSummary -Status 'starting' -WebPort $Port -Ready $false
+Write-Host ''
+Write-Host 'MS-Human-700 Upper-Limb Explorer'
+Write-Host '  Status  starting'
+Write-Host ('  Web     http://localhost:{0}' -f $Port)
+Write-Host ('  Logs    docker logs -f {0}' -f $ContainerName)

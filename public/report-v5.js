@@ -1,36 +1,124 @@
 const REPORT_SCHEMA = 'waajacu-medical-biomechanical-assessment';
 export const REPORT_SCHEMA_VERSION = 5;
 
-const CONTROL_FLOOR = 0.01;
-const MODEL_ONLY_PREFIX = 'D';
-const SHOULDER_MUSCLES = new Set([
-    'DELT1', 'DELT2', 'DELT3', 'SUPSP', 'INFSP', 'SUBSC', 'TMIN', 'TMAJ',
-    'PECM1', 'PECM2', 'PECM3', 'LAT1', 'LAT2', 'LAT3', 'CORB', 'BIClong',
-    'BICshort', 'TRIlong'
+const DEFAULT_MS_HUMAN_CONTROL_FLOOR = 0;
+const MS_HUMAN_SHOULDER_MUSCLES = new Set([
+    'DELT1_r', 'DELT2_r', 'DELT3_r', 'SUPSP_r', 'INFSP_r', 'SUBSC_r', 'TMIN_r',
+    'TMAJ_r', 'PECM1_r', 'PECM2_r', 'PECM3_r', 'CORB_r', 'BIClong_r',
+    'BICshort_r', 'TRIlong_r',
+    'LD_L1_r', 'LD_L2_r', 'LD_L3_r', 'LD_L4_r', 'LD_L5_r', 'LD_T12_r',
+    'LD_T11_r', 'LD_T10_r', 'LD_T9_r', 'LD_T8_r', 'LD_T7_r', 'LD_R12_r',
+    'LD_R11_r', 'LD_IL_r',
+    'cleid_mast', 'cleid_occ', 'trap_cl', 'trap_acr_scap', 'trap_acr_T1',
+    'trap_acr_T2', 'trap_acr_T3', 'trap_inf_T4', 'trap_inf_T5', 'trap_inf_T6',
+    'trap_inf_T7', 'trap_inf_T8', 'trap_inf_T9', 'trap_inf_T10', 'trap_inf_T11',
+    'trap_inf_T12', 'levator_scap', 'SerrAnt1_1_R', 'SerrAnt2_1_R',
+    'SerrAnt2_2_R', 'SerrAnt3_1_R', 'SerrAnt4_1_R', 'SerrAnt5_1_R',
+    'SerrAnt6_1_R', 'SerrAnt7_1_R', 'SerrAnt8_1_R', 'SerrAnt9_1_R'
+]);
+const MS_HUMAN_SCAPULAR_STABILIZERS = new Set([
+    'cleid_mast', 'cleid_occ', 'trap_cl', 'trap_acr_scap', 'trap_acr_T1',
+    'trap_acr_T2', 'trap_acr_T3', 'trap_inf_T4', 'trap_inf_T5', 'trap_inf_T6',
+    'trap_inf_T7', 'trap_inf_T8', 'trap_inf_T9', 'trap_inf_T10', 'trap_inf_T11',
+    'trap_inf_T12', 'levator_scap', 'SerrAnt1_1_R', 'SerrAnt2_1_R',
+    'SerrAnt2_2_R', 'SerrAnt3_1_R', 'SerrAnt4_1_R', 'SerrAnt5_1_R',
+    'SerrAnt6_1_R', 'SerrAnt7_1_R', 'SerrAnt8_1_R', 'SerrAnt9_1_R'
 ]);
 
-const MATCHED_COMPARISON_DEFINITIONS = Object.freeze([
-    { id: 'plane_30_forward_vs_diagonal', name: 'Forward vs diagonal elevation at 30 degrees', trialIds: ['M4', 'M7'], controlledVariables: ['shoulder elevation 30 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'elevation_plane' },
-    { id: 'plane_30_diagonal_vs_lateral', name: 'Diagonal vs lateral elevation at 30 degrees', trialIds: ['M7', 'M10'], controlledVariables: ['shoulder elevation 30 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'elevation_plane' },
-    { id: 'plane_45_forward_vs_diagonal', name: 'Forward vs diagonal elevation at 45 degrees', trialIds: ['M5', 'M8'], controlledVariables: ['shoulder elevation 45 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'elevation_plane' },
-    { id: 'plane_45_diagonal_vs_lateral', name: 'Diagonal vs lateral elevation at 45 degrees', trialIds: ['M8', 'M11'], controlledVariables: ['shoulder elevation 45 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'elevation_plane' },
-    { id: 'plane_60_forward_vs_diagonal', name: 'Forward vs diagonal elevation at 60 degrees', trialIds: ['M6', 'M9'], controlledVariables: ['shoulder elevation 60 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'elevation_plane' },
-    { id: 'plane_60_diagonal_vs_lateral', name: 'Diagonal vs lateral elevation at 60 degrees', trialIds: ['M9', 'M12'], controlledVariables: ['shoulder elevation 60 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'elevation_plane' },
-    { id: 'forward_elevation_30_vs_45', name: 'Forward elevation 30 vs 45 degrees', trialIds: ['M4', 'M5'], controlledVariables: ['forward plane', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_elevation' },
-    { id: 'forward_elevation_45_vs_60', name: 'Forward elevation 45 vs 60 degrees', trialIds: ['M5', 'M6'], controlledVariables: ['forward plane', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_elevation' },
-    { id: 'diagonal_elevation_30_vs_45', name: 'Diagonal elevation 30 vs 45 degrees', trialIds: ['M7', 'M8'], controlledVariables: ['diagonal plane', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_elevation' },
-    { id: 'diagonal_elevation_45_vs_60', name: 'Diagonal elevation 45 vs 60 degrees', trialIds: ['M8', 'M9'], controlledVariables: ['diagonal plane', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_elevation' },
-    { id: 'lateral_elevation_30_vs_45', name: 'Lateral elevation 30 vs 45 degrees', trialIds: ['M10', 'M11'], controlledVariables: ['lateral plane', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_elevation' },
-    { id: 'lateral_elevation_45_vs_60', name: 'Lateral elevation 45 vs 60 degrees', trialIds: ['M11', 'M12'], controlledVariables: ['lateral plane', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_elevation' },
-    { id: 'internal_vs_external_rotation_20', name: 'Internal vs external rotation at 20 degrees', trialIds: ['M13', 'M15'], controlledVariables: ['shoulder elevation 15 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_rotation_direction' },
-    { id: 'internal_vs_external_rotation_40', name: 'Internal vs external rotation at 40 degrees', trialIds: ['M14', 'M16'], controlledVariables: ['shoulder elevation 15 degrees', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'shoulder_rotation_direction' },
-    { id: 'forearm_supination_vs_pronation', name: 'Forearm supination vs pronation at 45 degrees', trialIds: ['M17', 'M18'], controlledVariables: ['shoulder neutral', 'elbow flexion 90 degrees', 'gravity-only reference'], changedVariable: 'forearm_rotation_direction' }
-]);
+const PROTOCOL_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/i;
+
+function normalizeAssessmentProtocol(protocol = {}) {
+    const id = String(protocol.id ?? protocol.assessmentProtocolId ?? '').trim() || null;
+    const version = String(protocol.version ?? protocol.protocolVersion ?? '').trim() || null;
+    const digest = String(protocol.digest ?? protocol.assessmentProtocolDigest ?? '').trim().toLowerCase() || null;
+    const identityVerified = Boolean(id && version && digest && PROTOCOL_DIGEST_PATTERN.test(digest));
+    return {
+        id,
+        version,
+        digest,
+        name: String(protocol.name ?? '').trim() || null,
+        identityVerified,
+        trialCount: Array.isArray(protocol.trialIds) ? protocol.trialIds.length : null,
+        matchedComparisonCount: Array.isArray(protocol.matchedComparisons) ? protocol.matchedComparisons.length : 0
+    };
+}
+
+function protocolIdentityFromReport(report = {}) {
+    const assessment = report.assessment ?? {};
+    return normalizeAssessmentProtocol(assessment.assessmentProtocol ?? {
+        assessmentProtocolId: assessment.assessmentProtocolId,
+        protocolVersion: assessment.protocolVersion,
+        assessmentProtocolDigest: assessment.assessmentProtocolDigest
+    });
+}
+
+function protocolsMatch(left, right) {
+    return left.identityVerified
+        && right.identityVerified
+        && left.id === right.id
+        && left.version === right.version
+        && left.digest === right.digest;
+}
 
 function finiteOrNull(value) {
     if (value === '' || value === null || value === undefined) return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
+}
+
+function modelIdentityText(model = {}) {
+    const source = model.source && typeof model.source === 'object'
+        ? Object.values(model.source).join(' ')
+        : model.source;
+    return [model.id, model.name, model.variant, model.runtime, source]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+}
+
+function isPreMsHumanModel(model = {}) {
+    const identity = modelIdentityText(model);
+    return Boolean(identity) && !identity.includes('ms-human');
+}
+
+function modelMuscleNames(model = {}) {
+    if (!Array.isArray(model.muscles)) return [];
+    return [...new Set(model.muscles.map((muscle) => (
+        typeof muscle === 'string' ? muscle : muscle?.name
+    )).filter(Boolean))];
+}
+
+function modelControlFloor(model = {}) {
+    const configured = finiteOrNull(model.controlFloor ?? model.staticHold?.controlFloor);
+    if (Number.isFinite(configured)) return Math.max(0, configured);
+    return isPreMsHumanModel(model) ? 0.01 : DEFAULT_MS_HUMAN_CONTROL_FLOOR;
+}
+
+function shoulderMuscleNames(model = {}, availableNames = []) {
+    const modelNames = new Set(modelMuscleNames(model));
+    const available = new Set(availableNames.filter(Boolean));
+    const explicit = [
+        ...(Array.isArray(model.shoulderMuscles) ? model.shoulderMuscles : []),
+        ...(Array.isArray(model.scapularStabilizers) ? model.scapularStabilizers : [])
+    ].map((muscle) => typeof muscle === 'string' ? muscle : muscle?.name).filter(Boolean);
+    const result = new Set(explicit);
+    for (const name of MS_HUMAN_SHOULDER_MUSCLES) {
+        if (modelNames.has(name) || available.has(name)) result.add(name);
+    }
+    return [...result].filter((name) => !available.size || available.has(name));
+}
+
+function scapularStabilizerNames(model = {}) {
+    const modelNames = new Set(modelMuscleNames(model));
+    const explicit = (Array.isArray(model.scapularStabilizers) ? model.scapularStabilizers : [])
+        .map((muscle) => typeof muscle === 'string' ? muscle : muscle?.name)
+        .filter(Boolean);
+    if (explicit.length) return [...new Set(explicit)];
+    return [...MS_HUMAN_SCAPULAR_STABILIZERS].filter((name) => modelNames.has(name));
+}
+
+function analysisType(model = {}) {
+    return model.analysisType ?? model.staticHold?.method ?? 'bounded_static_equilibrium';
 }
 
 function mean(values) {
@@ -82,22 +170,6 @@ function symptomState(value, score, legacyPositive) {
 }
 
 function normalizeObservation(raw = {}, executionMode = 'person_attempted', migratedFromVersion = null) {
-    if (executionMode === 'model_only') {
-        return {
-            attempted: false,
-            answered: false,
-            completion: 'not_recorded',
-            limitingFactors: [],
-            pain: { state: 'not_recorded', score: null, locations: [], quality: [], familiar: 'not_recorded', onsetAngleDegrees: null, phase: null },
-            weakness: { state: 'not_recorded', score: null },
-            compensation: { state: 'not_recorded', details: [] },
-            stiffness: { state: 'not_recorded' },
-            repeatable: 'not_recorded',
-            notes: null,
-            excludedReason: 'Model-only research posture; no person observation is represented.'
-        };
-    }
-
     const completion = mapLegacyCompletion(raw);
     const painScore = finiteOrNull(raw.painScore ?? raw.peakScore);
     const weaknessScore = finiteOrNull(raw.weaknessScore ?? raw.perceivedWeaknessScore);
@@ -166,14 +238,15 @@ function normalizeObservation(raw = {}, executionMode = 'person_attempted', migr
     };
 }
 
-function normalizeMuscles(modelEstimate = {}) {
+function normalizeMuscles(modelEstimate = {}, model = {}) {
+    const controlFloor = modelControlFloor(model);
     return (modelEstimate.muscles ?? []).map((muscle) => {
         const control = finiteOrNull(muscle.predictedModelControl ?? muscle.activation);
         const activeForce = finiteOrNull(muscle.predictedGenericActiveForceN ?? muscle.activeActuatorForceN);
         return {
             name: muscle.name,
             predictedModelControl: control,
-            predictedModelControlAboveFloor: Number.isFinite(control) ? Math.max(0, control - CONTROL_FLOOR) : null,
+            predictedModelControlAboveFloor: Number.isFinite(control) ? Math.max(0, control - controlFloor) : null,
             predictedGenericActiveForceN: activeForce
         };
     }).filter((muscle) => muscle.name && Number.isFinite(muscle.predictedModelControl));
@@ -188,10 +261,11 @@ function compactModelReference(modelEstimate, targetPose, model = {}) {
             notComputableReason: modelEstimate?.reason || 'Validated static reference not available.'
         };
     }
-    const muscles = normalizeMuscles(modelEstimate);
-    const shoulder = muscles.filter((muscle) => SHOULDER_MUSCLES.has(muscle.name));
+    const muscles = normalizeMuscles(modelEstimate, model);
+    const shoulderNames = new Set(shoulderMuscleNames(model, muscles.map((muscle) => muscle.name)));
+    const shoulder = muscles.filter((muscle) => shoulderNames.has(muscle.name));
     const relevant = shoulder.sort((a, b) => b.predictedModelControl - a.predictedModelControl).slice(0, 8);
-    const outlier = [...muscles].filter((muscle) => !SHOULDER_MUSCLES.has(muscle.name)).sort((a, b) => b.predictedModelControl - a.predictedModelControl)[0];
+    const outlier = [...muscles].filter((muscle) => !shoulderNames.has(muscle.name)).sort((a, b) => b.predictedModelControl - a.predictedModelControl)[0];
     return {
         available: muscles.length > 0,
         source: modelEstimate.source || 'trial-specific-static-reference',
@@ -201,7 +275,7 @@ function compactModelReference(modelEstimate, targetPose, model = {}) {
         targetPoseUsed: targetPose,
         achievedPoseUsed: null,
         externalLoadsUsed: [],
-        analysisType: 'static_optimization',
+        analysisType: analysisType(model),
         solverConfigurationId: model.solverConfigurationId ?? null,
         modelVersion: model.id ?? null,
         topRelevantPredictedControls: relevant,
@@ -212,13 +286,13 @@ function compactModelReference(modelEstimate, targetPose, model = {}) {
             reservePercentageOfRequiredMoment: null,
             poseConstraintError: null,
             actualVsTargetPoseError: null,
-            warnings: ['Packaged generic reference posture; not a simulation of the observed person.']
+            warnings: ['Generic model reference posture; not a simulation or measurement of the observed person.']
         }
     };
 }
 
 function technicalModelRecord(trialId, modelEstimate, targetPose, model = {}) {
-    const muscles = normalizeMuscles(modelEstimate);
+    const muscles = normalizeMuscles(modelEstimate, model);
     return {
         trialId,
         available: Boolean(modelEstimate?.available && muscles.length),
@@ -230,7 +304,7 @@ function technicalModelRecord(trialId, modelEstimate, targetPose, model = {}) {
             targetPoseUsed: targetPose,
             achievedPoseUsed: null,
             externalLoadsUsed: [],
-            analysisType: 'static_optimization',
+            analysisType: analysisType(model),
             solverConfigurationId: model.solverConfigurationId ?? null,
             modelVersion: model.id ?? null,
             modelSource: model.source ?? null,
@@ -245,27 +319,25 @@ function technicalModelRecord(trialId, modelEstimate, targetPose, model = {}) {
             poseConstraintError: null,
             actualVsTargetPoseError: null
         },
-        controlFloor: CONTROL_FLOOR,
+        controlFloor: modelControlFloor(model),
         forceDefinition: 'Generic-model active actuator force only; passive fiber force and external loads are excluded.',
         muscles
     };
 }
 
 function canonicalTrial(record, model, migratedFromVersion = null) {
-    const modelOnly = record.executionMode === 'model_only' || String(record.id).startsWith(MODEL_ONLY_PREFIX);
-    const executionMode = modelOnly ? 'model_only' : (record.executionMode || 'person_attempted');
+    const executionMode = 'person_attempted';
     const raw = record.rawObservation ?? record.response ?? record.observation ?? {};
     const targetPose = { ...record.coordinatesDegrees ?? record.targetPose ?? record.coordinates ?? {} };
     const observation = normalizeObservation(raw, executionMode, migratedFromVersion);
     return {
         id: record.id,
-        sequence: modelOnly ? null : finiteOrNull(record.sequence),
-        protocolSection: modelOnly ? 'research_model_discrimination' : 'human_matched_postures',
+        sequence: finiteOrNull(record.sequence),
+        protocolSection: record.protocolSection || 'static_posture_observation',
         executionMode,
-        includeInHumanProtocol: !modelOnly,
-        includeInSymptomAssociation: !modelOnly,
+        includeInHumanProtocol: true,
         name: record.name,
-        instruction: modelOnly ? 'Computational research posture. Do not present as a person attempt.' : record.instruction,
+        instruction: record.instruction,
         targetPose: { coordinatesDegrees: targetPose, source: 'protocol_definition' },
         achievedPose: observation.achievedPose
             ? { coordinatesDegrees: observation.achievedPose, source: 'manual_entry' }
@@ -335,11 +407,11 @@ function dataQuality(trials, migratedFromVersion = null) {
     const warnings = human.flatMap(observationWarnings);
     if (migratedFromVersion) warnings.push({ code: 'legacy_report_migrated', message: `Version ${migratedFromVersion} data was migrated conservatively; absent symptom answers remain not recorded.` });
     const conflict = warnings.some((warning) => warning.code !== 'legacy_report_migrated');
-    const interpretabilityStatus = conflict ? 'conflicting'
-        : attempted.length === 0 || missingRequiredFields.length > 0 ? 'insufficient_data'
-            : 'interpretable';
+    const recordStatus = conflict ? 'conflicting_record'
+        : attempted.length === 0 || missingRequiredFields.length > 0 ? 'incomplete_record'
+            : 'complete_record';
     return {
-        interpretabilityStatus,
+        recordStatus,
         requiredTrialCount: human.length,
         recordedTrialCount: human.filter((trial) => trial.observation.completion !== 'not_recorded').length,
         attemptedTrialCount: attempted.length,
@@ -374,69 +446,26 @@ function demandRanking(trials, technicalTrials) {
     }).sort((left, right) => right.meanPredictedModelControl - left.meanPredictedModelControl).slice(0, 10);
 }
 
-function symptomRanking(kind, trials, technicalTrials) {
-    const maps = muscleMapByTrial(technicalTrials);
-    const eligible = trials.filter((trial) => trial.includeInSymptomAssociation && trial.observation.attempted && maps.get(trial.id)?.size);
-    const positive = eligible.filter((trial) => trial.observation.answered && trial.observation[kind].state === 'positive');
-    const explicitZero = eligible.filter((trial) => trial.observation.answered && trial.observation[kind].state === 'recorded_zero');
-    if (!positive.length || !explicitZero.length) {
-        const missing = eligible.filter((trial) => !trial.observation.answered || trial.observation[kind].state === 'not_recorded').map((trial) => trial.id);
-        const reason = !positive.length && !explicitZero.length
-            ? `No explicit positive or zero ${kind} observations were recorded.`
-            : !positive.length ? `No positive ${kind} observation was recorded.`
-                : `No explicit zero-${kind} comparison observation was recorded.`;
-        return { computable: false, notComputableReason: reason, positiveTrialIds: positive.map((trial) => trial.id), explicitZeroTrialIds: explicitZero.map((trial) => trial.id), missingTrialIds: missing, ranking: [] };
-    }
-    const names = [...maps.get(positive[0].id).keys()];
-    const ranking = names.map((name) => {
-        const positiveValues = positive.map((trial) => maps.get(trial.id).get(name)?.predictedModelControl).filter(Number.isFinite);
-        const zeroValues = explicitZero.map((trial) => maps.get(trial.id).get(name)?.predictedModelControl).filter(Number.isFinite);
-        const positiveMean = mean(positiveValues);
-        const zeroMean = mean(zeroValues);
-        return {
-            name,
-            positiveMeanPredictedModelControl: positiveMean,
-            explicitZeroMeanPredictedModelControl: zeroMean,
-            associationContrast: Number.isFinite(positiveMean) && Number.isFinite(zeroMean) ? positiveMean - zeroMean : null,
-            supportingTrialIds: positive.map((trial) => trial.id),
-            comparisonTrialIds: explicitZero.map((trial) => trial.id)
-        };
-    }).filter((row) => Number.isFinite(row.associationContrast)).sort((left, right) => right.associationContrast - left.associationContrast).slice(0, 10);
-    return { computable: true, notComputableReason: null, positiveTrialIds: positive.map((trial) => trial.id), explicitZeroTrialIds: explicitZero.map((trial) => trial.id), missingTrialIds: [], ranking };
-}
-
 function numericSymptomValue(symptom) {
     if (symptom.state === 'recorded_zero') return 0;
     if (symptom.state === 'positive' && Number.isFinite(symptom.score)) return symptom.score;
     return null;
 }
 
-function matchedComparisons(trials, technicalTrials) {
+function matchedComparisons(trials, definitions = []) {
     const trialMap = new Map(trials.map((trial) => [trial.id, trial]));
-    const modelMaps = muscleMapByTrial(technicalTrials);
-    return MATCHED_COMPARISON_DEFINITIONS.map((definition) => {
+    return definitions.filter((definition) => (
+        definition?.id
+        && Array.isArray(definition.trialIds)
+        && definition.trialIds.length === 2
+        && definition.trialIds[0] !== definition.trialIds[1]
+    )).map((definition) => {
         const [left, right] = definition.trialIds.map((id) => trialMap.get(id));
         if (!left || !right) return null;
         const leftPain = numericSymptomValue(left.observation.pain);
         const rightPain = numericSymptomValue(right.observation.pain);
         const leftWeakness = numericSymptomValue(left.observation.weakness);
         const rightWeakness = numericSymptomValue(right.observation.weakness);
-        const leftMuscles = modelMaps.get(left.id);
-        const rightMuscles = modelMaps.get(right.id);
-        const modelDelta = [];
-        if (leftMuscles && rightMuscles) {
-            for (const name of SHOULDER_MUSCLES) {
-                const first = leftMuscles.get(name);
-                const second = rightMuscles.get(name);
-                if (!first || !second) continue;
-                modelDelta.push({
-                    name,
-                    predictedModelControlDelta: second.predictedModelControl - first.predictedModelControl,
-                    predictedGenericActiveForceNDelta: Number.isFinite(first.predictedGenericActiveForceN) && Number.isFinite(second.predictedGenericActiveForceN)
-                        ? second.predictedGenericActiveForceN - first.predictedGenericActiveForceN : null
-                });
-            }
-        }
         const observationsComplete = left.observation.answered && right.observation.answered;
         const numericSymptomDeltaComplete = Number.isFinite(leftPain) && Number.isFinite(rightPain)
             && Number.isFinite(leftWeakness) && Number.isFinite(rightWeakness);
@@ -455,60 +484,37 @@ function matchedComparisons(trials, technicalTrials) {
                     : !numericSymptomDeltaComplete
                         ? 'Pain and weakness score deltas require explicit numeric scores (zero is accepted only after an explicit no answer).'
                         : null
-            },
-            modelDelta
+            }
         };
     }).filter(Boolean);
 }
 
-function hypothesisEvidence(associations) {
-    const evidence = [];
-    for (const [kind, result] of Object.entries(associations)) {
-        if (!result.computable) {
-            evidence.push({
-                hypothesis: `${kind}_linked_model_demand`,
-                supportingEvidence: [],
-                contradictingEvidence: [],
-                unknownBecause: [result.notComputableReason],
-                confidence: 'not_computable'
-            });
-            continue;
-        }
-        for (const row of result.ranking.slice(0, 5)) {
-            evidence.push({
-                hypothesis: `${row.name} generic-model demand is associated with recorded ${kind} in this protocol`,
-                supportingEvidence: row.supportingTrialIds.map((trialId) => ({ trialId, evidence: `Explicit positive ${kind} observation` })),
-                contradictingEvidence: row.comparisonTrialIds.map((trialId) => ({ trialId, evidence: `Explicit zero-${kind} comparison observation` })),
-                unknownBecause: ['Association does not identify a painful or impaired tissue.', 'Reference values are generic and not subject-specific.'],
-                confidence: 'descriptive_only'
-            });
-        }
-    }
-    return evidence;
+function observedTrialIds(trials, kind) {
+    return trials.filter((trial) => trial.observation?.[kind]?.state === 'positive').map((trial) => trial.id);
 }
 
-function reportSummary(quality, trials, associations) {
-    if (quality.interpretabilityStatus === 'insufficient_data') {
+function reportSummary(quality, trials) {
+    if (quality.recordStatus === 'incomplete_record') {
         return {
-            status: 'insufficient_data',
-            statement: `${quality.recordedTrialCount} reference posture result(s) were recorded, but required symptom or movement-quality observations are missing. No symptom-linked muscle comparison can be calculated.`,
-            painAssociatedTrialIds: [],
-            weaknessAssociatedTrialIds: []
+            status: 'incomplete_record',
+            statement: `${quality.recordedTrialCount} reference posture result(s) were recorded, but required symptom or movement-quality observations are missing. This is an incomplete observation record.`,
+            painObservedTrialIds: observedTrialIds(trials, 'pain'),
+            weaknessObservedTrialIds: observedTrialIds(trials, 'weakness')
         };
     }
-    if (quality.interpretabilityStatus === 'conflicting') {
+    if (quality.recordStatus === 'conflicting_record') {
         return {
-            status: 'conflicting',
-            statement: 'Some recorded fields conflict. Resolve the listed data-quality warnings before interpreting symptom-linked comparisons.',
-            painAssociatedTrialIds: associations.pain.positiveTrialIds,
-            weaknessAssociatedTrialIds: associations.weakness.positiveTrialIds
+            status: 'conflicting_record',
+            statement: 'Some recorded fields conflict. Resolve the listed data-quality warnings before treating the observation record as complete.',
+            painObservedTrialIds: observedTrialIds(trials, 'pain'),
+            weaknessObservedTrialIds: observedTrialIds(trials, 'weakness')
         };
     }
     return {
-        status: 'interpretable',
-        statement: 'Required observations are explicit. Any muscle results below describe associations with generic-model posture demand, not a tissue diagnosis.',
-        painAssociatedTrialIds: associations.pain.positiveTrialIds,
-        weaknessAssociatedTrialIds: associations.weakness.positiveTrialIds
+        status: 'complete_record',
+        statement: 'Required posture observations are explicit. This records what was reported during the protocol; it does not associate symptoms with muscles or identify a tissue diagnosis.',
+        painObservedTrialIds: observedTrialIds(trials, 'pain'),
+        weaknessObservedTrialIds: observedTrialIds(trials, 'weakness')
     };
 }
 
@@ -520,27 +526,62 @@ export function createAssessmentId() {
 export function buildReportV5({
     assessmentId = createAssessmentId(), generatedAt = new Date().toISOString(), testedSide = 'right',
     safetyReviewed = false, redFlags = [], intake = {}, positionRecords = [], model = {},
-    capacityLossCompatibility = [], migratedFromVersion = null, syntheticData = false,
-    legacySymptomAssessment = null
+    assessmentProtocol = {},
+    migratedFromVersion = null, syntheticData = false,
+    legacySymptomAssessment = null,
+    migrationReason = null
 }) {
-    const trials = positionRecords.map((record) => canonicalTrial(record, model, migratedFromVersion));
-    const technicalTrials = positionRecords.map((record) => technicalModelRecord(record.id, record.modelEstimate, record.coordinatesDegrees ?? record.coordinates ?? {}, model));
+    const protocolIdentity = normalizeAssessmentProtocol(assessmentProtocol);
+    const protocolComparisons = protocolIdentity.identityVerified && Array.isArray(assessmentProtocol.matchedComparisons)
+        ? assessmentProtocol.matchedComparisons
+        : [];
+    const humanRecords = positionRecords.filter((record) => record.executionMode !== 'model_only');
+    const trials = humanRecords.map((record) => canonicalTrial(record, model, migratedFromVersion));
+    const technicalTrials = humanRecords.map((record) => technicalModelRecord(record.id, record.modelEstimate, record.coordinatesDegrees ?? record.coordinates ?? {}, model));
     const quality = dataQuality(trials, migratedFromVersion);
-    let associations = {
-        pain: symptomRanking('pain', trials, technicalTrials),
-        weakness: symptomRanking('weakness', trials, technicalTrials)
-    };
-    if (quality.interpretabilityStatus !== 'interpretable') {
-        associations = Object.fromEntries(Object.entries(associations).map(([kind, result]) => [kind, {
-            ...result,
-            computable: false,
-            notComputableReason: `Report data quality is ${quality.interpretabilityStatus}; complete or resolve all required observations before calculating ${kind}-linked comparisons.`,
-            ranking: []
-        }]));
+    if (!protocolIdentity.identityVerified) {
+        quality.recordStatus = 'incomplete_record';
+        quality.warnings.push({
+            code: 'assessment_protocol_identity_unverified',
+            message: 'The assessment protocol requires an explicit ID, version, and sha256 digest. Controlled-pair summaries and protocol demand references are disabled.'
+        });
     }
-    const comparisons = matchedComparisons(trials, technicalTrials);
-    const humanTrials = trials.filter((trial) => trial.includeInHumanProtocol);
-    const researchTrials = trials.filter((trial) => trial.executionMode === 'model_only');
+    if (migrationReason) {
+        quality.recordStatus = 'incomplete_record';
+        quality.warnings.push({
+            code: 'assessment_protocol_migration_required',
+            message: 'Stored observations belong to an earlier or unverifiable assessment protocol. They were archived read-only and must not be treated as trials in the current panel.',
+            reason: migrationReason
+        });
+    }
+    const comparisons = protocolIdentity.identityVerified
+        ? matchedComparisons(trials, protocolComparisons)
+        : [];
+    const humanTrials = trials;
+    const legacyModelRecord = isPreMsHumanModel(model) || Boolean(migratedFromVersion);
+    const scapularStabilizers = scapularStabilizerNames(model);
+    const modeledMuscles = modelMuscleNames(model);
+    const missingIndependentActuators = Array.isArray(model.coverage?.missingIndependentActuators)
+        ? [...model.coverage.missingIndependentActuators]
+        : [];
+    const legacyNotice = legacyModelRecord
+        ? 'This stored report predates the current model or assessment protocol. Human-entered observations were archived read-only; prior protocol mappings, model estimates, solver output, rankings, and references were removed.'
+        : null;
+    const limitations = [
+        'No single shoulder movement, activation estimate, force estimate, or model ratio identifies the painful tissue.',
+        'Predicted controls and active forces are generic posture references, not measurements from the observed person.',
+        'Actual achieved posture, movement speed, support, assistance, and resistance were not measured.',
+        'Static recruitment uses an assumed minimum-control objective and does not reproduce dynamic neuromuscular control.',
+        'The static reference uses model self-weight with no measured contact or external hand load; supported, assisted, or resisted observations cannot be inferred from it.',
+        scapularStabilizers.length
+            ? 'Modeled trapezius, serratus-anterior, and related shoulder-girdle stabilizers participate in equilibrium, but their predicted controls do not measure observed scapular motion or compensation.'
+            : 'Independent scapular-stabilizer coverage was not recorded for this model result; scapular compensation cannot be inferred.',
+        'Left-side display is a visual mirror of a right-side model and does not estimate biological side asymmetry.'
+    ];
+    if (!protocolIdentity.identityVerified) {
+        limitations.push('Assessment protocol identity is incomplete; model comparisons and protocol-level interpretation are disabled.');
+    }
+    if (legacyNotice) limitations.push(legacyNotice);
     const mainReport = {
         schema: REPORT_SCHEMA,
         schemaVersion: REPORT_SCHEMA_VERSION,
@@ -549,42 +590,60 @@ export function buildReportV5({
             assessmentId,
             syntheticData: Boolean(syntheticData),
             reportVersion: REPORT_SCHEMA_VERSION,
-            protocolVersion: 'matched-posture-protocol-v1',
+            assessmentProtocol: protocolIdentity,
+            assessmentProtocolId: protocolIdentity.id,
+            protocolVersion: protocolIdentity.version,
+            assessmentProtocolDigest: protocolIdentity.digest,
+            protocolIdentityVerified: protocolIdentity.identityVerified,
             appCommit: model.appCommit ?? null,
             testedSide,
             modelSide: testedSide === 'left' ? 'right_model_visually_mirrored' : 'right',
-            modelScaledToSubject: false
+            modelScaledToSubject: false,
+            legacyModelRecord,
+            migrationRequired: Boolean(migrationReason),
+            migrationReason
         },
-        framing: 'Biomechanical hypothesis generator; not a medical diagnosis or treatment recommendation.',
+        framing: 'Structured posture-observation record with a separate generic biomechanical protocol reference; not a medical diagnosis or treatment recommendation.',
         dataQuality: quality,
-        summary: reportSummary(quality, trials, associations),
+        summary: reportSummary(quality, trials),
         safety: { reviewed: Boolean(safetyReviewed), positiveFlags: redFlags },
         intake: publicIntake(intake),
         trials: humanTrials,
         matchedComparisons: comparisons,
         analyses: {
-            symptomAssociations: associations,
-            protocolDemandRanking: demandRanking(humanTrials, technicalTrials)
+            genericProtocolDemand: {
+                available: protocolIdentity.identityVerified && technicalTrials.some((trial) => trial.available),
+                symptomLinked: false,
+                subjectSpecific: false,
+                scope: 'generic_model_demand_across_protocol_postures_only',
+                statement: 'This summary ranks generic-model demand across the protocol postures without using pain, weakness, or other participant observations.',
+                ranking: protocolIdentity.identityVerified ? demandRanking(humanTrials, technicalTrials) : []
+            }
         },
-        hypothesisEvidence: hypothesisEvidence(associations),
         modelCoverage: {
             modelId: model.id ?? null,
             modelName: model.name ?? null,
+            modelVariant: model.variant ?? null,
             modelSource: model.source ?? null,
+            runtime: model.runtime ?? null,
+            modelLicense: model.source?.modelLicense ?? model.modelLicense ?? null,
+            sourceCommit: model.source?.commit ?? null,
+            sourceTreeSha256: model.source?.sourceTreeSha256 ?? null,
+            analysisType: analysisType(model),
+            controlFloor: modelControlFloor(model),
+            functionalMuscleCount: finiteOrNull(model.functionalMuscleCount) ?? modeledMuscles.length,
+            shoulderMusclesIncluded: shoulderMuscleNames(model, modeledMuscles),
+            scapularStabilizersIncluded: scapularStabilizers,
+            staticHoldAssumptions: Array.isArray(model.staticHold?.assumptions) ? [...model.staticHold.assumptions] : [],
             subjectScaled: false,
-            missingIndependentActuators: ['trapezius', 'serratus_anterior'],
+            missingIndependentActuators,
             jointReactionAvailable: false,
             contralateralModelAvailable: false,
-            mirroredSideIsVisualOnly: testedSide === 'left'
+            mirroredSideIsVisualOnly: testedSide === 'left',
+            legacyModelRecord,
+            legacyNotice
         },
-        limitations: [
-            'No single shoulder movement or model ratio identifies the painful tissue.',
-            'Predicted controls and active forces are generic posture references, not measurements from the observed person.',
-            'Actual achieved posture, movement speed, support, assistance, and resistance were not measured.',
-            'Static optimization uses an assumed recruitment objective and does not reproduce dynamic neuromuscular control.',
-            'Trapezius and serratus anterior are not represented as independent actuators; scapular compensation is outside model coverage.',
-            'Left-side display is a visual mirror of a right-side model and does not estimate biological side asymmetry.'
-        ],
+        limitations,
         rawTechnicalAnnex: {
             available: true,
             separateExportRequired: true,
@@ -597,87 +656,346 @@ export function buildReportV5({
         schemaVersion: REPORT_SCHEMA_VERSION,
         generatedAt,
         assessmentId,
-        deidentified: !legacySymptomAssessment,
+        assessmentProtocol: protocolIdentity,
+        migrationRequired: Boolean(migrationReason),
+        migrationReason,
+        privacyStatus: legacySymptomAssessment
+            ? 'review_required_possible_legacy_free_text'
+            : 'technical_model_data_only',
+        directIdentifiersIncluded: false,
+        legacyModelRecord,
+        legacyNotice,
         privacyNotice: legacySymptomAssessment
             ? 'Contains preserved legacy observation fields, including possible free text. Review before sharing.'
-            : 'No direct patient identifiers or intake free text are included.',
+            : 'This annex contains technical model data only. When bundled with the full local report, the report can contain exact demographics and observation notes.',
         model,
         trialModels: technicalTrials,
-        legacySymptomAssessment,
-        researchCapacityScreen: {
-            status: 'research_only_unvalidated',
-            modelOnlyTrialIds: researchTrials.map((trial) => trial.id),
-            modelOnlyTrials: researchTrials,
-            capacityLossCompatibility,
-            researchDiscriminationDemandRanking: demandRanking(researchTrials, technicalTrials),
-            includeInHumanProtocol: false,
-            includeInSymptomAssociation: false,
-            limitations: [
-                'Observed able/unable is not equivalent to modeled complete muscle-capacity loss.',
-                'The model-only positions do not identify pain, injury, or diagnosis.',
-                'No independent one-error-correcting panel exists under the tested gravity-only protocol.'
-            ]
-        }
+        legacySymptomAssessment
     };
     return { report: mainReport, technicalAnnex };
 }
 
-function legacyPositionRecords(report) {
-    const positions = report?.capacityScreen?.positions ?? [];
-    return positions.map((position) => ({
-        id: position.id,
-        sequence: position.sequence,
-        name: position.name,
-        instruction: position.instruction,
-        executionMode: String(position.id).startsWith(MODEL_ONLY_PREFIX) ? 'model_only' : 'person_attempted',
-        coordinatesDegrees: position.coordinatesDegrees ?? position.coordinates ?? {},
-        rawObservation: position.observation ?? {},
-        modelEstimate: position.modelEstimate ?? { available: false, reason: 'Legacy report did not contain a model estimate.' }
-    }));
-}
-
-function preservedLegacyAssessment(report) {
-    if (!Array.isArray(report?.tests) || !report.tests.length) return null;
-    // Keep the discontinued assessment stream read-only in the private annex
-    // instead of silently discarding it. Legacy free text cannot be guaranteed
-    // deidentified, so the annex is explicitly marked for review before sharing.
+function removedLegacyModelMetadata() {
     return {
-        sourceSchemaVersion: Number(report.schemaVersion) || null,
-        sourceCollection: 'tests',
-        readOnly: true,
-        interpretationExcluded: true,
-        mayContainFreeTextIdentifiers: true,
-        tests: structuredClone(report.tests)
+        id: 'legacy-model-evidence-removed',
+        name: 'Prior model evidence removed during migration',
+        variant: 'human observations only',
+        scope: 'stored human observations only',
+        runtime: null,
+        source: null,
+        modelLicense: null,
+        solverConfigurationId: null,
+        analysisType: 'not_available_prior_model_evidence_removed',
+        controlFloor: 0,
+        functionalMuscleCount: 0,
+        muscles: [],
+        scapularStabilizers: [],
+        coverage: { missingIndependentActuators: [] },
+        staticHold: null,
+        appCommit: null
     };
 }
 
-export function migrateReportToV5(report, technicalAnnex = null) {
+function sanitizedHumanFields(observation = {}) {
+    const fields = [
+        'status', 'reached', 'completion', 'answered', 'result', 'pain', 'painScore',
+        'painLocation', 'painLocations', 'painQuality', 'painFamiliar', 'painOnsetAngleDegrees',
+        'painPhase', 'weakness', 'weaknessScore', 'perceivedWeaknessScore', 'stiffness',
+        'compensation', 'compensationDetail', 'limitingFactor', 'limitingFactors', 'achievedPose',
+        'repeatable', 'notes', 'maxAngle', 'onsetAngle', 'location', 'locationOther', 'familiar',
+        'severe', 'sharpOrUnfamiliar', 'neurological', 'escalating'
+    ];
+    return Object.fromEntries(fields.filter((field) => Object.hasOwn(observation, field)).map((field) => [
+        field,
+        structuredClone(observation[field])
+    ]));
+}
+
+function archivedProtocolObservations(source = {}) {
+    const canonical = Array.isArray(source.trials) ? source.trials.map((trial) => ({
+        sourceTrialId: trial.id ?? null,
+        sourceTrialName: trial.name ?? null,
+        observation: sanitizedHumanFields(rawObservationFromCanonical(trial.observation ?? {}))
+    })) : [];
+    const positions = Array.isArray(source.capacityScreen?.positions)
+        ? source.capacityScreen.positions.filter((position) => position.executionMode !== 'model_only').map((position) => ({
+            sourceTrialId: position.id ?? null,
+            sourceTrialName: position.name ?? null,
+            observation: sanitizedHumanFields(position.observation ?? position.response ?? {})
+        }))
+        : [];
+    const alreadyArchived = Array.isArray(source.archivedProtocolObservations)
+        ? source.archivedProtocolObservations.map((entry) => ({
+            sourceTrialId: entry.sourceTrialId ?? null,
+            sourceTrialName: entry.sourceTrialName ?? null,
+            observation: sanitizedHumanFields(entry.observation ?? {})
+        }))
+        : [];
+    return [...canonical, ...positions, ...alreadyArchived];
+}
+
+function preservedLegacyAssessment(source, sourceSchemaVersion = null) {
+    if (!source || typeof source !== 'object') return null;
+    const tests = Array.isArray(source.tests) ? source.tests.map((test) => ({
+        id: test.id ?? null,
+        name: test.name ?? null,
+        observation: sanitizedHumanFields(test.observation ?? test.response ?? {})
+    })) : [];
+    const responses = source.responses && typeof source.responses === 'object'
+        ? Object.fromEntries(Object.entries(source.responses).map(([id, response]) => [id, sanitizedHumanFields(response)]))
+        : {};
+    const observations = archivedProtocolObservations(source);
+    if (!tests.length && !Object.keys(responses).length && !observations.length) return null;
+    return {
+        sourceSchemaVersion: Number(sourceSchemaVersion ?? source.sourceSchemaVersion) || null,
+        sourceCollection: tests.length ? 'tests' : 'responses',
+        readOnly: true,
+        interpretationExcluded: true,
+        modelEvidenceRemoved: true,
+        protocolDefinitionRemoved: true,
+        mayContainFreeTextIdentifiers: true,
+        ...(tests.length ? { tests } : {}),
+        ...(Object.keys(responses).length ? { responses } : {}),
+        ...(observations.length ? { archivedProtocolObservations: observations } : {})
+    };
+}
+
+function mergePreservedAssessments(...collections) {
+    const retained = collections.filter(Boolean);
+    if (!retained.length) return null;
+    const tests = retained.flatMap((collection) => collection.tests ?? []);
+    const responses = Object.assign({}, ...retained.map((collection) => collection.responses ?? {}));
+    const observations = retained.flatMap((collection) => collection.archivedProtocolObservations ?? []);
+    return {
+        sourceSchemaVersion: retained[0].sourceSchemaVersion ?? null,
+        sourceCollection: 'archived_protocol_observations',
+        readOnly: true,
+        interpretationExcluded: true,
+        modelEvidenceRemoved: true,
+        protocolDefinitionRemoved: true,
+        mayContainFreeTextIdentifiers: true,
+        ...(tests.length ? { tests } : {}),
+        ...(Object.keys(responses).length ? { responses } : {}),
+        ...(observations.length ? { archivedProtocolObservations: observations } : {})
+    };
+}
+
+function rawObservationFromCanonical(observation = {}) {
+    const stateToAnswer = (state) => state === 'positive' ? 'yes' : state === 'recorded_zero' ? 'no' : 'not_recorded';
+    return {
+        completion: observation.completion ?? 'not_recorded',
+        pain: stateToAnswer(observation.pain?.state),
+        painScore: observation.pain?.score ?? null,
+        painLocations: [...(observation.pain?.locations ?? [])],
+        painQuality: [...(observation.pain?.quality ?? [])],
+        painFamiliar: observation.pain?.familiar ?? 'not_recorded',
+        painOnsetAngleDegrees: observation.pain?.onsetAngleDegrees ?? null,
+        painPhase: observation.pain?.phase ?? null,
+        weakness: stateToAnswer(observation.weakness?.state),
+        weaknessScore: observation.weakness?.score ?? null,
+        stiffness: stateToAnswer(observation.stiffness?.state),
+        compensation: observation.compensation?.state === 'uncertain'
+            ? 'uncertain'
+            : stateToAnswer(observation.compensation?.state),
+        compensationDetail: [...(observation.compensation?.details ?? [])],
+        limitingFactors: [...(observation.limitingFactors ?? [])],
+        achievedPose: observation.achievedPose ?? null,
+        repeatable: observation.repeatable ?? 'not_recorded',
+        notes: observation.notes ?? null
+    };
+}
+
+function legacyRecordStatus(value) {
+    return ({
+        interpretable: 'complete_record',
+        insufficient_data: 'incomplete_record',
+        conflicting: 'conflicting_record'
+    })[value] ?? (['complete_record', 'incomplete_record', 'conflicting_record'].includes(value)
+        ? value
+        : 'incomplete_record');
+}
+
+function needsScientificBoundarySanitizing(report = {}) {
+    return Boolean(
+        report.hypothesisEvidence
+        || report.analyses?.symptomAssociations
+        || report.analyses?.protocolDemandRanking
+        || report.dataQuality?.interpretabilityStatus
+        || ['interpretable', 'insufficient_data', 'conflicting'].includes(report.summary?.status)
+        || (report.trials ?? []).some((trial) => Object.hasOwn(trial, 'includeInSymptomAssociation'))
+        || (report.matchedComparisons ?? []).some((comparison) => Object.hasOwn(comparison, 'modelDelta'))
+    );
+}
+
+function applyScientificBoundary(report) {
+    if (!report || typeof report !== 'object' || !needsScientificBoundarySanitizing(report)) return report;
+    const cleaned = structuredClone(report);
+    const oldDemandRanking = cleaned.analyses?.protocolDemandRanking;
+    delete cleaned.hypothesisEvidence;
+    if (cleaned.analyses) {
+        delete cleaned.analyses.symptomAssociations;
+        delete cleaned.analyses.protocolDemandRanking;
+        if (!cleaned.analyses.genericProtocolDemand && Array.isArray(oldDemandRanking)) {
+            cleaned.analyses.genericProtocolDemand = {
+                available: oldDemandRanking.length > 0,
+                symptomLinked: false,
+                subjectSpecific: false,
+                scope: 'generic_model_demand_across_protocol_postures_only',
+                statement: 'This summary ranks generic-model demand across the protocol postures without using pain, weakness, or other participant observations.',
+                ranking: oldDemandRanking
+            };
+        }
+    }
+    for (const trial of cleaned.trials ?? []) delete trial.includeInSymptomAssociation;
+    for (const comparison of cleaned.matchedComparisons ?? []) delete comparison.modelDelta;
+    if (cleaned.dataQuality) {
+        cleaned.dataQuality.recordStatus = legacyRecordStatus(
+            cleaned.dataQuality.recordStatus ?? cleaned.dataQuality.interpretabilityStatus
+        );
+        delete cleaned.dataQuality.interpretabilityStatus;
+        cleaned.summary = reportSummary(cleaned.dataQuality, cleaned.trials ?? []);
+    }
+    if (cleaned.framing?.includes('hypothesis generator')) {
+        cleaned.framing = 'Structured posture-observation record with a separate generic biomechanical protocol reference; not a medical diagnosis or treatment recommendation.';
+    }
+    return cleaned;
+}
+
+function storedV5NeedsSanitizing(report, technicalAnnex = null, expectedProtocol = null) {
+    const coverage = report?.modelCoverage ?? {};
+    const storedProtocol = protocolIdentityFromReport(report);
+    const expected = normalizeAssessmentProtocol(expectedProtocol ?? {});
+    const alreadyArchived = report?.assessment?.assessmentProtocolId === 'archived-human-observations-only'
+        && Array.isArray(report?.trials)
+        && report.trials.length === 0
+        && technicalAnnex?.legacySymptomAssessment?.interpretationExcluded === true
+        && technicalAnnex?.legacySymptomAssessment?.protocolDefinitionRemoved === true;
+    if (alreadyArchived) return false;
+    return !storedProtocol.identityVerified
+        || (expected.identityVerified && !protocolsMatch(storedProtocol, expected))
+        || report?.assessment?.legacyModelRecord === true
+        || coverage.legacyModelRecord === true
+        || isPreMsHumanModel({
+            id: coverage.modelId,
+            name: coverage.modelName,
+            variant: coverage.modelVariant,
+            runtime: coverage.runtime,
+            source: coverage.modelSource
+        })
+        || isPreMsHumanModel(technicalAnnex?.model ?? {});
+}
+
+export function migrateReportToV5(report, technicalAnnex = null, options = {}) {
+    const expectedProtocol = normalizeAssessmentProtocol(options.assessmentProtocol ?? {});
+    const archivedProtocol = {
+        id: 'archived-human-observations-only',
+        version: '1',
+        digest: null,
+        name: 'Archived observations from an earlier assessment protocol',
+        matchedComparisons: []
+    };
     if (report?.schemaVersion === REPORT_SCHEMA_VERSION && Array.isArray(report.trials)) {
-        return { report, technicalAnnex };
+        if (!storedV5NeedsSanitizing(report, technicalAnnex, expectedProtocol)) {
+            const boundedReport = applyScientificBoundary(report);
+            return { report: boundedReport, technicalAnnex };
+        }
+        const storedProtocol = protocolIdentityFromReport(report);
+        const legacySymptomAssessment = mergePreservedAssessments(
+            preservedLegacyAssessment(report, REPORT_SCHEMA_VERSION),
+            preservedLegacyAssessment(technicalAnnex?.legacySymptomAssessment, REPORT_SCHEMA_VERSION)
+        );
+        if (legacySymptomAssessment) {
+            legacySymptomAssessment.sourceAssessmentProtocol = storedProtocol;
+            legacySymptomAssessment.expectedAssessmentProtocol = expectedProtocol.identityVerified ? expectedProtocol : null;
+            legacySymptomAssessment.migrationReason = !storedProtocol.identityVerified
+                ? 'stored_assessment_protocol_identity_missing_or_invalid'
+                : expectedProtocol.identityVerified && !protocolsMatch(storedProtocol, expectedProtocol)
+                    ? 'stored_assessment_protocol_does_not_match_current_protocol'
+                    : 'stored_model_evidence_requires_sanitizing';
+        }
+        const migrationReason = legacySymptomAssessment?.migrationReason ?? 'stored_model_evidence_requires_sanitizing';
+        return buildReportV5({
+            assessmentId: report.assessment?.assessmentId,
+            generatedAt: report.generatedAt,
+            testedSide: report.assessment?.testedSide ?? 'right',
+            safetyReviewed: report.safety?.reviewed,
+            redFlags: report.safety?.positiveFlags ?? [],
+            intake: report.intake ?? {},
+            positionRecords: [],
+            model: removedLegacyModelMetadata(),
+            assessmentProtocol: archivedProtocol,
+            migratedFromVersion: REPORT_SCHEMA_VERSION,
+            syntheticData: report.assessment?.syntheticData === true,
+            legacySymptomAssessment,
+            migrationReason
+        });
     }
     if (!report || Number(report.schemaVersion) !== 4) return { report, technicalAnnex };
     const generatedAt = report.generatedAt ?? new Date().toISOString();
     const assessmentId = report.assessment?.assessmentId || `legacy-${String(generatedAt).replace(/[^0-9A-Za-z]/g, '').slice(0, 24)}`;
-    return buildReportV5({
+    const legacySymptomAssessment = preservedLegacyAssessment(report, 4);
+    if (legacySymptomAssessment) {
+        legacySymptomAssessment.sourceAssessmentProtocol = null;
+        legacySymptomAssessment.expectedAssessmentProtocol = expectedProtocol.identityVerified ? expectedProtocol : null;
+        legacySymptomAssessment.migrationReason = 'legacy_report_has_no_verifiable_assessment_protocol_identity';
+    }
+    const migrated = buildReportV5({
         assessmentId,
         generatedAt,
         testedSide: report.testedSide ?? report.intake?.assessedArm ?? 'right',
         safetyReviewed: report.safetyReviewed,
         redFlags: report.redFlags ?? [],
         intake: report.intake ?? {},
-        positionRecords: legacyPositionRecords(report),
-        model: report.model ?? {},
-        capacityLossCompatibility: report.capacityScreen?.rankedCompatiblePatterns ?? [],
+        positionRecords: [],
+        model: removedLegacyModelMetadata(),
+        assessmentProtocol: archivedProtocol,
         migratedFromVersion: 4,
         syntheticData: report.syntheticData === true,
-        legacySymptomAssessment: preservedLegacyAssessment(report)
+        legacySymptomAssessment,
+        migrationReason: 'legacy_report_has_no_verifiable_assessment_protocol_identity'
     });
+    return migrated;
 }
 
 export function mainReportExport(report) {
-    return report;
+    const bounded = applyScientificBoundary(report);
+    if (!bounded || typeof bounded !== 'object') return bounded;
+    const exported = structuredClone(bounded);
+    const intake = exported.intake ?? {};
+    const band = (value, width) => {
+        if (!Number.isFinite(value)) return null;
+        const lower = Math.floor(value / width) * width;
+        return `${lower}-${lower + width - 1}`;
+    };
+    exported.intake = {
+        ...intake,
+        ageBandYears: band(intake.ageYears, 10),
+        heightBandCm: band(intake.heightCm, 10),
+        weightBandKg: band(intake.weightKg, 10)
+    };
+    delete exported.intake.ageYears;
+    delete exported.intake.heightCm;
+    delete exported.intake.weightKg;
+    for (const trial of exported.trials ?? []) {
+        if (trial.observation) delete trial.observation.notes;
+    }
+    exported.exportPrivacy = {
+        status: 'privacy_reduced_not_anonymous',
+        directIdentifiersExcluded: true,
+        observationFreeTextExcluded: true,
+        exactAgeHeightWeightCoarsened: true,
+        notice: 'This export reduces identifying detail but is not guaranteed anonymous. Review it before sharing.'
+    };
+    return exported;
 }
 
 export function fullReportExport(report, technicalAnnex) {
-    return { report, technicalAnnex: technicalAnnex ?? null };
+    return {
+        report: applyScientificBoundary(report),
+        technicalAnnex: technicalAnnex ?? null,
+        exportPrivacy: {
+            status: 'full_local_assessment_export',
+            notice: 'This explicit full export can contain exact demographics, observation notes, and preserved legacy free text. Review before sharing.'
+        }
+    };
 }

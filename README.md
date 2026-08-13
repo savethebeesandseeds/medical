@@ -1,150 +1,150 @@
 # Waajacu's Medical musculoskeletal explorer
 
-This is a local Debian 11 container running OpenSim 4.6 and a native C++ web
-service. The established analysis renders the official MoBL-ARMS right
-upper-extremity model and its OpenSim-computed muscle paths. A separate
-MS-Human-700 right-arm laboratory prototypes the Apache-2.0-licensed whole-body
-foundation with exact articulation, wrapped paths, and a static-hold estimate.
-There is deliberately no Dockerfile: `run.ps1` starts a stock Debian container
-and `setup.sh` provisions it.
+Waajacu's Medical is a browser-based, static-posture explorer for the
+MS-Human-700 musculoskeletal model. It renders an articulated right arm,
+recompiles wrapping-aware muscle paths for every selected posture, and runs a
+quality-gated static-hold estimate locally with MuJoCo WebAssembly.
 
-## Start
+The model and solver run entirely in the browser; a web server is needed only
+to serve the static files with the correct MIME types and content-security
+policy. No native model-computation backend is required.
+
+The current build uses module- and document-relative URLs. It can be served at
+an origin root such as `https://example.org/` or below a subpath such as
+`https://example.org/medical/`, provided the host serves `index.html` from that
+directory with the documented MIME types and content-security policy.
+
+## Start locally
 
 ```powershell
 cd C:\Work\medical\muscles
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
-The first OpenSim build can take 20-60 minutes. Subsequent starts reuse the
-`opensim-muscles-opt` Docker volume. The page is served at
-<http://localhost:8080> and is bound to `127.0.0.1`, so it is not exposed to the
-local network.
+The page is served at <http://localhost:8080> and bound to `127.0.0.1`.
 
-The container is created with `--gpus all`. The page reports whether the GPU is
-visible, but the current OpenSim pose and geometry calculations run on CPU.
+## What the application shows
 
-## Verify
+- Seven independent right-arm posture controls with the authored scapula,
+  clavicle, shoulder, and wrist equality couplings.
+- Body-local arm and hand geometry, plus faint torso attachment context.
+- Current MuJoCo tendon paths with authored via sites, wrapping contacts, and
+  pulley discontinuities preserved.
+- 88 functionally relevant muscles: 47 arm actuators, 27 shoulder-girdle
+  stabilizers, and 14 long latissimus fascicles.
+- A bounded, minimum-squared-activation static estimate for the displayed
+  posture, with explicit equilibrium, reserve, capacity, path, and finite-value
+  quality gates.
+- A versioned MS-Human-native observation panel, activation ranking, muscle
+  inspector, moment arms, PNG export, responsive layout, safety screen, and
+  report export.
+
+Long latissimus origins participate in every solve but are hidden in the
+default path layer for readability. A mirrored left display remains a visual
+reflection of a right-arm calculation.
+
+## Static calculation boundary
+
+The solver balances only the seven displayed right-arm coordinates. It resets
+the complete model to the authored initial keyframe, applies those coordinates
+and their equality dependents, and treats all remaining coordinates as
+externally prescribed support. It assumes zero velocity and acceleration,
+gravity and model self-weight, authored passive model forces, and no hand load,
+contact, measured support, or other external force.
+
+Activation colors are withheld unless the result has 88 unique finite muscle
+values, valid compiled paths, replayed reduced-coordinate equilibrium residual
+at or below 0.0001 newton-metres, reserve torque at or below 0.05
+newton-metres, and no model-rule capacity failure. Reserve use means the
+modeled actuator set did not balance
+the posture under these assumptions; it does not prove physiological weakness.
+
+The result is a generic model estimate, not measured effort, patient force,
+tissue load, pain, injury, fatigue, diagnosis, treatment guidance, or a
+patient-specific result. Dynamic motion may require materially different
+activation.
+
+The movement-observation panel is application-designed for MS-Human-700 and
+mechanically screened against the same range, path, equilibrium, and reserve
+gates used by the viewer. That screening shows only that the generic model can
+realize and balance each reference posture under the stated assumptions. The
+panel is not a clinically validated examination and its comparisons cannot
+identify a painful tissue or diagnose a condition.
+
+## One-command release gate
+
+From Windows PowerShell, run the complete local gate with:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verify.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release.ps1
 ```
 
-The check verifies the linked OpenSim runtime, GPU visibility, official model
-inventory, model and benchmark hashes, all 33 referenced meshes, all 50 default
-muscle paths, the HTTP API, a biceps path/moment-arm sample, and a 50-muscle CMC
-activation frame. It also checks an exact on-demand static posture, all 50
-finite activation estimates, independently replayed force equilibrium, reserve
-use, deterministic repeatability, invalid-input rejection, and the separate
-Reach8 coverage gates.
+This checks the exact deploy allowlist, UTF-8 text, browser-module syntax, the
+versioned assessment protocol, report/privacy/migration behavior, pinned model
+hashes, HTTP headers and routes, retired-route absence, and a clean Git
+baseline. It locates Node.js and Python from `PATH` or from Codex's bundled
+workspace runtime. HTTP verification is required: the command starts and stops
+an isolated localhost server automatically, so the application does not need
+to be running first.
 
-## What the page shows
+To produce the reviewed static distribution after the gate passes:
 
-- The unchanged `MOBL_ARMS_41.osim` free-torso model.
-- The 33 exact VTP meshes referenced by that model.
-- Body transforms calculated by OpenSim for the assembled state.
-- Wrapping-aware paths for all 50 muscles calculated by OpenSim.
-- Model-derived musculotendon length and moment arms for the selected muscle.
-- Seven independent upper-limb coordinate controls and example posture
-  shortcuts that always set exact OpenSim geometry.
-- On-demand static-posture optimization for those exact angles, using the
-  model's segment weights and gravity with zero motion and no external hand
-  load. All 50 paths are colored only after convergence, constrained
-  generalized-force equilibrium, assembly, control-bound, and reserve checks
-  pass.
-- Playback of the authors' supplied Reach8 CMC states. All 50
-  muscle centerlines are colored by their stored model-estimated activation,
-  with an explicit 0-1 legend and a current-frame ranking.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release.ps1 -Package
+```
 
-The two activation sources are deliberately not mixed. In **Static posture
-estimate**, the service minimizes squared muscle controls while balancing the
-full inverse-dynamics mobility residual with the model's authored constraint
-reactions. Seven weak coordinate reserves are feasibility slacks; a result is
-withheld if any reserve exceeds 0.05 N m. It is also withheld as
-capacity-limited when a muscle reaches 0.995 while nontrivial reserve torque is
-still needed. MoBL-ARMS gives every muscle an authored minimum control of 0.01,
-and this active-actuation formulation does not include passive muscle-fiber
-force. It is therefore a generic recruitment estimate, not measured effort or
-a unique physiological answer. In **Reach8 reference**, angles and activation
-states are read directly from the supplied `CMC_results_states.sto` and are
-never used to fill a static pose.
+The package is `build/waajacu-medical-static.zip`. It contains only the active
+browser application, model/runtime assets, provenance records, and licenses;
+it excludes Git history, source tooling, caches, and retired files. The
+archive includes `MANIFEST.sha256` and an SPDX 2.3 `SBOM.spdx.json`, with a
+sidecar archive checksum. The Git revision time supplies the reproducible SBOM
+timestamp; `SOURCE_DATE_EPOCH` can override it for formal reproducible-build
+systems. `-SkipGitCleanCheck` exists only for
+testing an unfinished worktree and must not be used to approve a release.
+The same command runs on every push and pull request through
+`.github/workflows/release-gate.yml`; it installs no project dependencies from
+the network.
 
-The page does not calculate muscle force, injury, pain source, fatigue, or a
-diagnosis. It does not use the separate MS-Human prototype in any MoBL-ARMS
-calculation. Rendered muscle tubes are centerline display glyphs, not
-volumetric muscle anatomy.
+## Individual verification and regeneration
 
-## MS-Human right-arm prototype
+Run the verification suite while the application is running:
 
-Open <http://localhost:8080/full-body.html> to use the separate MS-Human-700
-right-arm static-posture laboratory. It intentionally does not replace or share
-state with the established MoBL-ARMS tool at `/`.
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verify-ms-human.ps1
+```
 
-The prototype exposes the model's seven independent right-arm controls and
-realizes its polynomial scapula, clavicle, shoulder, and wrist couplings in the
-official MuJoCo 3.10.0 WebAssembly runtime. Thirty-two arm bone meshes remain in
-body-local coordinates and every pose rebuilds current wrapping-aware muscle
-paths. A faint sternum, spine, neck, and right rib context explains proximal
-attachments without drawing the rest of the body.
-
-The static-hold calculation includes 88 functionally relevant muscles: 61
-right-arm-file actuators and 27 shoulder-girdle stabilizers from the torso file.
-It minimizes squared activation while balancing gravity, model self-weight, and
-authored passive forces at zero velocity/acceleration and with no external hand
-load. Activations are withheld unless a fresh MuJoCo replay passes finite-value,
-equilibrium, reserve-torque, and capacity checks. Some authored joint-range
-postures are genuinely not balanceable under those assumptions and remain gray.
-
-The pinned upstream MJCF package is vendored under `models/ms_human_700/` with
-two documented bilateral-coordinate corrections; see its `SOURCE.md`. The
-articulated browser assets under `public/models/ms_human_700/` can be regenerated
-with `tools/export_ms_human_arm.py`; the original complete default-pose export
-remains reproducible with `tools/export_ms_human.py`. Their isolated Python
+The articulated browser assets can be regenerated from the pinned complete
+source tree with `tools/export_ms_human_arm.py`. Source and runtime parity checks
+are implemented in `tools/validate_ms_human_arm.py`; isolated Python
 dependencies are pinned in `tools/requirements-ms-human.txt`.
 
-Run `verify-ms-human.ps1` while the application is running to check the source
-hashes, both generated inventories, body-local geometry structure, pinned
-MuJoCo runtime, mechanical parity metadata, licensing, route types, and scoped
-content-security policy.
+The assessment definition and its recorded browser-solver evidence are checked
+by `tools/validate-ms-human-assessment-protocol.mjs`. Report identity,
+migration, privacy, and comparison behavior are checked by
+`tools/verify-diagnosis-report.mjs`. Run both with a current Node.js runtime
+after changing the posture panel or report schema.
 
-## Licensing
+## Licensing and provenance
 
-The original application code, scripts, styles, and documentation are licensed
-under the MIT License; see `LICENSE`. This does not relicense any third-party
-material. See `THIRD_PARTY_NOTICES.md` for the dependency and asset boundaries.
+Original application code is MIT-licensed; see `LICENSE`. MS-Human-700 and its
+generated assets are Apache-2.0 licensed, MuJoCo is Apache-2.0 licensed, and
+Three.js is MIT-licensed. See `THIRD_PARTY_NOTICES.md` and the bundled upstream
+licenses for the exact boundaries and redistribution obligations.
 
-### Model provenance and license
+The deployable application does not include or execute the retired MoBL or
+OpenSim implementation. Historical commits may still contain retired files;
+publish from a clean repository history if excluding those historical bytes is
+a distribution requirement.
 
-See `models/mobl_arms/SOURCE.md` and `models/mobl_arms/LICENSE.txt`. MoBL-ARMS is
-licensed for non-commercial research, academic, evaluation, and personal use;
-commercial use requires a separate license and model use requires attribution.
-
-MS-Human-700 is separately distributed under Apache License 2.0 and can be used
-as the whole-body base under those terms. See `models/ms_human_700/LICENSE` and
-`models/ms_human_700/SOURCE.md`. Because the associated publication describes
+MS-Human-700 is vendored from the pinned MuJoCo Menagerie source record under
+`models/ms_human_700/`. Two transparent bilateral path-coordinate corrections
+are documented in its `SOURCE.md`. Because the model publication describes
 earlier OpenSim models as parameter references, written provenance confirmation
-from the maintainers remains prudent before a commercial release.
-
-The source package targets OpenSim 4.1. The package inventory and default-pose
-geometry/path checks pass on OpenSim 4.6. OpenSim warns that the source model's
-massless thorax has nonzero inertia and resets it to zero at runtime. The model
-file is kept unchanged. The Reach8 states file is kept unchanged and checked by
-SHA-256. Its stored 4.1 states are displayed through the 4.6 runtime, but the
-authors' complete benchmark has not been independently re-run or revalidated
-here.
+from the maintainers remains prudent before commercial release.
 
 ## Medical boundary
 
-This is research software, not a medical device, and must not be used to
-diagnose or treat pain. A clinical research path would require patient-specific
-scaling and measured motion, a documented inference method, uncertainty
-estimates, labeled clinical ground truth, clinician oversight, privacy and
-security controls, and ethics/regulatory review.
-
-## Operations
-
-```powershell
-docker logs -f opensim-muscles
-docker stop opensim-muscles
-docker start opensim-muscles
-docker exec -it opensim-muscles bash
-```
+This is research and educational software, not a medical device. Clinical or
+patient-specific research would require validated subject data, uncertainty
+reporting, clinical ground truth, clinician oversight, privacy and security
+controls, and appropriate ethics and regulatory review.
