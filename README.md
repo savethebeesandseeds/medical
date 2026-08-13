@@ -4,6 +4,20 @@ Waajacu Medical is a collection of browser-based research and educational
 tools. The repository is organized as a monorepo so each tool can keep its own
 source, verification, and licensing boundary while sharing one public catalog.
 
+## Screenshots
+
+### Medical catalog
+
+<a href="https://medical.waajacu.com/">
+  <img src="./docs/screenshots/waajacu-medical-home.png" width="960" alt="Waajacu Medical catalog homepage showing the available Muscles browser tool">
+</a>
+
+### Muscles assessment
+
+<a href="https://medical.waajacu.com/en/tools/muscles/">
+  <img src="./docs/screenshots/muscles-assessment.png" width="960" alt="Muscles assessment workspace showing a guided upper-limb observation and the browser-based body model">
+</a>
+
 ## Published routes
 
 - `/` - catalog of available medical tools
