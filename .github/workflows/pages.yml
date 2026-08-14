@@ -47,10 +47,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/en/tools/muscles _site/muscles
+          mkdir -p _site/en/tools/muscles _site/es/tools/muscles _site/de/tools/muscles _site/zh/tools/muscles _site/muscles
           cp -R site/. _site/
           cp waajacu_medical_no_bg.png _site/waajacu_medical_no_bg.png
           cp -R muscles/public/. _site/en/tools/muscles/
+          cp -R muscles/public/. _site/es/tools/muscles/
+          cp -R muscles/public/. _site/de/tools/muscles/
+          cp -R muscles/public/. _site/zh/tools/muscles/
+          node muscles/tools/build-localized-pages.mjs --source muscles/public --output _site
           touch _site/.nojekyll
 
       - name: Check assembled routes
@@ -59,6 +63,28 @@ jobs:
           set -euo pipefail
           test -f _site/index.html
           test -f _site/en/tools/muscles/index.html
+          test -f _site/en/tools/muscles/bootstrap.js
+          test -f _site/en/tools/muscles/i18n.js
+          test -f _site/en/tools/muscles/locales/en.json
+          test -f _site/es/tools/muscles/index.html
+          test -f _site/es/tools/muscles/bootstrap.js
+          test -f _site/es/tools/muscles/i18n.js
+          test -f _site/es/tools/muscles/locales/es.json
+          test -f _site/de/tools/muscles/index.html
+          test -f _site/de/tools/muscles/bootstrap.js
+          test -f _site/de/tools/muscles/i18n.js
+          test -f _site/de/tools/muscles/locales/de.json
+          test -f _site/zh/tools/muscles/index.html
+          test -f _site/zh/tools/muscles/bootstrap.js
+          test -f _site/zh/tools/muscles/i18n.js
+          test -f _site/zh/tools/muscles/locales/zh-Hans.json
+          test -f _site/es/tools/muscles/vendor/mujoco.wasm
+          test -f _site/de/tools/muscles/vendor/mujoco.wasm
+          test -f _site/zh/tools/muscles/vendor/mujoco.wasm
+          grep -Fq '<html class="i18n-loading" lang="en" dir="ltr">' _site/en/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="es" dir="ltr">' _site/es/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="de" dir="ltr">' _site/de/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="zh-Hans" dir="ltr">' _site/zh/tools/muscles/index.html
           test -f _site/en/tools/muscles/vendor/mujoco.wasm
           test -f _site/muscles/index.html
           grep -Fq 'href="./en/tools/muscles/"' _site/index.html

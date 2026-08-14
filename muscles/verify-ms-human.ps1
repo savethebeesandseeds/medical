@@ -291,7 +291,8 @@ Assert-Equal ($HandIndexCount / 3) $HandMetadata.geometry.triangles 'Articulated
 Assert-Equal $HandMetadata.geometry.geoms.Count 132 'Unexpected articulated-hand geometry descriptor count'
 
 $RequiredFiles = @(
-    'index.html', 'styles.css', 'app-ms-human.js', 'ms-human-engine.js',
+    'index.html', 'styles.css', 'bootstrap.js', 'i18n.js', 'locales\en.json', 'locales\es.json',
+    'locales\de.json', 'locales\zh-Hans.json', 'app-ms-human.js', 'ms-human-engine.js',
     'ms-human-worker.js', 'ms-human-assessment-protocol.js', 'diagnosis.js', 'report-v5.js', 'LICENSE',
     'THIRD_PARTY_NOTICES.md', 'waajacu_medical.png', 'vendor\MUJOCO_LICENSE.txt',
     'vendor\THREE_LICENSE.txt', 'models\ms_human_700\LICENSE',
@@ -313,29 +314,30 @@ Assert-Hash (Join-Path $AssetRoot 'SOURCE.md') (Get-FileHash -Algorithm SHA256 -
 $Index = Get-Content -LiteralPath (Join-Path $PublicRoot 'index.html') -Raw
 $App = Get-Content -LiteralPath (Join-Path $PublicRoot 'app-ms-human.js') -Raw
 $Diagnosis = Get-Content -LiteralPath (Join-Path $PublicRoot 'diagnosis.js') -Raw
+$EnglishMessages = (Get-Content -LiteralPath (Join-Path $PublicRoot 'locales\en.json') -Raw | ConvertFrom-Json).messages
 $Worker = Get-Content -LiteralPath (Join-Path $PublicRoot 'ms-human-worker.js') -Raw
 $Protocol = Get-Content -LiteralPath $ProtocolPath -Raw
 $ProtocolEvidence = Get-Content -LiteralPath $ProtocolEvidencePath -Raw | ConvertFrom-Json
-Assert-True $Index.Contains('src="./app-ms-human.js"') 'Root page does not load the relative MS-Human application entry point'
-Assert-True (-not $Index.Contains('src="/app-ms-human.js"')) 'Root page unexpectedly requires origin-root hosting'
+Assert-True $Index.Contains('src="./bootstrap.js"') 'Root page does not load the relative localization bootstrap entry point'
+Assert-True (-not $Index.Contains('src="/bootstrap.js"')) 'Root page unexpectedly requires origin-root hosting'
 Assert-True (-not $Index.Contains('mode-benchmark')) 'Legacy movement mode remains in the root interface'
 Assert-True (-not $Index.Contains('Reach8')) 'Legacy Reach8 content remains in the root interface'
 Assert-True (-not $Index.Contains('MoBL-ARMS')) 'Legacy model disclosure remains in the root interface'
-Assert-True $Index.Contains('colors appear only when paths and values are valid') 'Root static quality disclosure is missing'
-Assert-True $Index.Contains('Explore regional posture and modeled muscle activation.') 'Regional Explorer description is missing'
-Assert-True $Index.Contains('choose one body region at a time') 'Regional control-boundary disclosure is missing'
-Assert-True $Index.Contains('guided sequence remains a separate right upper-limb workflow') 'Assessment isolation disclosure is missing'
+Assert-True $EnglishMessages.'model-info.limitations.quality-copy'.Contains('colors appear only when paths and values are valid') 'English static quality disclosure is missing'
+Assert-Equal $EnglishMessages.'brand.intro' 'Explore regional posture and modeled muscle activation.' 'Regional Explorer description is missing'
+Assert-True $EnglishMessages.'model-info.shows.posture-copy'.Contains('choose one body region at a time') 'Regional control-boundary disclosure is missing'
+Assert-True $EnglishMessages.'model-info.limitations.assessment-copy'.Contains('guided sequence remains a separate right upper-limb workflow') 'Assessment isolation disclosure is missing'
 Assert-True $Index.Contains('id="focus-region"') 'Explorer region selector is missing'
 Assert-True (-not $Index.Contains('id="region-side-control"')) 'Redundant side selector remains beside the explicit region list'
 Assert-True $Index.Contains('id="render-anatomical-bodies"') 'Procedural anatomical muscle-body rendering control is missing'
 Assert-True (-not $Index.Contains('id="render-muscle-bodies"')) 'Removed simple muscle-body rendering control remains in the interface'
 Assert-True $Index.Contains('id="render-path-lines"') 'Technical path-line rendering control is missing'
-Assert-True $Index.Contains('Body shape and thickness are illustrative') 'Illustrative muscle-body shape and thickness disclosure is missing'
-Assert-True $Index.Contains('15 guided positions') 'Current assessment position count is missing from the interface'
-Assert-True $Index.Contains('Everything you enter—including assessment answers and reports—is saved only in this browser on your device.') 'Device-storage behavior is not disclosed in the interface'
+Assert-True $EnglishMessages.'model-info.shows.rendering-copy'.Contains('Body shape and thickness are illustrative') 'Illustrative muscle-body shape and thickness disclosure is missing'
+Assert-True $EnglishMessages.'assessment.workspace.guided-positions'.Contains('15 guided positions') 'Current assessment position count is missing from the interface'
+Assert-Equal $EnglishMessages.'assessment.privacy.intro' 'Everything you enter—including assessment answers and reports—is saved only in this browser on your device.' 'Device-storage behavior is not disclosed in the interface'
 Assert-True (-not $Index.Contains('name="email"')) 'Unused email collection remains in the assessment'
 Assert-True (-not $Index.Contains('name="city"')) 'Unused city collection remains in the assessment'
-Assert-True $Index.Contains('Waajacu™') 'Waajacu trademark footer is missing'
+Assert-True $EnglishMessages.'legal.footer'.Contains('Waajacu™') 'Waajacu trademark footer is missing'
 Assert-True $Index.Contains('DOI 10.1109/ICRA57147.2024.10610081') 'MS-Human academic citation is missing'
 Assert-True $Worker.Contains("'./models/ms_human_700/body-regions.json'") 'Worker does not load the reviewed regional manifest'
 Assert-True $Worker.Contains("'./models/ms_human_700/hand-region.json'") 'Worker does not load the reviewed articulated-hand manifest'
@@ -346,7 +348,7 @@ Assert-True $App.Contains("activateEngineProfile('primary', DEFAULT_REGION_ID)")
 Assert-True $App.Contains("app.profiles.get('primary').engine.pose(coordinates, selected, DEFAULT_REGION_ID)") 'Assessment pose requests are not isolated to the primary default region'
 Assert-True $App.Contains("app.profiles.get('primary').engine.staticHold(coordinates, selected, DEFAULT_REGION_ID)") 'Assessment static requests are not isolated to the primary default region'
 foreach ($RegionLabel in @('Right arm', 'Left arm', 'Right leg', 'Left leg', 'Back & trunk', 'Head & neck', 'Right hand')) {
-    Assert-True $App.Contains("'$RegionLabel'") "Explicit Explorer region is missing: $RegionLabel"
+    Assert-True ($EnglishMessages.PSObject.Properties.Value -contains $RegionLabel) "Explicit Explorer region is missing: $RegionLabel"
 }
 Assert-True $App.Contains('function pickMuscleAt') 'Direct 3D muscle picking is missing'
 Assert-True $App.Contains("selectMuscle(muscleName, 'one')") 'A directly picked muscle is not isolated in Inspect one'
@@ -370,6 +372,12 @@ Assert-True ([double]$ProtocolEvidence.summary.maximumObservedReserveNm -le [dou
 $BaseUrl = "http://localhost:$Port"
 $Routes = @(
     @{ Path = '/'; Type = 'text/html' },
+    @{ Path = '/bootstrap.js'; Type = 'text/javascript' },
+    @{ Path = '/i18n.js'; Type = 'text/javascript' },
+    @{ Path = '/locales/en.json'; Type = 'application/json' },
+    @{ Path = '/locales/es.json'; Type = 'application/json' },
+    @{ Path = '/locales/de.json'; Type = 'application/json' },
+    @{ Path = '/locales/zh-Hans.json'; Type = 'application/json' },
     @{ Path = '/app-ms-human.js'; Type = 'text/javascript' },
     @{ Path = '/ms-human-engine.js'; Type = 'text/javascript' },
     @{ Path = '/ms-human-worker.js'; Type = 'text/javascript' },

@@ -22,6 +22,9 @@ source, verification, and licensing boundary while sharing one public catalog.
 
 - `/` - catalog of available medical tools
 - `/en/tools/muscles/` - MS-Human-700 musculoskeletal explorer
+- `/es/tools/muscles/` - Spanish interface
+- `/de/tools/muscles/` - German interface
+- `/zh/tools/muscles/` - Simplified Chinese interface
 - `/muscles/` - compatibility redirect to the canonical tool route
 
 The public site is assembled by `.github/workflows/pages.yml`. Only `site/`,

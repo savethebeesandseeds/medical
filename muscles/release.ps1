@@ -147,9 +147,15 @@ $GitExe = Resolve-Executable -CommandNames @('git.exe', 'git') -FallbackPaths $G
 # deliberate review and an update here; unlisted files make the gate fail.
 $DeployAllowlist = @(
     'app-ms-human.js',
+    'bootstrap.js',
     'diagnosis.js',
+    'i18n.js',
     'index.html',
     'LICENSE',
+    'locales/de.json',
+    'locales/en.json',
+    'locales/es.json',
+    'locales/zh-Hans.json',
     'models/ms_human_700/body-regions.json',
     'models/ms_human_700/hand-region.json',
     'models/ms_human_700/LICENSE',
@@ -201,8 +207,8 @@ foreach ($RetiredPath in $RetiredPaths) {
 Write-Stage 'Checking the documented hosting contract'
 $IndexSource = [IO.File]::ReadAllText((Join-Path $PublicRoot 'index.html'), [Text.Encoding]::UTF8)
 $ReadmeSource = [IO.File]::ReadAllText((Join-Path $ProjectRoot 'README.md'), [Text.Encoding]::UTF8)
-Assert-True $IndexSource.Contains('src="./app-ms-human.js"') 'The reviewed relative-URL hosting contract changed; review deployment paths and the release documentation.'
-Assert-True (-not $IndexSource.Contains('src="/app-ms-human.js"')) 'The entry module unexpectedly requires origin-root hosting.'
+Assert-True $IndexSource.Contains('src="./bootstrap.js"') 'The reviewed relative-URL hosting contract changed; review deployment paths and the release documentation.'
+Assert-True (-not $IndexSource.Contains('src="/bootstrap.js"')) 'The entry module unexpectedly requires origin-root hosting.'
 Assert-True ($ReadmeSource.Contains('module- and document-relative URLs') -and $ReadmeSource.Contains('subpath')) 'README must describe the reviewed root/subpath hosting behavior.'
 $HostingSources = $IndexSource
 foreach ($JavaScriptPath in @($DeployAllowlist | Where-Object { $_.EndsWith('.js', [StringComparison]::OrdinalIgnoreCase) })) {
@@ -250,6 +256,9 @@ foreach ($RelativePath in @($DeployAllowlist | Where-Object { $_.EndsWith('.js',
     Get-Content -LiteralPath $AbsolutePath -Raw -Encoding UTF8 | & $script:NodeExe --input-type=module --check
     if ($LASTEXITCODE -ne 0) { throw "JavaScript syntax check failed: $RelativePath" }
 }
+
+Write-Stage 'Validating localization catalogs'
+Invoke-Node @((Join-Path $ProjectRoot 'tools\verify-i18n.mjs'))
 
 Write-Stage 'Validating the versioned MS-Human assessment protocol'
 Invoke-Node @((Join-Path $ProjectRoot 'tools\validate-ms-human-assessment-protocol.mjs'))

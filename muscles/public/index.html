@@ -1,45 +1,58 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="i18n-loading">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>Waajacu's Medical</title>
+    <title></title>
     <link rel="icon" type="image/png" href="./waajacu_medical.png">
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-    <main class="app-shell">
+    <noscript><div class="bootstrap-error" data-i18n="bootstrap.javascript-required"></div></noscript>
+    <div id="bootstrap-error" class="bootstrap-error hidden" role="alert"></div>
+    <main class="app-shell" aria-busy="true" inert>
         <header class="page-header">
             <div class="app-brand">
                 <img class="app-logo" src="./waajacu_medical.png" width="90" height="90" alt="">
                 <div class="app-brand-copy">
-                    <p class="eyebrow">Biomechanics research tool</p>
-                    <h1>Waajacu's Medical</h1>
-                    <p class="intro">Explore regional posture and modeled muscle activation.</p>
+                    <p class="eyebrow" data-i18n="brand.eyebrow"></p>
+                    <h1 data-i18n="brand.name"></h1>
+                    <p class="intro" data-i18n="brand.intro"></p>
                 </div>
             </div>
-            <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
-                <span class="status-dot" aria-hidden="true"></span>
-                <span>Loading model</span>
+            <div class="header-actions">
+                <label class="language-selector" for="language-selector">
+                    <span data-i18n="language.selector.label"></span>
+                    <select id="language-selector" data-i18n-attrs="aria-label:language.selector.aria-label">
+                        <option value="en" lang="en" data-i18n="language.options.en"></option>
+                        <option value="es" lang="es" data-i18n="language.options.es"></option>
+                        <option value="de" lang="de" data-i18n="language.options.de"></option>
+                        <option value="zh" lang="zh-Hans" data-i18n="language.options.zh"></option>
+                    </select>
+                </label>
+                <div id="server-status" class="server-status waiting" role="status" aria-live="polite">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span data-i18n="common.status.loading-model"></span>
+                </div>
             </div>
         </header>
 
         <div id="error" class="error hidden" role="alert"></div>
 
-        <aside class="use-boundary" aria-label="Important use limitations">
-            <strong>Research use only · Not a medical device</strong>
-            <span>Outputs are generic model estimates, not measurements of you or medical advice.</span>
-            <a href="#model-information">Limits, methods and credits</a>
+        <aside class="use-boundary" data-i18n-attrs="aria-label:boundary.aria-label">
+            <strong data-i18n="boundary.title"></strong>
+            <span data-i18n="boundary.description"></span>
+            <a href="#model-information" data-i18n="boundary.link"></a>
         </aside>
 
-        <nav class="app-tabs" role="tablist" aria-label="Application sections">
+        <nav class="app-tabs" role="tablist" data-i18n-attrs="aria-label:nav.tabs.aria-label">
             <button id="tab-explorer" class="active" type="button" role="tab" aria-selected="true" aria-controls="explorer-workspace" tabindex="0">
-                <span class="app-tab-copy"><span>Explorer</span><small>Posture and activation</small></span>
+                <span class="app-tab-copy"><span data-i18n="nav.tabs.explorer.title"></span><small data-i18n="nav.tabs.explorer.description"></small></span>
                 <canvas class="preset-thumbnail app-tab-visual app-tab-thumbnail" width="104" height="104" data-thumbnail-region="right-upper-limb" data-thumbnail-preset="hand-to-mouth" aria-hidden="true"></canvas>
             </button>
             <button id="tab-diagnosis" type="button" role="tab" aria-selected="false" aria-controls="diagnosis-workspace" tabindex="-1">
-                <span class="app-tab-copy"><span>Assessment</span><small>Right upper-limb observation</small></span>
+                <span class="app-tab-copy"><span data-i18n="nav.tabs.assessment.title"></span><small data-i18n="nav.tabs.assessment.description"></small></span>
                 <svg class="app-tab-visual diagnosis-tab-icon" viewBox="0 0 80 80" aria-hidden="true">
                     <rect x="12" y="8" width="56" height="64" rx="3" />
                     <path d="M29 8V5h22v3M21 27l4 4 7-8M38 27h20M21 43l4 4 7-8M38 43h20M21 59l4 4 7-8M38 59h20" />
@@ -51,63 +64,63 @@
             <section class="viewer-panel panel" aria-labelledby="viewer-title">
                 <header class="panel-header viewer-header">
                     <div>
-                        <h2 id="viewer-title">Right upper limb</h2>
-                        <p id="viewer-instructions">Click a muscle to inspect · left-drag to rotate · right-drag to move · scroll to zoom</p>
+                        <h2 id="viewer-title" data-i18n="explorer.viewer.title"></h2>
+                        <p id="viewer-instructions" data-i18n="explorer.viewer.instructions"></p>
                     </div>
                 </header>
 
                 <div class="viewer-stage">
                     <div class="scene-wrap">
                         <div id="scene"></div>
-                        <div class="scene-actions" role="group" aria-label="View actions">
-                            <button id="zoom-in" class="scene-action-button" type="button" aria-label="Zoom in" data-tooltip="Zoom in">
+                        <div class="scene-actions" role="group" data-i18n-attrs="aria-label:explorer.actions.group-label">
+                            <button id="zoom-in" class="scene-action-button" type="button" data-i18n-attrs="aria-label:explorer.actions.zoom-in;data-tooltip:explorer.actions.zoom-in">
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
                             </button>
-                            <button id="zoom-out" class="scene-action-button" type="button" aria-label="Zoom out" data-tooltip="Zoom out">
+                            <button id="zoom-out" class="scene-action-button" type="button" data-i18n-attrs="aria-label:explorer.actions.zoom-out;data-tooltip:explorer.actions.zoom-out">
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
                             </button>
-                            <button id="mirror-view" class="scene-action-button" type="button" aria-label="Mirror display — calculation unchanged" aria-pressed="false" data-tooltip="Mirror display — calculation unchanged">
+                            <button id="mirror-view" class="scene-action-button" type="button" aria-pressed="false" data-i18n-attrs="aria-label:explorer.actions.mirror;data-tooltip:explorer.actions.mirror">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M12 3v18" stroke-dasharray="1.5 2" />
                                     <path d="M9 6H5v12h4M15 6h4v12h-4M8 9l-3 3 3 3M16 9l3 3-3 3" />
                                 </svg>
                             </button>
                             <details id="viewer-download-menu" class="viewer-download-menu">
-                                <summary class="scene-action-button" role="button" aria-label="Download image" aria-haspopup="true" aria-expanded="false" data-tooltip="Download image">
+                                <summary class="scene-action-button" role="button" aria-haspopup="true" aria-expanded="false" data-i18n-attrs="aria-label:explorer.downloads.open;data-tooltip:explorer.downloads.open">
                                     <svg viewBox="0 0 24 24" aria-hidden="true">
                                         <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
                                     </svg>
                                 </summary>
-                                <div class="viewer-download-options" role="group" aria-label="Image download options">
+                                <div class="viewer-download-options" role="group" data-i18n-attrs="aria-label:explorer.downloads.options-label">
                                     <button type="button" data-viewer-download data-scale="1" data-transparent="false">
-                                        <strong>PNG with background</strong>
-                                        <span>Current viewer size</span>
+                                        <strong data-i18n="explorer.downloads.background.title"></strong>
+                                        <span data-i18n="explorer.downloads.background.description"></span>
                                     </button>
                                     <button type="button" data-viewer-download data-scale="1" data-transparent="true">
-                                        <strong>Transparent PNG</strong>
-                                        <span>Current viewer size</span>
+                                        <strong data-i18n="explorer.downloads.transparent.title"></strong>
+                                        <span data-i18n="explorer.downloads.transparent.description"></span>
                                     </button>
                                     <button type="button" data-viewer-download data-scale="2" data-transparent="false">
-                                        <strong>High-resolution PNG</strong>
-                                        <span>Background, 2x size</span>
+                                        <strong data-i18n="explorer.downloads.high-resolution.title"></strong>
+                                        <span data-i18n="explorer.downloads.high-resolution.description"></span>
                                     </button>
                                     <button type="button" data-viewer-download data-scale="2" data-transparent="true">
-                                        <strong>High-resolution transparent</strong>
-                                        <span>Transparent, 2x size</span>
+                                        <strong data-i18n="explorer.downloads.high-resolution-transparent.title"></strong>
+                                        <span data-i18n="explorer.downloads.high-resolution-transparent.description"></span>
                                     </button>
-                                    <span class="viewer-download-section">With activation data</span>
+                                    <span class="viewer-download-section" data-i18n="explorer.downloads.activation-section"></span>
                                     <button type="button" data-viewer-download data-scale="1" data-transparent="false" data-include-activation="true">
-                                        <strong>PNG with activation table</strong>
-                                        <span>Scale and modeled muscle ranking</span>
+                                        <strong data-i18n="explorer.downloads.activation.title"></strong>
+                                        <span data-i18n="explorer.downloads.activation.description"></span>
                                     </button>
                                     <button type="button" data-viewer-download data-scale="2" data-transparent="false" data-include-activation="true">
-                                        <strong>High-resolution with table</strong>
-                                        <span>Scale and modeled muscle ranking, 2x</span>
+                                        <strong data-i18n="explorer.downloads.activation-high-resolution.title"></strong>
+                                        <span data-i18n="explorer.downloads.activation-high-resolution.description"></span>
                                     </button>
                                     <p id="viewer-download-status" class="viewer-download-status" aria-live="polite"></p>
                                 </div>
                             </details>
-                            <button id="reset-view" class="scene-action-button" type="button" aria-label="Reset view" data-tooltip="Reset view">
+                            <button id="reset-view" class="scene-action-button" type="button" data-i18n-attrs="aria-label:explorer.actions.reset-view;data-tooltip:explorer.actions.reset-view">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M7.4 5.4A8 8 0 1 1 4.7 14" />
                                     <path d="M8 10 4 6l4-4" />
@@ -116,165 +129,165 @@
                         </div>
                         <div id="capacity-view-loading" class="capacity-view-loading hidden" role="status" aria-live="polite">
                             <span aria-hidden="true"></span>
-                            <strong>Loading posture…</strong>
+                            <strong data-i18n="explorer.status.loading-posture"></strong>
                         </div>
-                        <div id="geometry-legend" class="scene-legend" aria-label="Viewer legend">
-                            <span><i class="bone-key"></i><span id="active-region-legend">Focused region</span></span>
-                            <span><i class="context-key"></i>Whole-body context</span>
-                            <span><i class="path-key"></i><span id="muscle-rendering-legend">Anatomical bodies</span></span>
-                            <span id="selected-path-legend" class="hidden"><i class="selected-key"></i>Selected</span>
+                        <div id="geometry-legend" class="scene-legend" data-i18n-attrs="aria-label:explorer.legend.aria-label">
+                            <span><i class="bone-key"></i><span id="active-region-legend" data-i18n="explorer.legend.focused-region"></span></span>
+                            <span><i class="context-key"></i><span data-i18n="explorer.legend.whole-body-context"></span></span>
+                            <span><i class="path-key"></i><span id="muscle-rendering-legend" data-i18n="explorer.legend.anatomical-bodies"></span></span>
+                            <span id="selected-path-legend" class="hidden"><i class="selected-key"></i><span data-i18n="explorer.legend.selected"></span></span>
                         </div>
-                        <section id="capacity-angle-overlay" class="capacity-angle-overlay" aria-label="Position angles">
-                            <strong>Angles</strong>
+                        <section id="capacity-angle-overlay" class="capacity-angle-overlay" data-i18n-attrs="aria-label:assessment.position-angles.aria-label">
+                            <strong data-i18n="assessment.position-angles.title"></strong>
                             <dl id="capacity-angle-grid"></dl>
                         </section>
-                        <section id="activation-panel" class="viewer-drawer activation-panel static-source" aria-label="Muscle activations">
-                            <div id="activation-legend" class="activation-legend" aria-label="Muscle activation color scale">
+                        <section id="activation-panel" class="viewer-drawer activation-panel static-source" data-i18n-attrs="aria-label:explorer.activations.aria-label">
+                            <div id="activation-legend" class="activation-legend" data-i18n-attrs="aria-label:explorer.activations.scale-label">
                                 <div class="legend-heading">
                                     <div class="legend-title">
-                                        <strong>Activation scale</strong>
+                                        <strong data-i18n="explorer.activations.scale-title"></strong>
                                         <span>0–1</span>
                                     </div>
                                 </div>
                                 <div class="activation-ramp" aria-hidden="true"></div>
                                 <div class="activation-labels"><span>0</span><span>0.5</span><span>1</span></div>
-                                <small>Nonlinear scale</small>
-                                <button id="toggle-activation-panel" class="text-button activation-list-toggle" type="button" aria-controls="activation-panel-content" aria-expanded="true">Hide list</button>
+                                <small data-i18n="explorer.activations.nonlinear"></small>
+                                <button id="toggle-activation-panel" class="text-button activation-list-toggle" type="button" aria-controls="activation-panel-content" aria-expanded="true" data-i18n="common.actions.hide-list"></button>
                             </div>
                             <div id="activation-panel-content" class="drawer-content">
                                 <div id="activation-empty" class="effort-empty hidden">
-                                    <strong>Calculating…</strong>
-                                    <span>Waiting for the model calculation.</span>
+                                    <strong data-i18n="common.status.calculating"></strong>
+                                    <span data-i18n="explorer.activations.waiting"></span>
                                 </div>
                                 <div id="activation-ranking" class="activation-ranking"></div>
-                                <button id="toggle-all-activations" class="text-button activation-ranking-more hidden" type="button" aria-expanded="false">Show all modeled muscles</button>
+                                <button id="toggle-all-activations" class="text-button activation-ranking-more hidden" type="button" aria-expanded="false" data-i18n="explorer.activations.show-all"></button>
                             </div>
                         </section>
 
                         <section id="muscle-panel" class="viewer-drawer muscle-panel hidden" aria-labelledby="muscle-title">
                             <header class="section-header drawer-header muscle-drawer-header">
                                 <div class="muscle-heading">
-                                    <h2 id="muscle-title">Details</h2>
-                                    <small id="muscle-model-id">Model ID</small>
+                                    <h2 id="muscle-title" data-i18n="explorer.muscle-details.title"></h2>
+                                    <small id="muscle-model-id" data-i18n="explorer.muscle-details.model-id"></small>
                                 </div>
-                                <select id="muscle-select" aria-label="Selected muscle"></select>
-                                <button id="toggle-muscle-panel" class="text-button" type="button" aria-controls="muscle-panel-content" aria-expanded="true">Hide</button>
-                                <button id="back-to-activations" class="text-button muscle-back-button" type="button">← Back to all activations</button>
+                                <select id="muscle-select" data-i18n-attrs="aria-label:explorer.muscle-details.selected-label"></select>
+                                <button id="toggle-muscle-panel" class="text-button" type="button" aria-controls="muscle-panel-content" aria-expanded="true" data-i18n="common.actions.hide"></button>
+                                <button id="back-to-activations" class="text-button muscle-back-button" type="button" data-i18n="explorer.muscle-details.back"></button>
                             </header>
                             <div id="muscle-panel-content" class="drawer-content">
                             <dl class="key-readings">
                                 <div>
-                                    <dt>Musculotendon path length</dt>
+                                    <dt data-i18n="explorer.muscle-details.path-length"></dt>
                                     <dd><strong id="muscle-length">—</strong> <span>cm</span></dd>
                                 </div>
                                 <div>
-                                    <dt>Path points at this pose</dt>
+                                    <dt data-i18n="explorer.muscle-details.path-points"></dt>
                                     <dd><strong id="path-points">—</strong></dd>
                                 </div>
                                 <div id="activation-reading" class="activation-reading hidden">
-                                    <dt>Activation estimate</dt>
+                                    <dt data-i18n="explorer.muscle-details.activation"></dt>
                                     <dd><strong id="muscle-activation">—</strong> <span>0–1</span></dd>
                                 </div>
                                 <div id="force-reading" class="activation-reading hidden">
-                                    <dt>Active tensile-force contribution</dt>
+                                    <dt data-i18n="explorer.muscle-details.force"></dt>
                                     <dd><strong id="muscle-force">—</strong> <span>N</span></dd>
                                 </div>
                             </dl>
-                            <h3>Moment arms at this pose</h3>
+                            <h3 data-i18n="explorer.muscle-details.moment-arms"></h3>
                             <div id="moment-arms" class="moment-arms"></div>
                             </div>
                         </section>
 
                         <div id="loading" class="loading" role="status" aria-live="polite">
                             <span class="spinner" aria-hidden="true"></span>
-                            <span id="loading-text">Loading the model…</span>
+                            <span id="loading-text" data-i18n="explorer.status.loading-model"></span>
                         </div>
                     </div>
 
                     <aside id="pose-panel" class="pose-dock" aria-labelledby="pose-title">
-                        <section class="region-picker" aria-label="Regional model controls">
-                            <label id="region-picker-title" for="focus-region">Body region</label>
+                        <section class="region-picker" data-i18n-attrs="aria-label:explorer.regions.controls-label">
+                            <label id="region-picker-title" for="focus-region" data-i18n="explorer.regions.picker-label"></label>
                             <select id="focus-region" aria-describedby="region-scope" disabled></select>
-                            <p id="region-scope">Loading available regions…</p>
+                            <p id="region-scope" data-i18n="explorer.regions.loading"></p>
                             <p id="region-support-note" class="region-support-note"></p>
                         </section>
-                        <section id="back-presentation-controls" class="region-presentation-controls hidden" aria-label="Back and trunk presentation">
+                        <section id="back-presentation-controls" class="region-presentation-controls hidden" data-i18n-attrs="aria-label:explorer.back.presentation-label">
                             <div class="presentation-control-row">
-                                <span>View</span>
-                                <div class="segmented-control" role="group" aria-label="Back viewing direction">
-                                    <button type="button" data-region-view="back" aria-pressed="true">Back</button>
-                                    <button type="button" data-region-view="front" aria-pressed="false">Front</button>
-                                    <button type="button" data-region-view="side" aria-pressed="false">Side</button>
+                                <span data-i18n="explorer.back.view"></span>
+                                <div class="segmented-control" role="group" data-i18n-attrs="aria-label:explorer.back.direction-label">
+                                    <button type="button" data-region-view="back" aria-pressed="true" data-i18n="explorer.back.directions.back"></button>
+                                    <button type="button" data-region-view="front" aria-pressed="false" data-i18n="explorer.back.directions.front"></button>
+                                    <button type="button" data-region-view="side" aria-pressed="false" data-i18n="explorer.back.directions.side"></button>
                                 </div>
                             </div>
                             <label class="presentation-control-row" for="back-muscle-filter">
-                                <span>Muscles</span>
+                                <span data-i18n="common.nouns.muscles"></span>
                                 <select id="back-muscle-filter">
-                                    <option value="back">Back overview</option>
-                                    <option value="extensors">Spinal extensors</option>
-                                    <option value="multifidus">Multifidus</option>
-                                    <option value="ql">Quadratus lumborum</option>
-                                    <option value="core">Abdominals & deep core</option>
-                                    <option value="overview">General overview</option>
+                                    <option value="back" data-i18n="explorer.back.filters.back"></option>
+                                    <option value="extensors" data-i18n="explorer.back.filters.extensors"></option>
+                                    <option value="multifidus" data-i18n="explorer.back.filters.multifidus"></option>
+                                    <option value="ql" data-i18n="explorer.back.filters.ql"></option>
+                                    <option value="core" data-i18n="explorer.back.filters.core"></option>
+                                    <option value="overview" data-i18n="explorer.back.filters.overview"></option>
                                 </select>
                             </label>
                         </section>
                         <header class="pose-dock-header">
-                            <h2 id="pose-title">Posture</h2>
+                            <h2 id="pose-title" data-i18n="explorer.pose.title"></h2>
                             <div id="position-status" class="position-status manual" role="status" aria-live="polite">
-                                <strong>Preparing</strong>
-                                <span>Loading model</span>
+                                <strong data-i18n="common.status.preparing"></strong>
+                                <span data-i18n="common.status.loading-model"></span>
                             </div>
-                            <button id="reset-pose" class="text-button" type="button">Reset</button>
+                            <button id="reset-pose" class="text-button" type="button" data-i18n="common.actions.reset"></button>
                             <button id="toggle-preset-library" class="library-button" type="button" aria-controls="static-presets" aria-expanded="false">
                                 <svg viewBox="0 0 24 24" aria-hidden="true">
                                     <path d="M3.5 5.5c2.8-.7 5.6-.2 8 1.5v12c-2.4-1.7-5.2-2.2-8-1.5zM20.5 5.5c-2.8-.7-5.6-.2-8 1.5v12c2.4-1.7 5.2-2.2 8-1.5z"/>
                                 </svg>
-                                <span>Presets</span>
+                                <span data-i18n="explorer.presets.button"></span>
                                 <small id="preset-count">—</small>
                             </button>
                         </header>
-                        <div class="pose-viewer-controls" aria-label="Viewer controls">
+                        <div class="pose-viewer-controls" data-i18n-attrs="aria-label:explorer.controls.aria-label">
                             <div class="toolbar-group source-group">
-                                <span id="analysis-source-title" class="toolbar-label">Geometry</span>
+                                <span id="analysis-source-title" class="toolbar-label" data-i18n="explorer.controls.geometry"></span>
                                 <div class="source-controls">
                                     <div class="layer-toggle-list" role="group" aria-labelledby="analysis-source-title">
-                                        <button id="toggle-context" class="layer-toggle active" type="button" aria-pressed="true">Body context</button>
-                                        <button id="toggle-long-origins" class="layer-toggle" type="button" aria-pressed="false">Extended paths</button>
+                                        <button id="toggle-context" class="layer-toggle active" type="button" aria-pressed="true" data-i18n="explorer.controls.body-context"></button>
+                                        <button id="toggle-long-origins" class="layer-toggle" type="button" aria-pressed="false" data-i18n="explorer.controls.extended-paths"></button>
                                     </div>
                                 </div>
                             </div>
                             <div class="toolbar-group">
-                                <span class="toolbar-label">Muscle view</span>
-                                <div class="path-view-switch" role="group" aria-label="Muscle rendering style">
-                                    <button id="render-anatomical-bodies" class="active" type="button" aria-pressed="true">Anatomical</button>
-                                    <button id="render-path-lines" type="button" aria-pressed="false">Path lines</button>
+                                <span class="toolbar-label" data-i18n="explorer.controls.muscle-view"></span>
+                                <div class="path-view-switch" role="group" data-i18n-attrs="aria-label:explorer.controls.rendering-label">
+                                    <button id="render-anatomical-bodies" class="active" type="button" aria-pressed="true" data-i18n="explorer.controls.anatomical"></button>
+                                    <button id="render-path-lines" type="button" aria-pressed="false" data-i18n="explorer.controls.path-lines"></button>
                                 </div>
                             </div>
                             <div class="toolbar-group">
-                                <span class="toolbar-label">Muscles</span>
-                                <div class="path-view-switch" role="group" aria-label="Muscle path view">
-                                    <button id="view-all-muscles" class="active" type="button" aria-pressed="true">All paths</button>
-                                    <button id="view-one-muscle" type="button" aria-pressed="false">Inspect one</button>
+                                <span class="toolbar-label" data-i18n="common.nouns.muscles"></span>
+                                <div class="path-view-switch" role="group" data-i18n-attrs="aria-label:explorer.controls.path-view-label">
+                                    <button id="view-all-muscles" class="active" type="button" aria-pressed="true" data-i18n="explorer.controls.all-paths"></button>
+                                    <button id="view-one-muscle" type="button" aria-pressed="false" data-i18n="explorer.controls.inspect-one"></button>
                                 </div>
                             </div>
                         </div>
                         <section id="static-presets" class="preset-section preset-catalog hidden" aria-labelledby="preset-title">
                             <div class="preset-heading">
-                                <h3 id="preset-title">Posture presets</h3>
-                                <span id="preset-summary">Reference postures</span>
+                                <h3 id="preset-title" data-i18n="explorer.presets.title"></h3>
+                                <span id="preset-summary" data-i18n="explorer.presets.reference"></span>
                             </div>
-                            <p id="preset-note" class="catalog-note">Approximate reference angles.</p>
+                            <p id="preset-note" class="catalog-note" data-i18n="explorer.presets.note"></p>
                             <div id="pose-presets" class="preset-groups"></div>
                         </section>
                         <div id="coordinate-controls" class="coordinate-controls compact"></div>
                         <div id="static-actions" class="static-actions">
-                            <button id="calculate-static" class="quiet-button hidden" type="button">Try again</button>
+                        <button id="calculate-static" class="quiet-button hidden" type="button" data-i18n="common.actions.try-again"></button>
                             <details class="solver-details">
-                                <summary>Solver details</summary>
-                                <dl class="solver-mini-readout" aria-label="Static solver quality">
-                                    <div title="Remaining balance error after the static calculation"><dt>Balance error</dt><dd id="solver-residual">—</dd></div>
-                                    <div title="Additional torque used to test whether the posture can be balanced"><dt>Reserve torque</dt><dd id="solver-reserve">—</dd></div>
+                            <summary data-i18n="explorer.solver.title"></summary>
+                                <dl class="solver-mini-readout" data-i18n-attrs="aria-label:explorer.solver.quality-label">
+                                <div data-i18n-attrs="title:explorer.solver.balance-description"><dt data-i18n="explorer.solver.balance-error"></dt><dd id="solver-residual">—</dd></div>
+                                <div data-i18n-attrs="title:explorer.solver.reserve-description"><dt data-i18n="explorer.solver.reserve-torque"></dt><dd id="solver-reserve">—</dd></div>
                                 </dl>
                             </details>
                         </div>
@@ -287,52 +300,58 @@
             <section class="diagnosis-records panel" aria-labelledby="diagnosis-records-title">
                 <header>
                     <div>
-                        <h2 id="diagnosis-records-title">Assessment records</h2>
-                        <span id="diagnosis-draft-state">Device storage</span>
+                        <h2 id="diagnosis-records-title">
+                            <svg class="diagnosis-records-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M9 6h11M9 12h11M9 18h11"></path>
+                                <path d="M4 6h.01M4 12h.01M4 18h.01"></path>
+                            </svg>
+                            <span data-i18n="assessment.records.title"></span>
+                        </h2>
+                        <span id="diagnosis-draft-state" data-i18n="assessment.records.device-storage"></span>
                     </div>
                     <div class="diagnosis-record-actions">
-                        <button id="diagnosis-delete-all-data" class="quiet-button" type="button">Clear Data</button>
-                        <button id="diagnosis-new-assessment" class="quiet-button" type="button">New assessment</button>
+                        <button id="diagnosis-delete-all-data" class="quiet-button" type="button" data-i18n="assessment.records.clear-data"></button>
+                        <button id="diagnosis-new-assessment" class="quiet-button" type="button" data-i18n="assessment.records.new-assessment"></button>
                     </div>
                 </header>
                 <div id="diagnosis-saved-report-list"></div>
-                <p id="diagnosis-records-privacy" class="diagnosis-records-privacy">Drafts and reports remain in this browser profile until deleted. Clearing this browser's site data also removes these records.</p>
+                <p id="diagnosis-records-privacy" class="diagnosis-records-privacy" data-i18n="assessment.records.privacy"></p>
             </section>
 
             <section id="diagnosis-privacy-overview" class="diagnosis-privacy-overview panel" aria-labelledby="diagnosis-privacy-overview-title">
                 <header>
-                    <p class="eyebrow">Privacy first</p>
-                    <h2 id="diagnosis-privacy-overview-title">Your information stays with you</h2>
-                    <p>Everything you enter—including assessment answers and reports—is saved only in this browser on your device.</p>
+                        <p class="eyebrow" data-i18n="assessment.privacy.eyebrow"></p>
+                        <h2 id="diagnosis-privacy-overview-title" data-i18n="assessment.privacy.title"></h2>
+                        <p data-i18n="assessment.privacy.intro"></p>
                 </header>
                 <div class="diagnosis-privacy-overview-body">
-                    <p><strong>No server collection.</strong> The application does not send assessment information to us or to a health-record server.</p>
-                    <p><strong>No cookies or advertising trackers.</strong> Records remain available only in this browser profile unless you export them.</p>
-                    <p><strong>You control deletion.</strong> Use Clear Data or clear this browser's site data to remove local records. Exported files must be deleted separately.</p>
+                        <p data-i18n="assessment.privacy.no-server"></p>
+                        <p data-i18n="assessment.privacy.no-cookies"></p>
+                        <p data-i18n="assessment.privacy.deletion"></p>
                 </div>
                 <div class="diagnosis-privacy-start">
-                    <button id="diagnosis-start" class="primary-button" type="button">Start</button>
+                    <button id="diagnosis-start" class="primary-button" type="button" data-i18n="common.actions.start"></button>
                 </div>
             </section>
 
             <section id="diagnosis-safety-landing" class="diagnosis-safety-landing panel hidden" aria-labelledby="diagnosis-safety-title">
                 <header>
-                    <p class="eyebrow">Required before movement</p>
-                    <h2 id="diagnosis-safety-title">Upper-limb safety check</h2>
-                    <p>Review every warning sign before continuing.</p>
+                        <p class="eyebrow" data-i18n="assessment.safety.eyebrow"></p>
+                        <h2 id="diagnosis-safety-title" data-i18n="assessment.safety.title"></h2>
+                        <p data-i18n="assessment.safety.intro"></p>
                 </header>
                 <div class="diagnosis-safety-body">
                     <div class="diagnosis-safety-intro">
-                        <h3>Before you begin</h3>
-                        <p>This screen cannot rule out an urgent condition. If a warning applies, record it and stop here; do not use this application to delay medical care.</p>
-                        <p>This assessment records movement observations. It does not diagnose pain or injury.</p>
+                            <h3 data-i18n="assessment.safety.before-title"></h3>
+                            <p data-i18n="assessment.safety.urgent-boundary"></p>
+                            <p data-i18n="assessment.safety.diagnosis-boundary"></p>
                     </div>
                     <div>
                         <div id="diagnosis-safety-form"></div>
                         <div id="diagnosis-safety-warning" class="diagnosis-stop-warning hidden" role="alert"></div>
                         <div class="diagnosis-safety-footer">
-                            <span id="diagnosis-safety-state">Review required</span>
-                            <button id="diagnosis-continue" class="primary-button" type="button" disabled>Continue</button>
+                        <span id="diagnosis-safety-state" data-i18n="assessment.safety.review-required"></span>
+                        <button id="diagnosis-continue" class="primary-button" type="button" disabled data-i18n="common.actions.continue"></button>
                         </div>
                     </div>
                 </div>
@@ -340,77 +359,77 @@
 
             <section id="diagnosis-intake" class="diagnosis-intake panel hidden" aria-labelledby="diagnosis-intake-title">
                 <header>
-                    <p class="eyebrow">Step 2 of 3</p>
-                    <h2 id="diagnosis-intake-title">Assessment context</h2>
-                    <p>Enter the patient details and pain history used for this assessment record.</p>
+                        <p class="eyebrow" data-i18n="assessment.intake.eyebrow"></p>
+                        <h2 id="diagnosis-intake-title" data-i18n="assessment.intake.title"></h2>
+                        <p data-i18n="assessment.intake.intro"></p>
                 </header>
                 <form id="diagnosis-intake-form">
                     <section class="diagnosis-intake-section" aria-labelledby="intake-person-title">
                         <div class="diagnosis-intake-heading">
-                            <h3 id="intake-person-title">Patient details</h3>
-                            <span>Required fields are marked *</span>
+                                <h3 id="intake-person-title" data-i18n="assessment.intake.patient-details"></h3>
+                                <span data-i18n="assessment.intake.required-note"></span>
                         </div>
                         <div class="diagnosis-intake-grid">
-                            <label class="diagnosis-field span-2"><span>Patient name or alias</span><input name="name" type="text" maxlength="120" autocomplete="off" placeholder="Patient name or alias"></label>
-                            <label class="diagnosis-field"><span>Age *</span><input name="ageYears" type="number" min="1" max="120" step="1" inputmode="numeric" required></label>
-                            <label class="diagnosis-field"><span>Gender *</span><select name="gender" required>
-                                <option value="">Select</option><option value="female">Female</option><option value="male">Male</option><option value="nonbinary">Non-binary</option><option value="self_described">Self-described</option><option value="prefer_not_to_say">Prefer not to say</option>
+                            <label class="diagnosis-field span-2"><span data-i18n="assessment.intake.fields.name.label"></span><input name="name" type="text" maxlength="120" autocomplete="off" data-i18n-attrs="placeholder:assessment.intake.fields.name.placeholder"></label>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.age.label"></span><input name="ageYears" type="number" min="1" max="120" step="1" inputmode="numeric" required></label>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.gender.label"></span><select name="gender" required>
+                                <option value="" data-i18n="common.options.select"></option><option value="female" data-i18n="assessment.intake.options.gender.female"></option><option value="male" data-i18n="assessment.intake.options.gender.male"></option><option value="nonbinary" data-i18n="assessment.intake.options.gender.nonbinary"></option><option value="self_described" data-i18n="assessment.intake.options.gender.self-described"></option><option value="prefer_not_to_say" data-i18n="assessment.intake.options.gender.prefer-not-to-say"></option>
                             </select></label>
-                            <label class="diagnosis-field"><span>Height (cm) *</span><input name="heightCm" type="number" min="80" max="250" step="0.1" inputmode="decimal" required></label>
-                            <label class="diagnosis-field"><span>Weight (kg) *</span><input name="weightKg" type="number" min="20" max="350" step="0.1" inputmode="decimal" required></label>
-                            <label class="diagnosis-field"><span>Arm being assessed *</span><select name="assessedArm" required><option value="">Select</option><option value="right">Right</option><option value="left">Left</option></select></label>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.height.label"></span><input name="heightCm" type="number" min="80" max="250" step="0.1" inputmode="decimal" required></label>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.weight.label"></span><input name="weightKg" type="number" min="20" max="350" step="0.1" inputmode="decimal" required></label>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.arm.label"></span><select name="assessedArm" required><option value="" data-i18n="common.options.select"></option><option value="right" data-i18n="common.sides.right"></option><option value="left" data-i18n="common.sides.left"></option></select></label>
                         </div>
                     </section>
 
                     <section class="diagnosis-intake-section" aria-labelledby="intake-pain-title">
                         <div class="diagnosis-intake-heading">
-                            <h3 id="intake-pain-title">Pain history</h3>
-                            <span>Short answers are enough</span>
+                                <h3 id="intake-pain-title" data-i18n="assessment.intake.pain-history"></h3>
+                                <span data-i18n="assessment.intake.short-answers"></span>
                         </div>
                         <div class="diagnosis-intake-grid">
-                            <label class="diagnosis-field"><span>How long has it hurt? *</span><select name="painDuration" required>
-                                <option value="">Select</option><option value="under_24_hours">Less than 24 hours</option><option value="1_to_7_days">1–7 days</option><option value="1_to_6_weeks">1–6 weeks</option><option value="6_to_12_weeks">6–12 weeks</option><option value="3_to_6_months">3–6 months</option><option value="over_6_months">More than 6 months</option><option value="recurrent">Comes and goes / recurrent</option>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.duration.label"></span><select name="painDuration" required>
+                                <option value="" data-i18n="common.options.select"></option><option value="under_24_hours" data-i18n="assessment.intake.options.duration.under-24-hours"></option><option value="1_to_7_days" data-i18n="assessment.intake.options.duration.1-to-7-days"></option><option value="1_to_6_weeks" data-i18n="assessment.intake.options.duration.1-to-6-weeks"></option><option value="6_to_12_weeks" data-i18n="assessment.intake.options.duration.6-to-12-weeks"></option><option value="3_to_6_months" data-i18n="assessment.intake.options.duration.3-to-6-months"></option><option value="over_6_months" data-i18n="assessment.intake.options.duration.over-6-months"></option><option value="recurrent" data-i18n="assessment.intake.options.duration.recurrent"></option>
                             </select></label>
-                            <label class="diagnosis-field"><span>How did it begin? *</span><select name="painOnset" required>
-                                <option value="">Select</option><option value="sudden_injury">Sudden, during an injury</option><option value="sudden_no_injury">Sudden, without a clear injury</option><option value="gradual_overuse">Gradual / repeated use</option><option value="gradual_unknown">Gradual, cause unclear</option><option value="after_inactivity">After inactivity or sleep</option><option value="recurrent">A recurrent problem</option><option value="unsure">Unsure</option>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.onset.label"></span><select name="painOnset" required>
+                                <option value="" data-i18n="common.options.select"></option><option value="sudden_injury" data-i18n="assessment.intake.options.onset.sudden-injury"></option><option value="sudden_no_injury" data-i18n="assessment.intake.options.onset.sudden-no-injury"></option><option value="gradual_overuse" data-i18n="assessment.intake.options.onset.gradual-overuse"></option><option value="gradual_unknown" data-i18n="assessment.intake.options.onset.gradual-unknown"></option><option value="after_inactivity" data-i18n="assessment.intake.options.onset.after-inactivity"></option><option value="recurrent" data-i18n="assessment.intake.options.onset.recurrent"></option><option value="unsure" data-i18n="assessment.intake.options.onset.unsure"></option>
                             </select></label>
-                            <label class="diagnosis-field"><span>Pain now · 0–10 *</span><input name="painNow" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
-                            <label class="diagnosis-field"><span>Worst pain · 0–10 *</span><input name="painWorst" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
-                            <label class="diagnosis-field span-2"><span>Main pain location *</span><select name="primaryPainLocation" required>
-                                <option value="">Select</option><option value="front_shoulder">Front of shoulder</option><option value="side_shoulder_upper_arm">Side of shoulder / upper arm</option><option value="top_ac_region">Top of shoulder / AC region</option><option value="back_shoulder">Back of shoulder</option><option value="shoulder_blade">Around shoulder blade</option><option value="neck_to_arm">Neck spreading into arm</option><option value="elbow_forearm_hand">Elbow, forearm, or hand</option><option value="multiple_or_other">Multiple areas / other</option>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.pain-now.label"></span><input name="painNow" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.pain-worst.label"></span><input name="painWorst" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
+                            <label class="diagnosis-field span-2"><span data-i18n="assessment.intake.fields.location.label"></span><select name="primaryPainLocation" required>
+                                <option value="" data-i18n="common.options.select"></option><option value="front_shoulder" data-i18n="assessment.intake.options.location.front-shoulder"></option><option value="side_shoulder_upper_arm" data-i18n="assessment.intake.options.location.side-shoulder-upper-arm"></option><option value="top_ac_region" data-i18n="assessment.intake.options.location.top-ac-region"></option><option value="back_shoulder" data-i18n="assessment.intake.options.location.back-shoulder"></option><option value="shoulder_blade" data-i18n="assessment.intake.options.location.shoulder-blade"></option><option value="neck_to_arm" data-i18n="assessment.intake.options.location.neck-to-arm"></option><option value="elbow_forearm_hand" data-i18n="assessment.intake.options.location.elbow-forearm-hand"></option><option value="multiple_or_other" data-i18n="assessment.intake.options.location.multiple-or-other"></option>
                             </select></label>
                             <fieldset class="diagnosis-intake-checks span-2">
-                                <legend>Other features</legend>
-                                <label><input name="painAtRest" type="checkbox"> Pain at rest</label>
-                                <label><input name="nightPain" type="checkbox"> Wakes or disturbs sleep</label>
-                                <label><input name="radiatingPain" type="checkbox"> Spreads down the arm</label>
-                                <label><input name="clickingInstability" type="checkbox"> Clicking, catching, or instability</label>
+                                <legend data-i18n="assessment.intake.other-features"></legend>
+                                <label><input name="painAtRest" type="checkbox"> <span data-i18n="assessment.intake.features.pain-at-rest"></span></label>
+                                <label><input name="nightPain" type="checkbox"> <span data-i18n="assessment.intake.features.night-pain"></span></label>
+                                <label><input name="radiatingPain" type="checkbox"> <span data-i18n="assessment.intake.features.radiating-pain"></span></label>
+                                <label><input name="clickingInstability" type="checkbox"> <span data-i18n="assessment.intake.features.clicking-instability"></span></label>
                             </fieldset>
-                            <label class="diagnosis-field span-2"><span>Injury or onset details</span><textarea name="onsetDetails" maxlength="600" placeholder="What happened, or what activity seemed to start it?"></textarea></label>
-                            <label class="diagnosis-field span-2"><span>What makes it worse or better?</span><textarea name="aggravatingRelieving" maxlength="600" placeholder="Movements, work, sport, rest, sleep position, medication, or other factors"></textarea></label>
-                            <label class="diagnosis-field span-2"><span>Relevant history</span><textarea name="relevantHistory" maxlength="600" placeholder="Previous upper-limb injury, surgery, diagnosis, or treatment"></textarea></label>
+                            <label class="diagnosis-field span-2"><span data-i18n="assessment.intake.fields.onset-details.label"></span><textarea name="onsetDetails" maxlength="600" data-i18n-attrs="placeholder:assessment.intake.fields.onset-details.placeholder"></textarea></label>
+                            <label class="diagnosis-field span-2"><span data-i18n="assessment.intake.fields.aggravating-relieving.label"></span><textarea name="aggravatingRelieving" maxlength="600" data-i18n-attrs="placeholder:assessment.intake.fields.aggravating-relieving.placeholder"></textarea></label>
+                            <label class="diagnosis-field span-2"><span data-i18n="assessment.intake.fields.relevant-history.label"></span><textarea name="relevantHistory" maxlength="600" data-i18n-attrs="placeholder:assessment.intake.fields.relevant-history.placeholder"></textarea></label>
                         </div>
                     </section>
 
                     <section class="diagnosis-privacy-consent" aria-labelledby="diagnosis-privacy-title">
                         <div class="diagnosis-privacy-details">
-                            <h3 id="diagnosis-privacy-title">Privacy and export details</h3>
+                                <h3 id="diagnosis-privacy-title" data-i18n="assessment.privacy.details-title"></h3>
                             <div class="diagnosis-privacy-copy">
-                                <p><strong>No server collection.</strong> Waajacu's Medical does not send the information entered here to us or to a health-record server. We do not receive, analyse, sell, or share it.</p>
-                                <p><strong>No cookies.</strong> This application does not use cookies or advertising trackers.</p>
-                                <p id="diagnosis-active-storage-notice"><strong>Saved on this device.</strong> Drafts and reports remain in this browser profile until deleted.</p>
-                                <p><strong>Exports.</strong> The reduced-detail report excludes direct identifiers and observation notes, and groups exact age, height, and weight into broad bands. It is not guaranteed anonymous. The full report retains exact local detail and free text. Review every file before sharing it.</p>
+                                    <p data-i18n="assessment.privacy.details-no-server"></p>
+                                    <p data-i18n="assessment.privacy.details-no-cookies"></p>
+                                    <p id="diagnosis-active-storage-notice" data-i18n="assessment.privacy.details-device"></p>
+                                    <p data-i18n="assessment.privacy.details-exports"></p>
                             </div>
                         </div>
                         <label class="diagnosis-privacy-accept">
                             <input name="privacyAccepted" type="checkbox" required>
-                            <span>I have read and accept the privacy and export details.</span>
+                            <span data-i18n="assessment.privacy.accept"></span>
                         </label>
                     </section>
                     <div class="diagnosis-intake-actions">
-                        <button id="diagnosis-intake-back" class="quiet-button" type="button">Back to safety</button>
-                        <span id="diagnosis-intake-state" role="status">Complete the required fields.</span>
-                        <button class="primary-button" type="submit">Start movement assessment</button>
+                        <button id="diagnosis-intake-back" class="quiet-button" type="button" data-i18n="assessment.intake.back"></button>
+                        <span id="diagnosis-intake-state" role="status" data-i18n="assessment.intake.complete-required"></span>
+                        <button class="primary-button" type="submit" data-i18n="assessment.intake.start"></button>
                     </div>
                 </form>
             </section>
@@ -418,72 +437,72 @@
             <div id="diagnosis-assessment" class="diagnosis-assessment hidden">
                 <header class="diagnosis-assessment-bar panel">
                     <div class="diagnosis-assessment-title">
-                        <p class="eyebrow">Single assessment</p>
-                        <h2>Upper-limb movement observation</h2>
-                        <span class="diagnosis-assessment-summary">15 guided reference positions</span>
+                        <p class="eyebrow" data-i18n="assessment.workspace.eyebrow"></p>
+                        <h2 data-i18n="assessment.workspace.title"></h2>
+                        <span class="diagnosis-assessment-summary" data-i18n="assessment.workspace.summary"></span>
                     </div>
-                    <section class="diagnosis-patient-header" aria-label="Participant details">
+                    <section class="diagnosis-patient-header" data-i18n-attrs="aria-label:assessment.participant.details-label">
                         <div class="diagnosis-patient-identity">
                             <div>
-                                <span>Participant</span>
-                                <strong id="diagnosis-patient-name">No label provided</strong>
+                                <span data-i18n="assessment.participant.label"></span>
+                                <strong id="diagnosis-patient-name" data-i18n="assessment.participant.no-label"></strong>
                             </div>
                             <div class="diagnosis-patient-identifiers">
-                                <span class="diagnosis-record-code">Record <strong id="diagnosis-current-record-code">----</strong></span>
-                                <span class="diagnosis-patient-arm"><strong id="diagnosis-patient-arm">—</strong> arm</span>
+                                <span class="diagnosis-record-code"><span data-i18n="assessment.records.columns.record"></span> <strong id="diagnosis-current-record-code">----</strong></span>
+                                <span class="diagnosis-patient-arm"><strong id="diagnosis-patient-arm">—</strong></span>
                             </div>
                         </div>
                         <div class="diagnosis-patient-groups">
-                            <section aria-label="Participant profile">
-                                <h3>Profile</h3>
+                            <section data-i18n-attrs="aria-label:assessment.participant.profile-label">
+                                <h3 data-i18n="assessment.participant.profile"></h3>
                                 <dl>
-                                    <div><dt>Age</dt><dd id="diagnosis-patient-age">—</dd></div>
-                                    <div><dt>Gender</dt><dd id="diagnosis-patient-gender">—</dd></div>
-                                    <div><dt>Height / weight</dt><dd id="diagnosis-patient-size">—</dd></div>
+                                    <div><dt data-i18n="assessment.participant.age"></dt><dd id="diagnosis-patient-age">—</dd></div>
+                                    <div><dt data-i18n="assessment.participant.gender"></dt><dd id="diagnosis-patient-gender">—</dd></div>
+                                    <div><dt data-i18n="assessment.participant.size"></dt><dd id="diagnosis-patient-size">—</dd></div>
                                 </dl>
                             </section>
-                            <section aria-label="Pain context">
-                                <h3>Pain context</h3>
+                            <section data-i18n-attrs="aria-label:assessment.participant.pain-context-label">
+                                <h3 data-i18n="assessment.participant.pain-context"></h3>
                                 <dl>
-                                    <div><dt>Now / worst</dt><dd id="diagnosis-patient-pain">—</dd></div>
-                                    <div><dt>Duration</dt><dd id="diagnosis-patient-duration">—</dd></div>
-                                    <div><dt>Location</dt><dd id="diagnosis-patient-location">—</dd></div>
+                                    <div><dt data-i18n="assessment.participant.now-worst"></dt><dd id="diagnosis-patient-pain">—</dd></div>
+                                    <div><dt data-i18n="assessment.participant.duration"></dt><dd id="diagnosis-patient-duration">—</dd></div>
+                                    <div><dt data-i18n="assessment.participant.location"></dt><dd id="diagnosis-patient-location">—</dd></div>
                                 </dl>
                             </section>
                         </div>
                     </section>
-                    <button id="diagnosis-restart" class="quiet-button" type="button">Restart assessment</button>
+                    <button id="diagnosis-restart" class="quiet-button" type="button" data-i18n="assessment.actions.restart"></button>
                 </header>
 
                 <div class="diagnosis-center">
                     <section id="capacity-instructions" class="diagnosis-instructions capacity-instructions panel" aria-labelledby="capacity-position-title">
                         <div class="diagnosis-test-heading">
-                            <span id="capacity-position-id" class="diagnosis-test-id">Position 1 of 15</span>
-                            <h2 id="capacity-position-title">Movement position</h2>
+                            <span id="capacity-position-id" class="diagnosis-test-id" data-i18n="assessment.position.initial-progress"></span>
+                            <h2 id="capacity-position-title" data-i18n="assessment.position.default-title"></h2>
                         </div>
-                        <p><strong>Reference posture—not a prescribed exercise.</strong> <span id="capacity-position-instruction">Do not attempt it if it is uncomfortable or unsuitable.</span></p>
-                        <p class="diagnosis-hint"><strong>Colors are generic model estimates, not personal measurements.</strong> Stop for sharp or increasing pain, numbness, tingling, loss of control, or marked weakness.</p>
+                        <p><strong data-i18n="assessment.position.reference-boundary"></strong> <span id="capacity-position-instruction" data-i18n="assessment.position.default-instruction"></span></p>
+                        <p class="diagnosis-hint" data-i18n="assessment.position.safety-hint"></p>
                         <div class="capacity-position-actions">
-                            <button id="capacity-previous" class="quiet-button" type="button">Previous</button>
-                            <div class="capacity-quick-actions" aria-label="Quick response">
-                                <button id="capacity-no-symptoms" class="quick-response-button" type="button">Full · no symptoms</button>
-                                <button id="capacity-skip-position" class="quiet-button" type="button">Skip</button>
+                            <button id="capacity-previous" class="quiet-button" type="button" data-i18n="common.actions.previous"></button>
+                            <div class="capacity-quick-actions" data-i18n-attrs="aria-label:assessment.responses.quick-label">
+                                <button id="capacity-no-symptoms" class="quick-response-button" type="button" data-i18n="assessment.responses.full-no-symptoms"></button>
+                                <button id="capacity-skip-position" class="quiet-button" type="button" data-i18n="common.actions.skip"></button>
                             </div>
-                            <span id="capacity-save-state" role="status">Select a response in the assessment record</span>
+                            <span id="capacity-save-state" role="status" data-i18n="assessment.responses.select"></span>
                         </div>
                     </section>
                     <div id="diagnosis-viewer-slot" class="diagnosis-viewer-slot"></div>
                 </div>
 
-                <aside class="diagnosis-tests-panel panel" aria-label="Assessment record">
+                <aside class="diagnosis-tests-panel panel" data-i18n-attrs="aria-label:assessment.records.single-label">
                 <div id="capacity-screen-intro">
-                    <strong>15 guided positions</strong>
-                    <p>Record completion, pain, perceived weakness, stiffness, and compensation. Positions unlock one at a time.</p>
-                    <p>This experimental sequence has not been clinically validated.</p>
+                    <strong data-i18n="assessment.workspace.guided-positions"></strong>
+                    <p data-i18n="assessment.workspace.record-instructions"></p>
+                    <p data-i18n="assessment.workspace.validation-boundary"></p>
                 </div>
                 <div class="capacity-record-wrap">
                     <table class="capacity-record-table">
-                        <thead><tr><th scope="col">Position</th><th scope="col">Completion</th><th scope="col">Pain</th><th scope="col">Weakness</th><th scope="col">Stiffness</th><th scope="col">Compensation</th><th scope="col">Notes</th></tr></thead>
+                        <thead><tr><th scope="col" data-i18n="assessment.report.observations.columns.posture"></th><th scope="col" data-i18n="assessment.responses.fields.completion"></th><th scope="col" data-i18n="assessment.responses.fields.pain"></th><th scope="col" data-i18n="assessment.responses.fields.weakness"></th><th scope="col" data-i18n="assessment.responses.fields.stiffness"></th><th scope="col" data-i18n="assessment.responses.fields.compensation"></th><th scope="col" data-i18n="assessment.responses.fields.notes"></th></tr></thead>
                         <tbody id="capacity-position-list"></tbody>
                     </table>
                 </div>
@@ -494,29 +513,29 @@
             <section id="diagnosis-report-screen" class="diagnosis-report-screen hidden" aria-labelledby="diagnosis-report-screen-title">
                 <header class="diagnosis-report-screen-header panel">
                     <div>
-                        <p class="eyebrow">Assessment complete</p>
-                        <h2 id="diagnosis-report-screen-title">Results and report</h2>
+                        <p class="eyebrow" data-i18n="assessment.report.complete"></p>
+                        <h2 id="diagnosis-report-screen-title" data-i18n="assessment.report.results-title"></h2>
                     </div>
                     <div class="diagnosis-report-screen-actions">
-                        <button id="diagnosis-report-back" class="quiet-button" type="button">Back to assessment</button>
-                        <button id="diagnosis-copy-json" class="quiet-button" type="button" disabled>Copy reduced-detail report</button>
-                        <button id="diagnosis-download-json" class="quiet-button" type="button" disabled>Download reduced-detail report</button>
-                        <button id="capacity-copy-json" class="quiet-button" type="button" disabled>Copy full report data</button>
-                        <button id="capacity-download-json" class="quiet-button" type="button" disabled>Download full report data</button>
-                        <button id="diagnosis-report-restart" class="quiet-button" type="button">Restart assessment</button>
+                        <button id="diagnosis-report-back" class="quiet-button" type="button" data-i18n="assessment.report.back"></button>
+                        <button id="diagnosis-copy-json" class="quiet-button" type="button" disabled data-i18n="assessment.report.copy-reduced"></button>
+                        <button id="diagnosis-download-json" class="quiet-button" type="button" disabled data-i18n="assessment.report.download-reduced"></button>
+                        <button id="capacity-copy-json" class="quiet-button" type="button" disabled data-i18n="assessment.report.copy-full"></button>
+                        <button id="capacity-download-json" class="quiet-button" type="button" disabled data-i18n="assessment.report.download-full"></button>
+                        <button id="diagnosis-report-restart" class="quiet-button" type="button" data-i18n="assessment.actions.restart"></button>
                     </div>
                 </header>
                 <section id="diagnosis-report" class="diagnosis-report panel" aria-labelledby="diagnosis-report-title">
                     <div class="diagnosis-report-watermark" aria-hidden="true">
                         <img src="./waajacu_medical.png" alt="">
-                        <span>Waajacu's Medical</span>
+                        <span data-i18n="brand.name"></span>
                     </div>
                     <header>
                         <div class="diagnosis-report-brand">
                             <img src="./waajacu_medical.png" width="42" height="42" alt="">
                             <div>
-                                <span class="diagnosis-report-brand-name">Waajacu's Medical</span>
-                                <h2 id="diagnosis-report-title">Movement observation report</h2>
+                                <span class="diagnosis-report-brand-name" data-i18n="brand.name"></span>
+                                <h2 id="diagnosis-report-title" data-i18n="assessment.report.title"></h2>
                             </div>
                         </div>
                         <span id="diagnosis-report-time"></span>
@@ -527,70 +546,70 @@
         </section>
 
         <div id="app-dialog" class="app-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
-            <button id="app-dialog-backdrop" class="app-dialog-backdrop" type="button" aria-label="Close dialog"></button>
+            <button id="app-dialog-backdrop" class="app-dialog-backdrop" type="button" data-i18n-attrs="aria-label:common.actions.close-dialog"></button>
             <section class="app-dialog-card">
-                <h2 id="app-dialog-title">Confirm action</h2>
+                <h2 id="app-dialog-title" data-i18n="common.dialog.confirm-action"></h2>
                 <p id="app-dialog-message"></p>
                 <div class="app-dialog-actions">
-                    <button id="app-dialog-cancel" class="quiet-button" type="button">Cancel</button>
-                    <button id="app-dialog-confirm" class="primary-button" type="button">Confirm</button>
+                    <button id="app-dialog-cancel" class="quiet-button" type="button" data-i18n="common.actions.cancel"></button>
+                    <button id="app-dialog-confirm" class="primary-button" type="button" data-i18n="common.actions.confirm"></button>
                 </div>
             </section>
         </div>
 
         <section id="model-information" class="model-information panel" aria-labelledby="model-information-title">
             <header class="model-information-header">
-                <h2 id="model-information-title">About this model</h2>
+                <h2 id="model-information-title" data-i18n="model-info.title"></h2>
                 <div class="model-disclosure" role="note">
-                    <strong>Research model—not a diagnosis.</strong>
-                    <span>Results are generic estimates, not measurements of an individual.</span>
+                    <strong data-i18n="model-info.disclosure-title"></strong>
+                    <span data-i18n="model-info.disclosure-description"></span>
                 </div>
             </header>
             <div class="model-information-groups">
                 <section class="model-information-section" aria-labelledby="model-shows-title">
-                    <h3 id="model-shows-title">What the model shows</h3>
+                    <h3 id="model-shows-title" data-i18n="model-info.shows-title"></h3>
                     <div class="model-information-body">
-                        <p><strong>Model:</strong> <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">MS-Human-700</a>, using its primary full-body model and detailed manipulation hand variant. The complete skeleton is shown as quiet context while <span id="count-region-name">the selected region</span> remains in focus: <span id="count-muscles">—</span> relevant muscles, <span id="count-bodies">—</span> articulated bodies, and <span id="count-meshes">—</span> surface meshes.</p>
-                        <p><strong>Posture and paths:</strong> choose one body region at a time. Its own posture controls, muscle inventory and presets replace the previous region cleanly; paths are recalculated through the model's attachment sites and wrapping surfaces at every posture.</p>
-                        <p><strong>Muscle rendering:</strong> switch between procedural anatomical bodies and technical path lines. Anatomical bodies use smoothed, muscle-family-specific surface profiles while following the model path; path lines show the exact calculated centerline. Body shape and thickness are illustrative and do not vary with activation; color represents activation.</p>
-                        <p><strong>Activation:</strong> colors show a static, gravity-only model estimate. The calculation includes passive model forces and assumes the rest of the body is externally supported.</p>
-                        <p><strong>Detailed hand:</strong> finger posture and intrinsic-hand muscles come from the articulated right-hand variant. Hand presets are unloaded shapes without object contact; they do not estimate grip or pinch force. Mirror display does not change the calculated side.</p>
+                        <p><strong data-i18n="model-info.shows.model-label"></strong> <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">MS-Human-700</a><span data-i18n="model-info.shows.model-intro"></span> <span id="count-region-name" data-i18n="model-info.shows.selected-region"></span><span data-i18n="model-info.shows.focus-prefix"></span> <span id="count-muscles">—</span> <span data-i18n="model-info.shows.relevant-muscles"></span>, <span id="count-bodies">—</span> <span data-i18n="model-info.shows.articulated-bodies"></span>, <span data-i18n="model-info.shows.and"></span> <span id="count-meshes">—</span> <span data-i18n="model-info.shows.surface-meshes"></span></p>
+                        <p><strong data-i18n="model-info.shows.posture-label"></strong><span data-i18n="model-info.shows.posture-copy"></span></p>
+                        <p><strong data-i18n="model-info.shows.rendering-label"></strong><span data-i18n="model-info.shows.rendering-copy"></span></p>
+                        <p><strong data-i18n="model-info.shows.activation-label"></strong><span data-i18n="model-info.shows.activation-copy"></span></p>
+                        <p><strong data-i18n="model-info.shows.hand-label"></strong><span data-i18n="model-info.shows.hand-copy"></span></p>
                     </div>
                 </section>
                 <section class="model-information-section" aria-labelledby="model-limitations-title">
-                    <h3 id="model-limitations-title">Methods and limitations</h3>
+                    <h3 id="model-limitations-title" data-i18n="model-info.limitations-title"></h3>
                     <div class="model-information-body">
-                        <p><strong>Static only:</strong> there is no held object, contact force, measured support, speed, acceleration, fatigue or person-specific co-contraction. Dynamic movement can require different activation.</p>
-                        <p><strong>Quality checks:</strong> colors appear only when paths and values are valid and the posture passes the static balance and reserve-torque limits. A failed result remains gray.</p>
-                        <p><strong>Interpretation:</strong> activation and active tensile-force contribution are model outputs—not measured effort, personal force, tissue load, pain, damage or diagnostic evidence. Joint reaction forces are not calculated.</p>
-                        <p><strong>Assessment:</strong> the guided sequence remains a separate right upper-limb workflow. Explorer region choices do not change its protocol. It cannot identify a painful tissue, rule out urgent conditions or replace a qualified clinician.</p>
-                        <p><strong>Technical details:</strong> <span id="runtime-note">Loading the browser runtime…</span> <span id="model-hash">Checking model integrity…</span> This distribution includes documented source-model modifications; see the source-change record below.</p>
+                        <p><strong data-i18n="model-info.limitations.static-label"></strong><span data-i18n="model-info.limitations.static-copy"></span></p>
+                        <p><strong data-i18n="model-info.limitations.quality-label"></strong><span data-i18n="model-info.limitations.quality-copy"></span></p>
+                        <p><strong data-i18n="model-info.limitations.interpretation-label"></strong><span data-i18n="model-info.limitations.interpretation-copy"></span></p>
+                        <p><strong data-i18n="model-info.limitations.assessment-label"></strong><span data-i18n="model-info.limitations.assessment-copy"></span></p>
+                        <p><strong data-i18n="model-info.limitations.technical-label"></strong> <span id="runtime-note" data-i18n="model-info.limitations.runtime-loading"></span> <span id="model-hash" data-i18n="model-info.limitations.integrity-checking"></span> <span data-i18n="model-info.limitations.technical-copy"></span></p>
                     </div>
                 </section>
                 <section id="credits-legal" class="model-information-section" aria-labelledby="credits-legal-title">
-                    <h3 id="credits-legal-title">Credits, licenses and citation</h3>
+                    <h3 id="credits-legal-title" data-i18n="legal.title"></h3>
                     <div class="model-information-body legal-grid">
-                        <p><strong>Waajacu's Medical:</strong> original application code and interface © 2026 Waajacu's Medical contributors, licensed under the <a href="./LICENSE" target="_blank">MIT License</a>.</p>
-                        <p><strong>MS-Human-700:</strong> by the <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">LNS Group</a>, sourced through <a href="https://github.com/google-deepmind/mujoco_menagerie/tree/main/ms_human_700" target="_blank" rel="noreferrer">MuJoCo Menagerie</a>. Modified and compiled browser assets remain under <a href="./models/ms_human_700/LICENSE" target="_blank">Apache-2.0</a>; changes are listed in the <a href="./models/ms_human_700/SOURCE.md" target="_blank">source record</a>.</p>
-                        <p><strong><a href="https://github.com/google-deepmind/mujoco/releases/tag/3.10.0" target="_blank" rel="noreferrer">MuJoCo 3.10.0</a>:</strong> WebAssembly runtime by Google DeepMind, <a href="./vendor/MUJOCO_LICENSE.txt" target="_blank">Apache-2.0</a>. <strong><a href="https://github.com/mrdoob/three.js/releases/tag/r180" target="_blank" rel="noreferrer">three.js r180</a>:</strong> © 2010–2025 three.js authors, <a href="./vendor/THREE_LICENSE.txt" target="_blank">MIT</a>.</p>
-                        <p><strong>Academic citation:</strong> Zuo, C., He, K., Shao, J. &amp; Sui, Y. (2024), “Self Model for Embodied Intelligence,” <em>IEEE ICRA</em>, 13062–13069. <a href="https://doi.org/10.1109/ICRA57147.2024.10610081" target="_blank" rel="noreferrer">DOI 10.1109/ICRA57147.2024.10610081</a>.</p>
-                        <p><strong>Provenance:</strong> Waajacu has not independently verified every model parameter or mesh. Local modifications are not endorsed by the upstream authors. See the <a href="./THIRD_PARTY_NOTICES.md" target="_blank">third-party notices</a> for complete boundaries.</p>
-                        <p><strong>Safety references:</strong> <a href="https://www.nhs.uk/symptoms/shoulder-pain/" target="_blank" rel="noreferrer">NHS shoulder guidance</a> and a <a href="https://pubmed.ncbi.nlm.nih.gov/28122541/" target="_blank" rel="noreferrer">systematic review of shoulder examination tests</a>. These sources do not validate this application.</p>
+                        <p><strong data-i18n="legal.waajacu-label"></strong><span data-i18n="legal.waajacu-copy"></span> <a href="./LICENSE" target="_blank" data-i18n="legal.mit-license"></a>.</p>
+                        <p><strong>MS-Human-700:</strong> <span data-i18n="legal.ms-human-by"></span> <a href="https://github.com/LNSGroup/MS-Human-700" target="_blank" rel="noreferrer">LNS Group</a><span data-i18n="legal.ms-human-sourced"></span> <a href="https://github.com/google-deepmind/mujoco_menagerie/tree/main/ms_human_700" target="_blank" rel="noreferrer">MuJoCo Menagerie</a><span data-i18n="legal.ms-human-assets"></span> <a href="./models/ms_human_700/LICENSE" target="_blank">Apache-2.0</a><span data-i18n="legal.ms-human-changes"></span> <a href="./models/ms_human_700/SOURCE.md" target="_blank" data-i18n="legal.source-record"></a>.</p>
+                        <p><strong><a href="https://github.com/google-deepmind/mujoco/releases/tag/3.10.0" target="_blank" rel="noreferrer">MuJoCo 3.10.0</a>:</strong> <span data-i18n="legal.mujoco-copy"></span> <a href="./vendor/MUJOCO_LICENSE.txt" target="_blank">Apache-2.0</a>. <strong><a href="https://github.com/mrdoob/three.js/releases/tag/r180" target="_blank" rel="noreferrer">three.js r180</a>:</strong> <span data-i18n="legal.three-copy"></span> <a href="./vendor/THREE_LICENSE.txt" target="_blank">MIT</a>.</p>
+                        <p><strong data-i18n="legal.citation-label"></strong> <span data-i18n="legal.citation-copy"></span> <a href="https://doi.org/10.1109/ICRA57147.2024.10610081" target="_blank" rel="noreferrer">DOI 10.1109/ICRA57147.2024.10610081</a>.</p>
+                        <p><strong data-i18n="legal.provenance-label"></strong><span data-i18n="legal.provenance-copy"></span> <a href="./THIRD_PARTY_NOTICES.md" target="_blank" data-i18n="legal.third-party-notices"></a> <span data-i18n="legal.provenance-ending"></span></p>
+                        <p><strong data-i18n="legal.safety-label"></strong> <a href="https://www.nhs.uk/symptoms/shoulder-pain/" target="_blank" rel="noreferrer" data-i18n="legal.nhs-guidance"></a> <span data-i18n="legal.and-a"></span> <a href="https://pubmed.ncbi.nlm.nih.gov/28122541/" target="_blank" rel="noreferrer" data-i18n="legal.systematic-review"></a><span data-i18n="legal.safety-ending"></span></p>
                     </div>
                 </section>
             </div>
         </section>
 
         <footer class="app-footer">
-            <p><strong>Waajacu™</strong> · © 2026 Waajacu’s Medical contributors · Research software · Not a medical device</p>
-            <nav aria-label="Legal and privacy links">
-                <a href="./LICENSE" target="_blank">MIT application license</a>
-                <a href="#credits-legal">Credits &amp; legal</a>
-                <a href="#diagnosis-records-privacy">Privacy</a>
+            <p data-i18n="legal.footer"></p>
+            <nav data-i18n-attrs="aria-label:legal.links-label">
+                <a href="./LICENSE" target="_blank" data-i18n="legal.application-license"></a>
+                <a href="#credits-legal" data-i18n="legal.credits"></a>
+                <a href="#diagnosis-records-privacy" data-i18n="legal.privacy"></a>
             </nav>
         </footer>
     </main>
 
-    <script type="module" src="./app-ms-human.js"></script>
+    <script type="module" src="./bootstrap.js"></script>
 </body>
 </html>

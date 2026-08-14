@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.min.js';
 import { createMsHumanEngine, StaleRequestError } from './ms-human-engine.js';
 import { createDiagnosisWorkflow } from './diagnosis.js';
+import { formatNumber, t } from './i18n.js';
 
 const PROFILE_DEFINITIONS = Object.freeze({
     primary: Object.freeze({
@@ -43,138 +44,130 @@ const REGION_OPTION_ORDER = Object.freeze([
     'head-neck',
     'right-hand'
 ]);
-const REGION_OPTION_LABELS = Object.freeze({
-    'right-upper-limb': 'Right arm',
-    'left-upper-limb': 'Left arm',
-    'right-lower-limb': 'Right leg',
-    'left-lower-limb': 'Left leg',
-    trunk: 'Back & trunk',
-    'head-neck': 'Head & neck',
-    'right-hand': 'Right hand'
-});
+const regionMessageKey = (regionId, field = 'name') => `explorer.regions.${regionId}.${field}`;
 
 // Keep upstream actuator names as stable calculation/export identifiers, but
-// translate them at the interface boundary.  Several MS-Human identifiers are
-// fascicle codes rather than names a reader can reasonably recognize.
+// resolve their catalog keys at the interface boundary. Several MS-Human
+// identifiers are fascicle codes rather than names a reader can recognize.
 const MUSCLE_DISPLAY_RULES = Object.freeze([
-    [/^DELT1(?:_|$)/i, 'Anterior deltoid'],
-    [/^DELT2(?:_|$)/i, 'Middle deltoid'],
-    [/^DELT3(?:_|$)/i, 'Posterior deltoid'],
-    [/^BIClong(?:_|$)/i, 'Biceps brachii · long head'],
-    [/^BICshort(?:_|$)/i, 'Biceps brachii · short head'],
-    [/^TRIlong(?:_|$)/i, 'Triceps brachii · long head'],
-    [/^TRIlat(?:_|$)/i, 'Triceps brachii · lateral head'],
-    [/^TRImed(?:_|$)/i, 'Triceps brachii · medial head'],
-    [/^BRA(?:_|$)/i, 'Brachialis'],
-    [/^BRD(?:_|$)/i, 'Brachioradialis'],
-    [/^CORB(?:_|$)/i, 'Coracobrachialis'],
-    [/^ANC(?:_|$)/i, 'Anconeus'],
-    [/^SUPSP(?:_|$)/i, 'Supraspinatus'],
-    [/^INFSP(?:_|$)/i, 'Infraspinatus'],
-    [/^SUBSC(?:_|$)/i, 'Subscapularis'],
-    [/^TMAJ(?:_|$)/i, 'Teres major'],
-    [/^TMIN(?:_|$)/i, 'Teres minor'],
-    [/^PECM1(?:_|$)/i, 'Pectoralis major · clavicular'],
-    [/^PECM2(?:_|$)/i, 'Pectoralis major · sternal'],
-    [/^PECM3(?:_|$)/i, 'Pectoralis major · costal'],
-    [/^SerrAnt/i, 'Serratus anterior'],
-    [/^trap_/i, 'Trapezius'],
-    [/^levator_scap/i, 'Levator scapulae'],
-    [/^cleid_/i, 'Sternocleidomastoid'],
-    [/^LD_/i, 'Latissimus dorsi'],
-    [/^ECRL(?:_|$)/i, 'Extensor carpi radialis longus'],
-    [/^ECRB(?:_|$)/i, 'Extensor carpi radialis brevis'],
-    [/^ECU(?:_|$)/i, 'Extensor carpi ulnaris'],
-    [/^FCR(?:_|$)/i, 'Flexor carpi radialis'],
-    [/^FCU(?:_|$)/i, 'Flexor carpi ulnaris'],
-    [/^PL(?:_|$)/i, 'Palmaris longus'],
-    [/^PT(?:_|$)/i, 'Pronator teres'],
-    [/^PQ(?:_|$)/i, 'Pronator quadratus'],
-    [/^SUP(?:_|$)/i, 'Supinator'],
-    [/^EDCI(?:_|$)/i, 'Extensor digitorum · index'],
-    [/^EDCM(?:_|$)/i, 'Extensor digitorum · middle'],
-    [/^EDCR(?:_|$)/i, 'Extensor digitorum · ring'],
-    [/^EDCL(?:_|$)/i, 'Extensor digitorum · little'],
-    [/^EDM(?:_|$)/i, 'Extensor digiti minimi'],
-    [/^EIP(?:_|$)/i, 'Extensor indicis'],
-    [/^EPL(?:_|$)/i, 'Extensor pollicis longus'],
-    [/^EPB(?:_|$)/i, 'Extensor pollicis brevis'],
-    [/^APL(?:_|$)/i, 'Abductor pollicis longus'],
-    [/^FPL(?:_|$)/i, 'Flexor pollicis longus'],
-    [/^FDPI(?:_|$)/i, 'Flexor digitorum profundus · index'],
-    [/^FDPM(?:_|$)/i, 'Flexor digitorum profundus · middle'],
-    [/^FDPR(?:_|$)/i, 'Flexor digitorum profundus · ring'],
-    [/^FDPL(?:_|$)/i, 'Flexor digitorum profundus · little'],
-    [/^FDSI(?:_|$)/i, 'Flexor digitorum superficialis · index'],
-    [/^FDSM(?:_|$)/i, 'Flexor digitorum superficialis · middle'],
-    [/^FDSR(?:_|$)/i, 'Flexor digitorum superficialis · ring'],
-    [/^FDSL(?:_|$)/i, 'Flexor digitorum superficialis · little'],
-    [/^APB(?:_|$)/i, 'Abductor pollicis brevis'],
-    [/^FPB(?:_|$)/i, 'Flexor pollicis brevis'],
-    [/^OPP(?:_|$)/i, 'Opponens pollicis'],
-    [/^ADPt(?:_|$)/i, 'Adductor pollicis · transverse head'],
-    [/^ADPo(?:_|$)/i, 'Adductor pollicis · oblique head'],
-    [/^ADM(?:_|$)/i, 'Abductor digiti minimi'],
-    [/^FDM(?:_|$)/i, 'Flexor digiti minimi brevis'],
-    [/^ODM(?:_|$)/i, 'Opponens digiti minimi'],
-    [/^(\d)(?:st|nd|rd|th)?PI(?:_|$)/i, 'Palmar interosseous'],
-    [/^(\d)(?:st|nd|rd|th)?DI(?:_|$)/i, 'Dorsal interosseous'],
-    [/^LUMI(?:_|$)/i, 'Index lumbrical'],
-    [/^LUMM(?:_|$)/i, 'Middle lumbrical'],
-    [/^LUMR(?:_|$)/i, 'Ring lumbrical'],
-    [/^LUML(?:_|$)/i, 'Little-finger lumbrical'],
-    [/^glmax/i, 'Gluteus maximus'],
-    [/^glmed/i, 'Gluteus medius'],
-    [/^glmin/i, 'Gluteus minimus'],
-    [/^addbrev/i, 'Adductor brevis'],
-    [/^addlong/i, 'Adductor longus'],
-    [/^addmag/i, 'Adductor magnus'],
-    [/^iliacus/i, 'Iliacus'],
-    [/^piri/i, 'Piriformis'],
-    [/^tfl/i, 'Tensor fasciae latae'],
-    [/^sart/i, 'Sartorius'],
-    [/^grac/i, 'Gracilis'],
-    [/^recfem/i, 'Rectus femoris'],
-    [/^vaslat/i, 'Vastus lateralis'],
-    [/^vasmed/i, 'Vastus medialis'],
-    [/^vasint/i, 'Vastus intermedius'],
-    [/^bflh/i, 'Biceps femoris · long head'],
-    [/^bfsh/i, 'Biceps femoris · short head'],
-    [/^semimem/i, 'Semimembranosus'],
-    [/^semiten/i, 'Semitendinosus'],
-    [/^gasmed/i, 'Gastrocnemius · medial head'],
-    [/^gaslat/i, 'Gastrocnemius · lateral head'],
-    [/^soleus/i, 'Soleus'],
-    [/^tibant/i, 'Tibialis anterior'],
-    [/^tibpost/i, 'Tibialis posterior'],
-    [/^perlong/i, 'Fibularis longus'],
-    [/^perbrev/i, 'Fibularis brevis'],
-    [/^ehl/i, 'Extensor hallucis longus'],
-    [/^edl/i, 'Extensor digitorum longus'],
-    [/^fhl/i, 'Flexor hallucis longus'],
-    [/^fdl/i, 'Flexor digitorum longus'],
-    [/^rect_abd/i, 'Rectus abdominis'],
-    [/^EO_/i, 'External oblique'],
-    [/^IO\d/i, 'Internal oblique'],
-    [/^TR\d/i, 'Transversus abdominis'],
-    [/^Ps_/i, 'Psoas major'],
-    [/^QL_/i, 'Quadratus lumborum'],
-    [/^(?:MF_|multifidus_)/i, 'Multifidus'],
-    [/^LTpL_/i, 'Longissimus lumborum'],
-    [/^LTpT_/i, 'Longissimus thoracis'],
-    [/^IL_/i, 'Iliocostalis'],
-    [/^longissi_cerv/i, 'Longissimus cervicis'],
-    [/^iliocost_cerv/i, 'Iliocostalis cervicis'],
-    [/^splen_cap/i, 'Splenius capitis'],
-    [/^splen_cerv/i, 'Splenius cervicis'],
-    [/^semi_cap/i, 'Semispinalis capitis'],
-    [/^semi_cerv/i, 'Semispinalis cervicis'],
-    [/^(?:supmult|deepmult)/i, 'Cervical multifidus'],
-    [/^scalenus_ant/i, 'Anterior scalene'],
-    [/^scalenus_med/i, 'Middle scalene'],
-    [/^scalenus_post/i, 'Posterior scalene'],
-    [/^stern_mast/i, 'Sternocleidomastoid'],
-    [/^long_col/i, 'Longus colli']
+    [/^DELT1(?:_|$)/i, 'name-001'],
+    [/^DELT2(?:_|$)/i, 'name-002'],
+    [/^DELT3(?:_|$)/i, 'name-003'],
+    [/^BIClong(?:_|$)/i, 'name-004'],
+    [/^BICshort(?:_|$)/i, 'name-005'],
+    [/^TRIlong(?:_|$)/i, 'name-006'],
+    [/^TRIlat(?:_|$)/i, 'name-007'],
+    [/^TRImed(?:_|$)/i, 'name-008'],
+    [/^BRA(?:_|$)/i, 'name-009'],
+    [/^BRD(?:_|$)/i, 'name-010'],
+    [/^CORB(?:_|$)/i, 'name-011'],
+    [/^ANC(?:_|$)/i, 'name-012'],
+    [/^SUPSP(?:_|$)/i, 'name-013'],
+    [/^INFSP(?:_|$)/i, 'name-014'],
+    [/^SUBSC(?:_|$)/i, 'name-015'],
+    [/^TMAJ(?:_|$)/i, 'name-016'],
+    [/^TMIN(?:_|$)/i, 'name-017'],
+    [/^PECM1(?:_|$)/i, 'name-018'],
+    [/^PECM2(?:_|$)/i, 'name-019'],
+    [/^PECM3(?:_|$)/i, 'name-020'],
+    [/^SerrAnt/i, 'name-021'],
+    [/^trap_/i, 'name-022'],
+    [/^levator_scap/i, 'name-023'],
+    [/^cleid_/i, 'name-024'],
+    [/^LD_/i, 'name-025'],
+    [/^ECRL(?:_|$)/i, 'name-026'],
+    [/^ECRB(?:_|$)/i, 'name-027'],
+    [/^ECU(?:_|$)/i, 'name-028'],
+    [/^FCR(?:_|$)/i, 'name-029'],
+    [/^FCU(?:_|$)/i, 'name-030'],
+    [/^PL(?:_|$)/i, 'name-031'],
+    [/^PT(?:_|$)/i, 'name-032'],
+    [/^PQ(?:_|$)/i, 'name-033'],
+    [/^SUP(?:_|$)/i, 'name-034'],
+    [/^EDCI(?:_|$)/i, 'name-035'],
+    [/^EDCM(?:_|$)/i, 'name-036'],
+    [/^EDCR(?:_|$)/i, 'name-037'],
+    [/^EDCL(?:_|$)/i, 'name-038'],
+    [/^EDM(?:_|$)/i, 'name-039'],
+    [/^EIP(?:_|$)/i, 'name-040'],
+    [/^EPL(?:_|$)/i, 'name-041'],
+    [/^EPB(?:_|$)/i, 'name-042'],
+    [/^APL(?:_|$)/i, 'name-043'],
+    [/^FPL(?:_|$)/i, 'name-044'],
+    [/^FDPI(?:_|$)/i, 'name-045'],
+    [/^FDPM(?:_|$)/i, 'name-046'],
+    [/^FDPR(?:_|$)/i, 'name-047'],
+    [/^FDPL(?:_|$)/i, 'name-048'],
+    [/^FDSI(?:_|$)/i, 'name-049'],
+    [/^FDSM(?:_|$)/i, 'name-050'],
+    [/^FDSR(?:_|$)/i, 'name-051'],
+    [/^FDSL(?:_|$)/i, 'name-052'],
+    [/^APB(?:_|$)/i, 'name-053'],
+    [/^FPB(?:_|$)/i, 'name-054'],
+    [/^OPP(?:_|$)/i, 'name-055'],
+    [/^ADPt(?:_|$)/i, 'name-056'],
+    [/^ADPo(?:_|$)/i, 'name-057'],
+    [/^ADM(?:_|$)/i, 'name-058'],
+    [/^FDM(?:_|$)/i, 'name-059'],
+    [/^ODM(?:_|$)/i, 'name-060'],
+    [/^(\d)(?:st|nd|rd|th)?PI(?:_|$)/i, 'name-061'],
+    [/^(\d)(?:st|nd|rd|th)?DI(?:_|$)/i, 'name-062'],
+    [/^LUMI(?:_|$)/i, 'name-063'],
+    [/^LUMM(?:_|$)/i, 'name-064'],
+    [/^LUMR(?:_|$)/i, 'name-065'],
+    [/^LUML(?:_|$)/i, 'name-066'],
+    [/^glmax/i, 'name-067'],
+    [/^glmed/i, 'name-068'],
+    [/^glmin/i, 'name-069'],
+    [/^addbrev/i, 'name-070'],
+    [/^addlong/i, 'name-071'],
+    [/^addmag/i, 'name-072'],
+    [/^iliacus/i, 'name-073'],
+    [/^piri/i, 'name-074'],
+    [/^tfl/i, 'name-075'],
+    [/^sart/i, 'name-076'],
+    [/^grac/i, 'name-077'],
+    [/^recfem/i, 'name-078'],
+    [/^vaslat/i, 'name-079'],
+    [/^vasmed/i, 'name-080'],
+    [/^vasint/i, 'name-081'],
+    [/^bflh/i, 'name-082'],
+    [/^bfsh/i, 'name-083'],
+    [/^semimem/i, 'name-084'],
+    [/^semiten/i, 'name-085'],
+    [/^gasmed/i, 'name-086'],
+    [/^gaslat/i, 'name-087'],
+    [/^soleus/i, 'name-088'],
+    [/^tibant/i, 'name-089'],
+    [/^tibpost/i, 'name-090'],
+    [/^perlong/i, 'name-091'],
+    [/^perbrev/i, 'name-092'],
+    [/^ehl/i, 'name-093'],
+    [/^edl/i, 'name-094'],
+    [/^fhl/i, 'name-095'],
+    [/^fdl/i, 'name-096'],
+    [/^rect_abd/i, 'name-097'],
+    [/^EO_/i, 'name-098'],
+    [/^IO\d/i, 'name-099'],
+    [/^TR\d/i, 'name-100'],
+    [/^Ps_/i, 'name-101'],
+    [/^QL_/i, 'name-102'],
+    [/^(?:MF_|multifidus_)/i, 'name-103'],
+    [/^LTpL_/i, 'name-104'],
+    [/^LTpT_/i, 'name-105'],
+    [/^IL_/i, 'name-106'],
+    [/^longissi_cerv/i, 'name-107'],
+    [/^iliocost_cerv/i, 'name-108'],
+    [/^splen_cap/i, 'name-109'],
+    [/^splen_cerv/i, 'name-110'],
+    [/^semi_cap/i, 'name-111'],
+    [/^semi_cerv/i, 'name-112'],
+    [/^(?:supmult|deepmult)/i, 'name-113'],
+    [/^scalenus_ant/i, 'name-114'],
+    [/^scalenus_med/i, 'name-115'],
+    [/^scalenus_post/i, 'name-116'],
+    [/^stern_mast/i, 'name-117'],
+    [/^long_col/i, 'name-118']
 ]);
 
 function muscleModelId(name) {
@@ -182,11 +175,16 @@ function muscleModelId(name) {
 }
 
 function muscleDisplayName(name) {
-    const raw = String(name ?? 'Unknown muscle');
+    const raw = String(name ?? t('explorer.muscles.unknown'));
     for (const [pattern, label] of MUSCLE_DISPLAY_RULES) {
-        if (pattern.test(raw)) return label;
+        if (pattern.test(raw)) return t(`explorer.muscles.names.${label}`);
     }
     return muscleModelId(raw).replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function muscleGroupDisplayName(group) {
+    const key = String(group ?? '').toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-|-$/g, '');
+    return t(`explorer.muscles.groups.${key || 'other'}`);
 }
 
 const primaryEngine = createMsHumanEngine({ onFatalError: handleFatalEngineError });
@@ -238,7 +236,7 @@ renderer.setClearColor(0xe8ece9, 1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.domElement.tabIndex = 0;
 renderer.domElement.setAttribute('role', 'application');
-renderer.domElement.setAttribute('aria-label', 'Interactive regional rendering of MS-Human-700. Click a muscle to inspect it alone; left-drag or use arrow keys to rotate; right-drag to move; scroll to zoom at the pointer; use plus and minus to zoom at the center.');
+renderer.domElement.setAttribute('aria-label', t('explorer.viewer.canvas-label'));
 sceneHost.append(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -268,8 +266,10 @@ const cameraState = {
     pitch: 0.025,
     radius: 1.7,
     initialRadius: 1.7,
+    diagnosisRadius: null,
     target: new THREE.Vector3(0, 1.25, -0.2),
     initialTarget: new THREE.Vector3(0, 1.25, -0.2),
+    diagnosisTarget: new THREE.Vector3(),
     framingOffset: new THREE.Vector2()
 };
 
@@ -327,8 +327,8 @@ function regionArea(region) {
 }
 
 function regionDisplayName(region) {
-    if (regionArea(region) === 'trunk') return 'Back & trunk';
-    return region?.presentationName || region?.label || region?.id || 'Selected region';
+    if (region?.id) return t(regionMessageKey(region.id));
+    return t('explorer.regions.selected');
 }
 
 function profileRegions(profileId) {
@@ -478,16 +478,17 @@ function handleFatalEngineError(error) {
     app.poseGeneration += 1;
     app.solveGeneration += 1;
     $('#server-status').className = 'server-status offline';
-    $('#server-status span:last-child').textContent = 'Model unavailable';
+    $('#server-status span:last-child').textContent = t('common.status.model-unavailable');
     app.diagnosis?.setReady(false);
     neutralizeDisplayedActivation();
     setPositionStatus(
         'unavailable',
-        'Model unavailable',
-        'The model worker stopped unexpectedly. Reload the page to start a fresh model session.'
+        t('common.status.model-unavailable'),
+        t('explorer.errors.worker-stopped')
     );
     $('#calculate-static').disabled = true;
-    showError(`The model stopped unexpectedly: ${error?.message || 'Unknown calculation failure.'} Reload the page to continue.`);
+    showError(t('explorer.errors.model-stopped'));
+    console.error(error);
 }
 
 function setLoading(message, visible = true) {
@@ -507,7 +508,7 @@ function requestRender() {
 renderer.domElement.addEventListener('webglcontextlost', (event) => {
     event.preventDefault();
     renderingContextLost = true;
-    setLoading('Restoring the 3D view…');
+    setLoading(t('explorer.status.restoring-view'));
 });
 
 renderer.domElement.addEventListener('webglcontextrestored', () => {
@@ -1097,7 +1098,7 @@ function setMuscleRendering(mode) {
     $('#render-path-lines').classList.toggle('active', lines);
     $('#render-anatomical-bodies').setAttribute('aria-pressed', String(anatomical));
     $('#render-path-lines').setAttribute('aria-pressed', String(lines));
-    setText('#muscle-rendering-legend', anatomical ? 'Anatomical bodies' : 'Path lines');
+    setText('#muscle-rendering-legend', t(anatomical ? 'explorer.legend.anatomical-bodies' : 'explorer.controls.path-lines'));
     renderPaths();
 }
 
@@ -1163,11 +1164,38 @@ function fitCameraToModel() {
     updateCamera();
 }
 
-function resetView() {
+function frameDiagnosisPose() {
+    displayRoot.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(app.activeRegionGroup);
+    if (bounds.isEmpty()) {
+        cameraState.diagnosisRadius = null;
+        resetView();
+        return;
+    }
+    const size = bounds.getSize(new THREE.Vector3());
+    bounds.getCenter(cameraState.diagnosisTarget);
+    const halfFov = THREE.MathUtils.degToRad(camera.fov) / 2;
+    const radius = Math.max(
+        size.y / (2 * Math.tan(halfFov)),
+        size.z / (2 * Math.tan(halfFov) * Math.max(camera.aspect, 0.5))
+    ) * 1.18;
+    cameraState.diagnosisRadius = THREE.MathUtils.clamp(radius, 0.6, MAX_CAMERA_RADIUS);
+    cameraState.target.copy(cameraState.diagnosisTarget);
+    cameraState.radius = cameraState.diagnosisRadius;
+    cameraState.framingOffset.set(0, 0);
     cameraState.yaw = regionViewYaw();
     cameraState.pitch = 0.025;
-    cameraState.radius = cameraState.initialRadius;
-    cameraState.target.copy(cameraState.initialTarget);
+    camera.near = Math.max(cameraState.radius / 500, 0.001);
+    camera.far = Math.max(cameraState.radius * 20, 10);
+    updateCamera();
+}
+
+function resetView() {
+    const diagnosisFrame = app.inDiagnosis && Number.isFinite(cameraState.diagnosisRadius);
+    cameraState.yaw = regionViewYaw();
+    cameraState.pitch = 0.025;
+    cameraState.radius = diagnosisFrame ? cameraState.diagnosisRadius : cameraState.initialRadius;
+    cameraState.target.copy(diagnosisFrame ? cameraState.diagnosisTarget : cameraState.initialTarget);
     cameraState.framingOffset.set(0, 0);
     updateCamera();
 }
@@ -1178,18 +1206,18 @@ function setMirroredView(mirrored) {
     const button = $('#mirror-view');
     button.classList.toggle('active', app.mirrored);
     button.setAttribute('aria-pressed', String(app.mirrored));
-    const mirrorLabel = app.mirrored ? 'Show unmirrored display — calculation unchanged' : 'Mirror display — calculation unchanged';
+    const mirrorLabel = t(app.mirrored ? 'explorer.actions.unmirror' : 'explorer.actions.mirror');
     button.setAttribute('aria-label', mirrorLabel);
     button.dataset.tooltip = mirrorLabel;
     const regionName = regionDisplayName(app.metadata?.region);
     if (app.inDiagnosis) {
-        setText('#viewer-title', app.mirrored ? 'Left display (mirrored right upper-limb calculation)' : 'Right upper limb');
-        setText('#viewer-instructions', app.mirrored
-            ? 'Visual mirror only · right upper-limb calculation · left-drag to rotate · right-drag to move · scroll to zoom at the pointer'
-            : 'Left-drag to rotate · right-drag to move · scroll to zoom at the pointer');
+        setText('#viewer-title', t(app.mirrored ? 'explorer.viewer.assessment-mirrored-title' : 'explorer.viewer.title'));
+        setText('#viewer-instructions', t(app.mirrored
+            ? 'explorer.viewer.assessment-mirrored-instructions'
+            : 'explorer.viewer.assessment-instructions'));
     } else {
-        setText('#viewer-title', app.mirrored ? `${regionName} · mirrored display` : regionName);
-        setText('#viewer-instructions', 'Click a muscle to inspect · left-drag to rotate · right-drag to move · scroll to zoom');
+        setText('#viewer-title', app.mirrored ? t('explorer.viewer.mirrored-title', { region: regionName }) : regionName);
+        setText('#viewer-instructions', t('explorer.viewer.instructions'));
     }
     requestRender();
 }
@@ -1213,24 +1241,24 @@ function coordinateControlBounds(coordinate) {
 }
 
 function handCoordinateGroup(coordinateName) {
-    if (coordinateName === 'deviation_r' || coordinateName === 'flexion_r') return 'Wrist';
-    if (/^(?:cmc_|mp_|ip_)/.test(coordinateName)) return 'Thumb';
-    if (coordinateName.startsWith('2')) return 'Index finger';
-    if (coordinateName.startsWith('3')) return 'Middle finger';
-    if (coordinateName.startsWith('4')) return 'Ring finger';
-    return 'Little finger';
+    if (coordinateName === 'deviation_r' || coordinateName === 'flexion_r') return 'wrist';
+    if (/^(?:cmc_|mp_|ip_)/.test(coordinateName)) return 'thumb';
+    if (coordinateName.startsWith('2')) return 'index-finger';
+    if (coordinateName.startsWith('3')) return 'middle-finger';
+    if (coordinateName.startsWith('4')) return 'ring-finger';
+    return 'little-finger';
 }
 
 function buildCoordinateControls() {
     const fragment = document.createDocumentFragment();
     const handGroups = new Map();
     if (app.regionId === 'right-hand') {
-        for (const name of ['Wrist', 'Thumb', 'Index finger', 'Middle finger', 'Ring finger', 'Little finger']) {
+        for (const name of ['wrist', 'thumb', 'index-finger', 'middle-finger', 'ring-finger', 'little-finger']) {
             const details = document.createElement('details');
             details.className = 'coordinate-group';
-            details.open = name === 'Wrist' || name === 'Thumb';
+            details.open = name === 'wrist' || name === 'thumb';
             const summary = document.createElement('summary');
-            summary.textContent = name;
+            summary.textContent = t(`explorer.coordinate-groups.${name}`);
             const body = document.createElement('div');
             body.className = 'coordinate-group-body';
             details.append(summary, body);
@@ -1246,7 +1274,8 @@ function buildCoordinateControls() {
         const label = document.createElement('span');
         label.className = 'coordinate-label';
         const text = document.createElement('span');
-        text.textContent = coordinate.label;
+        const coordinateLabel = t(`explorer.coordinates.${coordinate.name}`);
+        text.textContent = coordinateLabel;
         const output = document.createElement('output');
         output.id = `coordinate-output-${coordinate.name}`;
         output.textContent = formatDegrees(coordinate.default);
@@ -1258,7 +1287,7 @@ function buildCoordinateControls() {
         input.max = bounds.maximum;
         input.step = CONTROL_STEP_DEGREES;
         input.value = coordinate.default;
-        input.setAttribute('aria-label', `${coordinate.label} in degrees`);
+        input.setAttribute('aria-label', t('explorer.coordinates.degrees-label', { coordinate: coordinateLabel }));
         const limits = document.createElement('span');
         limits.className = 'coordinate-limits';
         limits.innerHTML = `<span>${formatDegrees(bounds.minimum)}</span><span>${formatDegrees(bounds.maximum)}</span>`;
@@ -1284,7 +1313,7 @@ function buildRegionPicker() {
     for (const region of explorerRegionOptions()) {
         const option = document.createElement('option');
         option.value = region.id;
-        option.textContent = REGION_OPTION_LABELS[region.id] || regionDisplayName(region);
+        option.textContent = regionDisplayName(region);
         option.selected = region.id === app.regionId;
         fragment.append(option);
     }
@@ -1303,7 +1332,7 @@ function buildPresetLibrary() {
         const heading = document.createElement('h4');
         const headingId = `preset-${app.regionId}-${group.id || groupIndex}`;
         heading.id = headingId;
-        heading.textContent = group.label || 'Reference postures';
+        heading.textContent = t(`explorer.presets.groups.${group.id || 'reference'}`);
         section.setAttribute('aria-labelledby', headingId);
         const buttons = document.createElement('div');
         buttons.className = 'pose-presets';
@@ -1315,7 +1344,7 @@ function buildPresetLibrary() {
             button.type = 'button';
             button.dataset.preset = id;
             button.setAttribute('aria-pressed', 'false');
-            if (preset.description) button.title = preset.description;
+            button.title = t(`explorer.presets.items.${app.regionId}.${id}.description`);
             const canvas = document.createElement('canvas');
             canvas.className = 'preset-thumbnail';
             canvas.width = 104;
@@ -1324,7 +1353,7 @@ function buildPresetLibrary() {
             canvas.dataset.thumbnailPreset = id;
             canvas.setAttribute('aria-hidden', 'true');
             const label = document.createElement('span');
-            label.textContent = preset.label || id;
+            label.textContent = t(`explorer.presets.items.${app.regionId}.${id}.label`);
             button.append(canvas, label);
             buttons.append(button);
         }
@@ -1333,7 +1362,7 @@ function buildPresetLibrary() {
     }
     host.replaceChildren(fragment);
     setText('#preset-count', String(presetCount));
-    setText('#preset-summary', `${presetCount} reference posture${presetCount === 1 ? '' : 's'}`);
+    setText('#preset-summary', t('explorer.presets.summary', { count: presetCount }));
 }
 
 function clearPresetSelection() {
@@ -1394,7 +1423,7 @@ function buildMuscleSelect() {
     }
     for (const [group, muscles] of groups) {
         const options = document.createElement('optgroup');
-        options.label = group;
+        options.label = muscleGroupDisplayName(group);
         for (const muscle of muscles) {
             const option = document.createElement('option');
             option.value = muscle.name;
@@ -1421,9 +1450,9 @@ function syncViewerDrawers() {
     $('#activation-panel').classList.toggle('collapsed', !app.activationPanelVisible);
     $('#muscle-panel').classList.toggle('hidden', !details);
     $('#muscle-panel').classList.toggle('collapsed', !app.musclePanelVisible);
-    $('#toggle-activation-panel').textContent = app.activationPanelVisible ? 'Hide list' : 'Show list';
+    $('#toggle-activation-panel').textContent = t(app.activationPanelVisible ? 'common.actions.hide-list' : 'common.actions.show-list');
     $('#toggle-activation-panel').setAttribute('aria-expanded', String(app.activationPanelVisible));
-    $('#toggle-muscle-panel').textContent = app.musclePanelVisible ? 'Hide' : 'Show';
+    $('#toggle-muscle-panel').textContent = t(app.musclePanelVisible ? 'common.actions.hide' : 'common.actions.show');
     $('#toggle-muscle-panel').setAttribute('aria-expanded', String(app.musclePanelVisible));
     $('#selected-path-legend').classList.toggle('hidden', !details);
 }
@@ -1456,7 +1485,7 @@ function updateMomentArms(muscle) {
         const row = document.createElement('div');
         row.className = 'moment-row';
         const label = document.createElement('span');
-        label.textContent = coordinate.label;
+        label.textContent = t(`explorer.coordinates.${coordinate.name}`);
         const value = document.createElement('strong');
         const arm = muscle?.momentArms?.[coordinate.name];
         value.textContent = Number.isFinite(arm) ? `${(arm * 1000).toFixed(1)} mm` : '—';
@@ -1469,7 +1498,7 @@ function updateDetails() {
     const muscle = app.state?.muscles?.find((candidate) => candidate.name === app.selectedMuscle);
     if (!muscle) return;
     setText('#muscle-title', muscleDisplayName(muscle.name));
-    setText('#muscle-model-id', `Model ID: ${muscle.name}`);
+    setText('#muscle-model-id', t('explorer.muscle-details.model-id-value', { id: muscle.name }));
     setText('#muscle-length', Number.isFinite(muscle.lengthM) ? (muscle.lengthM * 100).toFixed(2) : '—');
     setText('#path-points', String(muscle.points?.length ?? 0));
     updateMomentArms(muscle);
@@ -1493,20 +1522,28 @@ function updateActivationRanking() {
         row.type = 'button';
         row.className = 'activation-row';
         const displayName = muscleDisplayName(muscle.name);
-        row.title = `${displayName} · ${muscle.name} · ${muscle.group}`;
+        const groupName = muscleGroupDisplayName(muscle.group);
+        row.title = `${displayName} · ${muscle.name} · ${groupName}`;
         row.innerHTML = '<span class="rank-label"><span class="rank-name"></span><small class="rank-id"></small></span><span class="rank-track"><span class="rank-fill"></span></span><span class="rank-value"></span>';
         row.querySelector('.rank-name').textContent = displayName;
         row.querySelector('.rank-id').textContent = muscleModelId(muscle.name);
         row.querySelector('.rank-fill').style.width = `${THREE.MathUtils.clamp(muscle.activation, 0, 1) * 100}%`;
         row.querySelector('.rank-fill').style.background = `#${activationColor(muscle.activation).getHexString()}`;
         row.querySelector('.rank-value').textContent = muscle.activation.toFixed(3);
-        row.setAttribute('aria-label', `${displayName}, model ID ${muscle.name}, ${muscle.group}, activation ${muscle.activation.toFixed(3)}`);
+        row.setAttribute('aria-label', t('explorer.activations.row-label', {
+            muscle: displayName,
+            id: muscle.name,
+            group: groupName,
+            activation: muscle.activation.toFixed(3)
+        }));
         row.addEventListener('click', () => selectMuscle(muscle.name, 'one'));
         host.append(row);
     }
     const toggle = $('#toggle-all-activations');
     toggle.classList.toggle('hidden', ranked.length <= 12);
-    toggle.textContent = app.activationRankingExpanded ? 'Show top 12' : `Show all ${ranked.length}`;
+    toggle.textContent = app.activationRankingExpanded
+        ? t('explorer.activations.show-top', { count: 12 })
+        : t('explorer.activations.show-all-count', { count: ranked.length });
     toggle.setAttribute('aria-expanded', String(app.activationRankingExpanded));
 }
 
@@ -1517,8 +1554,8 @@ function neutralizeDisplayedActivation() {
     $('#activation-ranking').classList.add('hidden');
     $('#toggle-all-activations').classList.add('hidden');
     $('#activation-empty').classList.remove('hidden');
-    setText('#activation-empty strong', 'Posture changed');
-    setText('#activation-empty span', 'Activation will update after the static balance checks.');
+    setText('#activation-empty strong', t('explorer.activations.posture-changed'));
+    setText('#activation-empty span', t('explorer.activations.update-after-checks'));
     setText('#solver-residual', '—');
     setText('#solver-reserve', '—');
     if (app.state) {
@@ -1562,17 +1599,18 @@ function applyState(state) {
         const quality = state.staticHolding.quality;
         setText('#solver-residual', `${quality.maxGeneralizedForceEquilibriumResidual.toExponential(2)} N·m`);
         setText('#solver-reserve', quality.maxReserveTorqueNm < 0.001 ? `${quality.maxReserveTorqueNm.toExponential(2)} N·m` : `${quality.maxReserveTorqueNm.toFixed(4)} N·m`);
-        setPositionStatus('static', 'Activation ready', 'Static balance checks passed.');
+        setPositionStatus('static', t('explorer.status.activation-ready'), t('explorer.status.static-checks-passed'));
         $('#calculate-static').classList.add('hidden');
     } else if (state.mode === 'static') {
-        const reason = state.staticHolding?.quality?.reason || 'The posture did not pass the static balance checks.';
-        setText('#activation-empty strong', 'Activation withheld');
+        const qualityStatus = state.staticHolding?.quality?.status || 'unknown';
+        const reason = t(`explorer.quality.${qualityStatus}`);
+        setText('#activation-empty strong', t('explorer.status.activation-withheld'));
         setText('#activation-empty span', reason);
-        setPositionStatus('unavailable', 'Static balance unavailable', reason);
-        $('#calculate-static').textContent = 'Try again';
+        setPositionStatus('unavailable', t('explorer.status.static-unavailable'), reason);
+        $('#calculate-static').textContent = t('common.actions.try-again');
         $('#calculate-static').classList.remove('hidden');
     } else {
-        setPositionStatus('manual', 'Posture ready', 'Calculating static activation.');
+        setPositionStatus('manual', t('explorer.status.posture-ready'), t('explorer.status.calculating-static'));
     }
     clearError();
     requestRender();
@@ -1589,7 +1627,8 @@ async function requestPose(coordinates = app.coordinates, selectedMuscle = app.s
         return state;
     } catch (error) {
         if (generation !== app.poseGeneration || error instanceof StaleRequestError || error?.name === 'StaleRequestError') return null;
-        showError(`This posture could not be calculated: ${error.message}`);
+        showError(t('explorer.errors.posture-calculation'));
+        console.error(error);
         return null;
     }
 }
@@ -1599,8 +1638,8 @@ async function requestStaticHold(coordinates = app.coordinates, selectedMuscle =
     const regionId = app.regionId;
     const engine = app.engine;
     $('#calculate-static').disabled = true;
-    $('#calculate-static').textContent = 'Calculating…';
-    setPositionStatus('static', 'Calculating activation…', 'Colors remain gray until every quality check passes.');
+    $('#calculate-static').textContent = t('common.status.calculating');
+    setPositionStatus('static', t('explorer.status.calculating-activation'), t('explorer.status.colors-wait'));
     try {
         const state = await engine.staticHold(coordinates, selectedMuscle, regionId);
         if (generation !== app.solveGeneration || regionId !== app.regionId || engine !== app.engine) return null;
@@ -1608,9 +1647,10 @@ async function requestStaticHold(coordinates = app.coordinates, selectedMuscle =
         return state;
     } catch (error) {
         if (generation !== app.solveGeneration || error instanceof StaleRequestError || error?.name === 'StaleRequestError') return null;
-        showError(`Static activation could not be calculated: ${error.message}`);
-        setPositionStatus('unavailable', 'Static balance unavailable', error.message);
-        $('#calculate-static').textContent = 'Try again';
+        showError(t('explorer.errors.static-calculation'));
+        setPositionStatus('unavailable', t('explorer.status.static-unavailable'), t('explorer.errors.static-calculation'));
+        $('#calculate-static').textContent = t('common.actions.try-again');
+        console.error(error);
         $('#calculate-static').classList.remove('hidden');
         return null;
     } finally {
@@ -1641,7 +1681,10 @@ async function ensureEngineProfile(profileId) {
             workerName: `ms-human-${profileId}-engine`,
             onFatalError: (error) => {
                 if (app.profileId === profileId) handleFatalEngineError(error);
-                else showError(`The ${profileId === 'hand' ? 'hand' : 'primary'} model profile stopped unexpectedly: ${error.message}`);
+    else {
+        showError(t('explorer.errors.profile-stopped'));
+        console.error(error);
+    }
             }
         });
         profile = { ...definition, engine, metadata: null, geometry: null };
@@ -1679,13 +1722,13 @@ function activateEngineProfile(profileId, regionId) {
 
 async function switchEngineProfile(profileId, regionId) {
     const generation = ++app.profileGeneration;
-    const label = REGION_OPTION_LABELS[regionId] || 'model region';
+    const label = t(regionMessageKey(regionId));
     window.clearTimeout(app.poseTimer);
     window.clearTimeout(app.solveTimer);
     app.poseGeneration += 1;
     app.solveGeneration += 1;
     $('#focus-region').disabled = true;
-    setLoading(`Loading ${label}…`);
+    setLoading(t('explorer.status.loading-region', { region: label }));
     const profile = await ensureEngineProfile(profileId);
     if (generation !== app.profileGeneration) return;
     const region = profileRegions(profileId).find((candidate) => candidate.id === regionId);
@@ -1749,7 +1792,7 @@ async function switchExplorerRegion(regionId) {
     if (regionId === app.regionId && app.state) return;
     configureRegion(regionId);
     const generation = app.regionGeneration;
-    setLoading(`Loading ${regionDisplayName(app.metadata.region)}…`);
+    setLoading(t('explorer.status.loading-region', { region: regionDisplayName(app.metadata.region) }));
     $('#focus-region').disabled = true;
     try {
         const pose = await requestPose();
@@ -1775,36 +1818,28 @@ function updateInventory() {
     const regionName = regionDisplayName(region);
     const activeIds = new Set(app.metadata.activeBodyIds);
     const activeMeshes = app.metadata.geometry.geoms.filter((geom) => activeIds.has(geom.bodyId)).length;
-    setText('#count-region-name', regionName.toLowerCase());
+    setText('#count-region-name', regionName);
     setText('#count-bodies', app.metadata.activeBodyIds.length);
     setText('#count-muscles', app.metadata.model.functionalMuscles);
     setText('#count-meshes', activeMeshes);
     setText('#active-region-legend', regionName);
     const shown = app.presentationMuscleNames?.size;
-    const shownCopy = Number.isInteger(shown) ? ` · ${shown} shown` : '';
-    setText('#region-scope', `${app.metadata.model.functionalMuscles} modeled muscles${shownCopy} · ${app.metadata.coordinates.length} posture controls`);
-    const supportCopy = app.regionId.includes('lower-limb')
-        ? 'Pelvis fixed · no foot contact · not stance or gait'
-        : app.regionId === 'right-hand'
-            ? 'Forearm fixed · unloaded finger posture · no grip force or contact'
-        : app.regionId === 'trunk'
-            ? 'Pelvis and all non-selected coordinates fixed'
-            : app.regionId === 'head-neck'
-                ? 'Model fixed below T1'
-                : 'Rest of body fixed · no external load or contact';
+    const shownCopy = Number.isInteger(shown) ? t('explorer.regions.shown', { count: shown }) : '';
+    setText('#region-scope', t('explorer.regions.scope', { muscles: app.metadata.model.functionalMuscles, shown: shownCopy, controls: app.metadata.coordinates.length }));
+    const supportCopy = t(regionMessageKey(app.regionId, 'support'));
     setText('#region-support-note', supportCopy);
-    $('#region-support-note').title = region.semantics?.supportDescription || region.semantics?.fixedSupport || supportCopy;
-    setText('#runtime-note', `${app.metadata.model.runtime}; ${regionName} static posture only.`);
-    setText('#model-hash', 'Model files verified in this browser.');
+    $('#region-support-note').title = supportCopy;
+    setText('#runtime-note', t('explorer.runtime.note', { runtime: app.metadata.model.runtime, region: regionName }));
+    setText('#model-hash', t('explorer.runtime.verified'));
     renderer.domElement.setAttribute(
         'aria-label',
-        `Interactive ${regionName} rendering of MS-Human-700. Click a muscle to inspect it alone; use arrow keys to rotate, plus and minus to zoom, and Home to reset the view.`
+        t('explorer.viewer.region-canvas-label', { region: regionName })
     );
     const hasOptionalPaths = app.metadata.muscles.some((muscle) => muscle.visibleByDefault === false);
     const optionalPaths = $('#toggle-long-origins');
     optionalPaths.classList.toggle('hidden', app.regionId === 'trunk' || app.regionId === 'right-hand');
     optionalPaths.disabled = !hasOptionalPaths;
-    optionalPaths.title = hasOptionalPaths ? 'Show additional regional muscle paths' : 'This region has no hidden muscle paths';
+    optionalPaths.title = t(hasOptionalPaths ? 'explorer.paths.show-additional' : 'explorer.paths.none-hidden');
 }
 
 function rawPointToView(point) {
@@ -1847,13 +1882,13 @@ function drawActivationExportOverlay(context, pixelScale, sourceWidth, sourceHei
     context.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
     context.fillStyle = '#17201d';
     context.font = '700 10px system-ui, sans-serif';
-    context.fillText('MS-Human static activation · generic model', x + 8, y + 16);
+    context.fillText(t('explorer.export-overlay.title'), x + 8, y + 16);
     context.font = '8px system-ui, sans-serif';
     context.fillStyle = '#5d6864';
-    const regionName = app.metadata.region.presentationName || app.metadata.region.label || app.regionId;
-    context.fillText(app.mirrored ? `${regionName}; mirrored display` : `${regionName} calculation`, x + 8, y + 31);
+    const regionName = regionDisplayName(app.metadata.region);
+    context.fillText(t(app.mirrored ? 'explorer.export-overlay.mirrored-region' : 'explorer.export-overlay.region', { region: regionName }), x + 8, y + 31);
     if (!visibleRows.length) {
-        context.fillText('No activation result available.', x + 8, y + 49);
+        context.fillText(t('explorer.export-overlay.no-result'), x + 8, y + 49);
         context.restore();
         return;
     }
@@ -1866,10 +1901,10 @@ function drawActivationExportOverlay(context, pixelScale, sourceWidth, sourceHei
         context.fillRect(x + 104, rowY - 7, Math.max(1, (width - 148) * muscle.activation), 6);
         context.fillStyle = '#17201d';
         context.textAlign = 'right';
-        context.fillText(muscle.activation.toFixed(3), x + width - 8, rowY);
+        context.fillText(formatNumber(muscle.activation, { minimumFractionDigits: 3, maximumFractionDigits: 3 }), x + width - 8, rowY);
         context.textAlign = 'left';
     });
-    if (visibleRows.length < muscles.length) context.fillText(`Top ${visibleRows.length} of ${muscles.length}; full ranking remains in the app.`, x + 8, y + height - 7);
+    if (visibleRows.length < muscles.length) context.fillText(t('explorer.export-overlay.ranking-note', { shown: visibleRows.length, total: muscles.length }), x + 8, y + height - 7);
     context.restore();
 }
 
@@ -1879,7 +1914,7 @@ async function downloadViewerImage({ transparent, scale, includeActivation = fal
     const status = $('#viewer-download-status');
     const buttons = [...document.querySelectorAll('[data-viewer-download]')];
     buttons.forEach((button) => { button.disabled = true; });
-    status.textContent = 'Preparing image…';
+    status.textContent = t('explorer.downloads.preparing');
     let exportRenderer;
     const gridVisible = grid.visible;
     try {
@@ -1912,10 +1947,11 @@ async function downloadViewerImage({ transparent, scale, includeActivation = fal
         link.download = viewerImageFilename({ transparent, scale, includeActivation });
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        status.textContent = `Download started · ${width} × ${height} PNG`;
+        status.textContent = t('explorer.downloads.started', { width, height });
     } catch (error) {
-        status.textContent = 'Image could not be created.';
-        showError(`The viewer image could not be downloaded: ${error.message}`);
+        status.textContent = t('explorer.downloads.failed');
+        showError(t('explorer.errors.image-download'));
+        console.error(error);
     } finally {
         grid.visible = gridVisible;
         exportRenderer?.dispose();
@@ -2102,6 +2138,7 @@ function enterDiagnosisWorkspace() {
     app.solveGeneration += 1;
     app.profileGeneration += 1;
     app.inDiagnosis = true;
+    cameraState.diagnosisRadius = null;
     $('#focus-region').disabled = !app.initialized;
     if (app.profileId !== 'primary') activateEngineProfile('primary', DEFAULT_REGION_ID);
     else if (app.regionId !== DEFAULT_REGION_ID) configureRegion(DEFAULT_REGION_ID);
@@ -2117,8 +2154,8 @@ function enterDiagnosisWorkspace() {
 function leaveDiagnosisWorkspace() {
     const viewer = document.querySelector('.viewer-panel');
     if (viewer && viewer.parentElement !== $('#explorer-workspace')) $('#explorer-workspace').append(viewer);
+    app.inDiagnosis = false;
     if (diagnosisViewerSnapshot) {
-        app.inDiagnosis = false;
         const snapshot = diagnosisViewerSnapshot;
         if (app.profileId !== snapshot.profileId) activateEngineProfile(snapshot.profileId, snapshot.regionId);
         else if (app.regionId !== snapshot.regionId) configureRegion(snapshot.regionId);
@@ -2146,6 +2183,8 @@ function leaveDiagnosisWorkspace() {
         setMirroredView(diagnosisViewerSnapshot.mirrored);
         diagnosisViewerSnapshot = null;
     }
+    cameraState.diagnosisRadius = null;
+    resetView();
     $('#focus-region').disabled = !app.initialized;
     syncViewerDrawers();
     resizeRenderer();
@@ -2158,7 +2197,8 @@ function bindInterface() {
         try {
             await switchExplorerRegionSelection($('#focus-region').value);
         } catch (error) {
-            showError(`The selected body region could not be loaded: ${error.message}`);
+        showError(t('explorer.errors.region-load'));
+        console.error(error);
             buildRegionPicker();
             setLoading('', false);
             $('#focus-region').disabled = false;
@@ -2215,7 +2255,7 @@ async function initialize() {
     bindInterface();
     resizeRenderer();
     try {
-        setLoading('Loading the model…');
+        setLoading(t('explorer.status.loading-model'));
         const [metadata, geometryResponse] = await Promise.all([
             app.engine.initialize(),
             fetch(PROFILE_DEFINITIONS.primary.geometryUrl, { cache: 'force-cache' })
@@ -2257,15 +2297,17 @@ async function initialize() {
         buildPresetLibrary();
         updateInventory();
         $('#server-status').className = 'server-status online';
-        $('#server-status span:last-child').textContent = 'Model ready · runs locally';
+        $('#server-status span:last-child').textContent = t('common.status.model-ready-local');
         app.diagnosis = createDiagnosisWorkflow({
             pose: (coordinates, selected) => app.profiles.get('primary').engine.pose(coordinates, selected, DEFAULT_REGION_ID),
             staticHold: (coordinates, selected) => app.profiles.get('primary').engine.staticHold(coordinates, selected, DEFAULT_REGION_ID),
             applyState,
             getModel: () => app.model,
             getSelectedMuscle: () => app.selectedMuscle,
+            displayMuscle: muscleDisplayName,
             setMirroredView,
             resetView,
+            frameDiagnosisPose,
             neutralizeActivation: neutralizeDisplayedActivation,
             enterDiagnosis: enterDiagnosisWorkspace,
             leaveDiagnosis: leaveDiagnosisWorkspace,
@@ -2277,7 +2319,7 @@ async function initialize() {
             throw new Error('The initial posture could not be loaded.');
         }
         fitCameraToModel();
-        setLoading('Preparing posture previews…');
+        setLoading(t('explorer.status.preparing-previews'));
         try {
             await renderPoseThumbnails();
         } catch (error) {
@@ -2291,10 +2333,10 @@ async function initialize() {
         await requestStaticHold();
     } catch (error) {
         $('#server-status').className = 'server-status offline';
-        $('#server-status span:last-child').textContent = 'Unavailable';
+        $('#server-status span:last-child').textContent = t('common.status.unavailable');
         setLoading('', false);
         app.diagnosis?.setReady(false);
-        showError(`MS-Human-700 could not be loaded: ${error.message}`);
+        showError(t('explorer.errors.model-load'));
         console.error(error);
     }
 }

@@ -13,16 +13,21 @@ const diagnosisMirrorUrl = new URL(`.diagnosis-under-test-${Date.now()}.mjs`, im
 const protocolModuleUrl = new URL('../public/ms-human-assessment-protocol.js', import.meta.url);
 const protocolModuleSource = await readFile(protocolModuleUrl, 'utf8');
 const protocolMirrorUrl = new URL(`.assessment-protocol-under-test-${Date.now()}.mjs`, import.meta.url);
+const i18nModuleUrl = new URL('../public/i18n.js', import.meta.url);
+const i18nModuleSource = await readFile(i18nModuleUrl, 'utf8');
+const i18nMirrorUrl = new URL(`.i18n-under-test-${Date.now()}.mjs`, import.meta.url);
 let reportModule;
 let diagnosisModule;
 try {
     await writeFile(moduleMirrorUrl, reportModuleSource, 'utf8');
     await writeFile(protocolMirrorUrl, protocolModuleSource, 'utf8');
+    await writeFile(i18nMirrorUrl, i18nModuleSource, 'utf8');
     await writeFile(
         diagnosisMirrorUrl,
         diagnosisModuleSource
             .replace("'./report-v5.js'", JSON.stringify(moduleMirrorUrl.href))
-            .replace("'./ms-human-assessment-protocol.js'", JSON.stringify(protocolMirrorUrl.href)),
+            .replace("'./ms-human-assessment-protocol.js'", JSON.stringify(protocolMirrorUrl.href))
+            .replace("'./i18n.js'", JSON.stringify(i18nMirrorUrl.href)),
         'utf8'
     );
     reportModule = await import(moduleMirrorUrl.href);
@@ -31,6 +36,7 @@ try {
     await unlink(moduleMirrorUrl).catch(() => {});
     await unlink(diagnosisMirrorUrl).catch(() => {});
     await unlink(protocolMirrorUrl).catch(() => {});
+    await unlink(i18nMirrorUrl).catch(() => {});
 }
 
 const {

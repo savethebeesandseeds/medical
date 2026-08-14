@@ -11,7 +11,7 @@ function Test-Web {
     param([int]$WebPort)
     try {
         $response = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:$WebPort/" -TimeoutSec 5
-        return $response.StatusCode -eq 200 -and $response.Content -match 'app-ms-human.js'
+        return $response.StatusCode -eq 200 -and $response.Content -match 'bootstrap.js'
     }
     catch { return $false }
 }

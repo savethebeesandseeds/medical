@@ -32,6 +32,18 @@ body {
     background: var(--page);
 }
 
+.i18n-loading .app-shell { visibility: hidden; }
+.i18n-ready .app-shell { visibility: visible; }
+.bootstrap-error {
+    width: min(760px, calc(100% - 32px));
+    margin: 32px auto;
+    padding: 14px 16px;
+    border: 1px solid #d49c97;
+    background: var(--danger-bg);
+    color: var(--danger);
+    font-size: 13px;
+}
+
 button,
 select,
 input,
@@ -107,6 +119,34 @@ h3 {
 }
 
 .app-brand-copy { min-width: 0; }
+
+.header-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 3px;
+}
+
+.language-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.language-selector select {
+    min-height: 32px;
+    padding: 5px 29px 5px 9px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.language-selector select:disabled { cursor: wait; }
 
 .eyebrow {
     margin-bottom: 7px;
@@ -1704,7 +1744,8 @@ code { font-size: 0.94em; }
 .diagnosis-record-actions #diagnosis-new-assessment { border-color: var(--accent-dark); background: var(--accent-dark); color: #fff; }
 .diagnosis-record-actions #diagnosis-new-assessment:hover { border-color: #174f44; background: #174f44; color: #fff; }
 .diagnosis-record-actions #diagnosis-new-assessment::before { content: "+"; margin-right: 5px; font-size: 13px; font-weight: 500; }
-.diagnosis-records h2 { margin: 0; font-size: 16px; }
+.diagnosis-records h2 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 16px; }
+.diagnosis-records-icon { width: 17px; height: 17px; flex: 0 0 auto; fill: none; stroke: var(--accent-dark); stroke-width: 2; stroke-linecap: round; }
 .diagnosis-records #diagnosis-draft-state { color: var(--muted); font-size: 9px; }
 .diagnosis-records-privacy { margin: 0; padding: 7px 13px; border-top: 1px solid #d5deda; background: #eef3f1; color: #64716c; font-size: 9px; }
 .saved-report-empty { margin: 0; padding: 18px 13px; color: var(--muted); font-size: 10px; }
@@ -2167,6 +2208,8 @@ code { font-size: 0.94em; }
 @media (max-width: 700px) {
     .app-shell { width: min(100% - 18px, 660px); padding-top: 16px; }
     .page-header { gap: 13px; }
+    .header-actions { align-items: flex-end; flex-direction: column-reverse; gap: 7px; }
+    .language-selector { align-items: flex-end; flex-direction: column; gap: 3px; }
     .viewer-header { flex-direction: column; gap: 13px; }
     .app-brand { align-items: flex-start; gap: 11px; }
     .app-logo { width: 52px; height: 52px; }
@@ -2236,14 +2279,15 @@ code { font-size: 0.94em; }
         grid-template-areas:
             "bar"
             "instructions"
-            "viewer"
-            "tests";
+            "tests"
+            "viewer";
     }
     .diagnosis-assessment-bar { align-items: stretch; grid-template-columns: minmax(0, 1fr) auto; }
     .diagnosis-patient-groups { grid-template-columns: 1fr; }
     .diagnosis-patient-groups > section + section { border-top: 1px solid #d9dedc; border-left: 0; }
     .diagnosis-tests-panel { max-height: none; }
     .diagnosis-tests-panel { position: static; }
+    .diagnosis-viewer-slot .scene-wrap { min-height: 470px; }
     .diagnosis-report-summary { grid-template-columns: 1fr; }
     .capacity-record-wrap { overflow: visible; }
     .capacity-record-table { display: block; width: 100%; min-width: 0; }
@@ -2282,6 +2326,21 @@ code { font-size: 0.94em; }
     .capacity-report-list-item td { display: block; border: 0; }
     .app-footer { align-items: flex-start; flex-direction: column; }
     .app-footer nav { justify-content: flex-start; }
+}
+
+@media (max-width: 480px) {
+    #capacity-screen-intro { margin: 6px 6px 0; padding: 7px; }
+    .capacity-record-table tbody { gap: 6px; }
+    .capacity-record-table tbody tr.active > td {
+        display: block;
+        min-height: 0;
+        padding: 8px;
+    }
+    .capacity-record-table tbody tr.active > td::before { display: block; margin-bottom: 5px; }
+    .capacity-choice-group { gap: 5px; }
+    .capacity-choice-button { min-height: 42px; font-size: 10px; }
+    .capacity-record-comments { min-height: 72px; }
+    .diagnosis-viewer-slot .scene-wrap { min-height: 430px; }
 }
 
 @media (pointer: coarse) {

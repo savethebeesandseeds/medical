@@ -10,6 +10,7 @@ import {
     MS_HUMAN_ASSESSMENT_POSITIONS,
     MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL
 } from './ms-human-assessment-protocol.js';
+import { formatDate, formatNumber, plural, t } from './i18n.js';
 
 const DIAGNOSIS_DRAFT_KEY = 'waajacu-medical.diagnosis-draft.v1';
 const DIAGNOSIS_REPORTS_KEY = 'waajacu-medical.patient-reports.v1';
@@ -46,24 +47,24 @@ function emptyPositionResponse() {
 }
 
 const CAPACITY_ANGLE_LABELS = Object.freeze({
-    elv_angle_r: 'Plane',
-    shoulder_elv_r: 'Shoulder',
-    shoulder_rot_r: 'Rotation',
-    elbow_flexion_r: 'Elbow',
-    pro_sup_r: 'Forearm',
-    deviation_r: 'Wrist dev.',
-    flexion_r: 'Wrist flex.'
+    elv_angle_r: 'assessment.angles.plane',
+    shoulder_elv_r: 'assessment.angles.shoulder',
+    shoulder_rot_r: 'assessment.angles.rotation',
+    elbow_flexion_r: 'assessment.angles.elbow',
+    pro_sup_r: 'assessment.angles.forearm',
+    deviation_r: 'assessment.angles.wrist-deviation',
+    flexion_r: 'assessment.angles.wrist-flexion'
 });
 
 const RED_FLAGS = Object.freeze([
-    { id: 'cardiopulmonary', urgency: 'emergency', label: 'Chest pain, shortness of breath, faintness, or pain spreading toward the jaw' },
-    { id: 'deformity', urgency: 'emergency', label: 'Visible deformity or apparent dislocation after an injury' },
-    { id: 'circulation', urgency: 'emergency', label: 'Major sudden swelling, complete loss of sensation, or an unusually cold/discoloured arm' },
-    { id: 'trauma', urgency: 'urgent', label: 'Recent fall or trauma with substantial pain, weakness, or inability to lift the arm' },
-    { id: 'neurological', urgency: 'urgent', label: 'Persistent numbness, pins and needles, or new marked weakness down the arm' },
-    { id: 'infection', urgency: 'urgent', label: 'Hot, red, swollen shoulder with fever or feeling systemically unwell' },
-    { id: 'restPain', urgency: 'review', label: 'Intense or worsening pain at rest, especially with persistent loss of function' },
-    { id: 'systemicHistory', urgency: 'review', label: 'Unexplained weight loss/night sweats or relevant cancer, TB, HIV, or inflammatory-disease history' }
+    { id: 'cardiopulmonary', urgency: 'emergency' },
+    { id: 'deformity', urgency: 'emergency' },
+    { id: 'circulation', urgency: 'emergency' },
+    { id: 'trauma', urgency: 'urgent' },
+    { id: 'neurological', urgency: 'urgent' },
+    { id: 'infection', urgency: 'urgent' },
+    { id: 'restPain', urgency: 'review' },
+    { id: 'systemicHistory', urgency: 'review' }
 ]);
 
 function escapeHtml(value) {
@@ -152,7 +153,9 @@ export function reportModelMetadata(model = {}) {
 }
 
 function formatMetric(value, digits = 3) {
-    return Number.isFinite(value) ? Number(value).toFixed(digits) : 'Unavailable';
+    return Number.isFinite(value)
+        ? formatNumber(Number(value), { minimumFractionDigits: digits, maximumFractionDigits: digits })
+        : t('common.status.unavailable');
 }
 
 export function completeStaticState(state, model = {}) {
@@ -231,6 +234,11 @@ export function createDiagnosisWorkflow(controller) {
             hash = Math.imul(hash, 0x01000193);
         }
         return (hash & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+    }
+
+    function localizedDate(value, options = { dateStyle: 'medium', timeStyle: 'short' }) {
+        const date = value instanceof Date ? value : new Date(value);
+        return Number.isNaN(date.getTime()) ? t('common.status.date-unavailable') : formatDate(date, options);
     }
 
     function readStoredJson(key, fallback) {
@@ -320,9 +328,12 @@ export function createDiagnosisWorkflow(controller) {
         const firstUnansweredIndex = ASSESSMENT_POSITIONS.findIndex((position) => !state.capacityResponses[position.id].answered);
         if (firstUnansweredIndex !== -1) state.activeCapacityIndex = Math.min(state.activeCapacityIndex, firstUnansweredIndex);
         state.testedSide = draft.testedSide === 'left' ? 'left' : 'right';
-        state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, typeof draft.redFlags?.[flag.id] === 'boolean' ? draft.redFlags[flag.id] : null]));
-        state.safetyReviewed = Boolean(draft.safetyReviewed);
-        state.intakeCompleted = Boolean(draft.intakeCompleted);
+        state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [
+            flag.id,
+            protocolMatches && typeof draft.redFlags?.[flag.id] === 'boolean' ? draft.redFlags[flag.id] : null
+        ]));
+        state.safetyReviewed = protocolMatches && Boolean(draft.safetyReviewed);
+        state.intakeCompleted = protocolMatches && Boolean(draft.intakeCompleted);
         state.intake = draft.intake && typeof draft.intake === 'object' ? { ...draft.intake } : {};
         state.legacySymptomAssessment = storedProtocolObservations ?? (Number(draft.schemaVersion) === 4 && draft.responses
             ? {
@@ -335,15 +346,11 @@ export function createDiagnosisWorkflow(controller) {
                 responses: structuredClone(draft.responses ?? {})
             }
             : (draft.legacySymptomAssessment ?? null));
-        state.protocolMigrationNotice = storedProtocolObservations
-            ? 'A draft from an earlier posture panel was preserved as read-only history. Its responses were not mapped onto this new MS-Human panel.'
-            : (draft.protocolMigrationNotice ?? null);
-        state.assessmentId = draft.assessmentId || createAssessmentId();
-        state.assessmentOpen = Boolean(draft.assessmentOpen);
+        state.protocolMigrationNotice = Boolean(storedProtocolObservations || draft.protocolMigrationNotice);
+        state.assessmentId = protocolMatches ? (draft.assessmentId || createAssessmentId()) : createAssessmentId();
+        state.assessmentOpen = protocolMatches && Boolean(draft.assessmentOpen);
         const restoredPhase = ['privacy', 'safety', 'intake', 'assessment', 'report'].includes(draft.phase) ? draft.phase : 'privacy';
-        state.phase = !protocolMatches && restoredPhase === 'report'
-            ? (state.intakeCompleted ? 'assessment' : state.safetyReviewed ? 'intake' : 'privacy')
-            : restoredPhase;
+        state.phase = protocolMatches ? restoredPhase : 'safety';
         state.draftUpdatedAt = draft.updatedAt ?? null;
         return true;
     }
@@ -466,27 +473,57 @@ export function createDiagnosisWorkflow(controller) {
         if (returnFocus?.isConnected) returnFocus.focus();
     }
 
-    function showAppDialog({ title, message, confirmLabel = 'Confirm', danger = false, onConfirm }) {
+    function showAppDialog({ title, message, confirmLabel = null, danger = false, onConfirm }) {
         state.dialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         state.dialogAction = onConfirm;
         byId('app-dialog-title').textContent = title;
         byId('app-dialog-message').textContent = message;
-        byId('app-dialog-confirm').textContent = confirmLabel;
+        byId('app-dialog-confirm').textContent = confirmLabel ?? t('common.actions.confirm');
         byId('app-dialog').querySelector('.app-dialog-card').classList.toggle('danger', danger);
         for (const element of document.querySelectorAll('main > :not(#app-dialog)')) element.inert = true;
         byId('app-dialog').classList.remove('hidden');
         byId('app-dialog-cancel').focus();
     }
 
-    function importPatientDetails(entry) {
+    function beginAssessmentWithPatientDetails(entry) {
         const prior = entry.patient ?? entry.report.intake ?? {};
         const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'assessedArm'];
+        cancelPreview();
+        state.assessmentId = createAssessmentId();
+        state.activeCapacityIndex = 0;
+        state.capacityResponses = Object.fromEntries(ASSESSMENT_POSITIONS.map((position) => [position.id, emptyPositionResponse()]));
+        state.capacityModelStates = {};
+        state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null]));
+        state.safetyReviewed = false;
+        state.intake = {};
         for (const field of demographics) state.intake[field] = prior[field] ?? '';
+        state.testedSide = state.intake.assessedArm === 'left' ? 'left' : 'right';
         state.intakeCompleted = false;
+        state.report = null;
+        state.reportAnnex = null;
+        state.reportStored = false;
+        state.legacySymptomAssessment = null;
+        state.protocolMigrationNotice = null;
+        state.viewingSavedReport = false;
+        byId('diagnosis-intake-form').reset();
         fillIntakeForm(state.intake);
-        persistDraft();
-        if (state.safetyReviewed && !selectedRedFlags().length) showIntake();
-        else byId('diagnosis-draft-state').textContent = `${state.intake.name || 'Saved details'} selected · complete the safety check`;
+        clearDraft();
+        setSide(state.testedSide);
+        renderCapacityList();
+        showSafetyLanding();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function importPatientDetails(entry) {
+        const prior = entry.patient ?? entry.report.intake ?? {};
+        const participant = prior.name || t('assessment.participant.this-participant');
+        showAppDialog({
+            title: t('assessment.dialogs.reassess.title', { participant }),
+            message: t('assessment.dialogs.reassess.message'),
+            confirmLabel: t('assessment.dialogs.reassess.confirm'),
+            danger: false,
+            onConfirm: () => beginAssessmentWithPatientDetails(entry)
+        });
     }
 
     function removeSavedReport(entry) {
@@ -506,30 +543,37 @@ export function createDiagnosisWorkflow(controller) {
     function updateSavedRecordsUi() {
         const reports = savedReports();
         const answered = ASSESSMENT_POSITIONS.filter((position) => state.capacityResponses[position.id]?.answered).length;
-        const patient = state.intake?.name ? `${state.intake.name} · ` : '';
+        const patient = state.intake?.name ? t('assessment.storage.participant-prefix', { participant: state.intake.name }) : '';
         const draftState = byId('diagnosis-draft-state');
         const privacy = byId('diagnosis-records-privacy');
         const activeStorageNotice = byId('diagnosis-active-storage-notice');
-        byId('diagnosis-new-assessment').disabled = !state.storageMode;
+        const hasOngoingAssessment = !state.viewingSavedReport
+            && (state.assessmentOpen || state.phase === 'safety' || state.phase === 'intake');
+        const hasStoredAssessmentData = reports.length > 0 || Boolean(state.draftUpdatedAt);
+        const newAssessmentButton = byId('diagnosis-new-assessment');
+        const clearDataButton = byId('diagnosis-delete-all-data');
+        newAssessmentButton.disabled = !state.storageMode;
+        newAssessmentButton.classList.toggle('hidden', !hasOngoingAssessment);
+        clearDataButton.classList.toggle('hidden', !hasStoredAssessmentData);
         if (!state.storageMode) {
-            draftState.textContent = 'Choose how this tab should handle assessment data';
-            privacy.textContent = 'No assessment data has been loaded or saved. Choose a storage option below to begin.';
+            draftState.textContent = t('assessment.storage.choose');
+            privacy.textContent = t('assessment.storage.none-loaded');
         } else if (state.storageMode === 'session') {
-            draftState.textContent = state.protocolMigrationNotice ?? (state.draftUpdatedAt
-                ? `${patient}${answered} of ${ASSESSMENT_POSITIONS.length} positions kept in this tab`
-                : 'Session only · no unfinished assessment');
-            privacy.textContent = 'Session only: answers and reports stay in this tab and disappear when it closes or reloads. Existing device records remain untouched.';
-            if (activeStorageNotice) activeStorageNotice.innerHTML = '<strong>Session only.</strong> Answers and reports stay in this tab and disappear when it closes or reloads. Existing device records are not loaded or changed.';
+            draftState.textContent = state.protocolMigrationNotice ? t('assessment.storage.protocol-migration') : (state.draftUpdatedAt
+                ? t('assessment.storage.session-progress', { patient, answered, total: ASSESSMENT_POSITIONS.length })
+                : t('assessment.storage.session-empty'));
+            privacy.textContent = t('assessment.storage.session-privacy');
+            if (activeStorageNotice) activeStorageNotice.textContent = t('assessment.storage.session-notice');
         } else {
-            draftState.textContent = state.protocolMigrationNotice ?? (state.draftUpdatedAt
-                ? `${patient}${answered} of ${ASSESSMENT_POSITIONS.length} positions saved on this device`
-                : 'Device storage · no unfinished assessment');
+            draftState.textContent = state.protocolMigrationNotice ? t('assessment.storage.protocol-migration') : (state.draftUpdatedAt
+                ? t('assessment.storage.device-progress', { patient, answered, total: ASSESSMENT_POSITIONS.length })
+                : t('assessment.storage.device-empty'));
             privacy.textContent = state.deviceStorageError
-                ? 'The latest device save failed. Current answers remain available in this tab.'
-                : 'Saved only in this browser profile. Clearing browser data removes these records.';
-            if (activeStorageNotice) activeStorageNotice.innerHTML = '<strong>Device storage.</strong> Drafts and reports remain in this browser profile until deleted. Anyone using this profile may be able to view them.';
+                ? t('assessment.storage.save-failed')
+                : t('assessment.storage.device-privacy');
+            if (activeStorageNotice) activeStorageNotice.textContent = t('assessment.storage.device-notice');
         }
-        draftState.textContent = `Record ${recordCode()} · ${draftState.textContent}`;
+        draftState.textContent = t('assessment.storage.record-state', { recordCode: recordCode(), state: draftState.textContent });
 
         const host = byId('diagnosis-saved-report-list');
         host.replaceChildren();
@@ -537,16 +581,16 @@ export function createDiagnosisWorkflow(controller) {
             const empty = document.createElement('p');
             empty.className = 'saved-report-empty';
             empty.textContent = !state.storageMode
-                ? 'Records remain unloaded until you choose a storage option.'
+                ? t('assessment.records.empty-unloaded')
                 : state.storageMode === 'session'
-                    ? 'No reports have been created in this tab.'
-                    : 'No reports are saved in this browser profile.';
+                    ? t('assessment.records.empty-session')
+                    : t('assessment.records.empty-device');
             host.append(empty);
             return;
         }
         const table = document.createElement('table');
         table.className = 'saved-report-table';
-        table.innerHTML = '<thead><tr><th>Record</th><th>Participant</th><th>Assessment</th><th>Actions</th></tr></thead>';
+        table.innerHTML = `<thead><tr><th>${escapeHtml(t('assessment.records.columns.record'))}</th><th>${escapeHtml(t('assessment.records.columns.participant'))}</th><th>${escapeHtml(t('assessment.records.columns.assessment'))}</th><th>${escapeHtml(t('assessment.records.columns.actions'))}</th></tr></thead>`;
         const body = document.createElement('tbody');
         for (const entry of reports) {
             const row = document.createElement('tr');
@@ -555,17 +599,14 @@ export function createDiagnosisWorkflow(controller) {
             const validDate = !Number.isNaN(generatedDate.getTime());
             const quality = entry.report.dataQuality ?? {};
             const legacy = entry.report.assessment?.legacyModelRecord === true;
-            const statusText = legacy
-                ? 'Archived'
-                : quality.recordStatus === 'complete_record'
-                    ? 'Complete'
-                    : quality.recordStatus === 'conflicting_record'
-                        ? 'Review needed'
-                        : 'Incomplete';
+            const statusCode = legacy ? 'archived'
+                : quality.recordStatus === 'complete_record' ? 'complete'
+                    : quality.recordStatus === 'conflicting_record' ? 'review-needed' : 'incomplete';
+            const statusText = t(`assessment.records.status.${statusCode}`);
 
             const recordCell = document.createElement('td');
             recordCell.className = 'saved-report-record-cell';
-            recordCell.dataset.label = 'Record';
+            recordCell.dataset.label = t('assessment.records.columns.record');
             const recordDetails = document.createElement('div');
             recordDetails.className = 'saved-report-record';
             const code = document.createElement('strong');
@@ -573,11 +614,9 @@ export function createDiagnosisWorkflow(controller) {
             code.textContent = reportCode;
             const date = document.createElement('time');
             if (validDate) date.dateTime = generatedDate.toISOString();
-            date.textContent = validDate
-                ? `${generatedDate.toLocaleDateString()} · ${generatedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : 'Date unavailable';
+            date.textContent = localizedDate(generatedDate);
             const status = document.createElement('span');
-            status.className = `saved-report-status ${statusText.toLowerCase().replaceAll(' ', '-')}`;
+            status.className = `saved-report-status ${statusCode}`;
             status.textContent = statusText;
             recordDetails.append(code, date, status);
             recordCell.append(recordDetails);
@@ -585,22 +624,22 @@ export function createDiagnosisWorkflow(controller) {
 
             const patientCell = document.createElement('td');
             patientCell.className = 'saved-report-patient-cell';
-            patientCell.dataset.label = 'Participant';
+            patientCell.dataset.label = t('assessment.records.columns.participant');
             const patientDetails = document.createElement('div');
             patientDetails.className = 'saved-report-patient';
             const patientName = document.createElement('strong');
-            patientName.textContent = entry.patient?.name || 'No label provided';
+            patientName.textContent = entry.patient?.name || t('assessment.participant.no-label');
             patientDetails.append(patientName);
             const patientMeta = document.createElement('span');
             patientMeta.textContent = [
-                Number.isFinite(entry.patient?.ageYears) ? `${entry.patient.ageYears} years` : null,
-                entry.patient?.gender || null
-            ].filter(Boolean).join(' · ') || 'Profile not recorded';
+                Number.isFinite(entry.patient?.ageYears) ? plural('common.age-years', entry.patient.ageYears) : null,
+                entry.patient?.gender ? intakeOptionLabel('gender', entry.patient.gender) : null
+            ].filter(Boolean).join(t('common.separator.middle-dot')) || t('assessment.participant.profile-not-recorded');
             patientDetails.append(patientMeta);
             const measures = [
-                Number.isFinite(entry.patient?.heightCm) ? `${entry.patient.heightCm} cm` : null,
-                Number.isFinite(entry.patient?.weightKg) ? `${entry.patient.weightKg} kg` : null
-            ].filter(Boolean).join(' · ');
+                Number.isFinite(entry.patient?.heightCm) ? `${formatNumber(entry.patient.heightCm)} cm` : null,
+                Number.isFinite(entry.patient?.weightKg) ? `${formatNumber(entry.patient.weightKg)} kg` : null
+            ].filter(Boolean).join(t('common.separator.middle-dot'));
             if (measures) {
                 const measureMeta = document.createElement('span');
                 measureMeta.textContent = measures;
@@ -608,7 +647,7 @@ export function createDiagnosisWorkflow(controller) {
             }
             if (legacy) {
                 const legacyLabel = document.createElement('span');
-                legacyLabel.textContent = 'Archived report from an earlier model or protocol';
+                legacyLabel.textContent = t('assessment.records.archived-description');
                 patientDetails.append(legacyLabel);
             }
             patientCell.append(patientDetails);
@@ -616,50 +655,54 @@ export function createDiagnosisWorkflow(controller) {
 
             const assessmentCell = document.createElement('td');
             assessmentCell.className = 'saved-report-assessment-cell';
-            assessmentCell.dataset.label = 'Assessment';
+            assessmentCell.dataset.label = t('assessment.records.columns.assessment');
             const assessmentDetails = document.createElement('div');
             assessmentDetails.className = 'saved-report-assessment';
             const arm = entry.patient?.assessedArm || entry.report.assessment?.testedSide;
             const armValue = document.createElement('strong');
-            armValue.textContent = arm ? `${arm.charAt(0).toUpperCase()}${arm.slice(1)} arm` : 'Arm not recorded';
+            armValue.textContent = arm ? t('assessment.records.arm', { side: sideLabel(arm) }) : t('assessment.records.arm-not-recorded');
             const progress = document.createElement('span');
             const recorded = Number.isFinite(quality.recordedTrialCount) ? quality.recordedTrialCount : null;
             const required = Number.isFinite(quality.requiredTrialCount) ? quality.requiredTrialCount : null;
             progress.textContent = recorded !== null && required !== null
-                ? `${recorded} of ${required} positions recorded`
-                : 'Position count unavailable';
+                ? t('assessment.records.position-progress', { recorded, required })
+                : t('assessment.records.position-count-unavailable');
             assessmentDetails.append(armValue, progress);
             assessmentCell.append(assessmentDetails);
             row.append(assessmentCell);
 
             const actions = document.createElement('td');
             actions.className = 'saved-report-actions-cell';
-            actions.dataset.label = 'Actions';
+            actions.dataset.label = t('assessment.records.columns.actions');
             const actionButtons = document.createElement('div');
             actionButtons.className = 'saved-report-actions';
             const use = document.createElement('button');
             use.type = 'button';
             use.className = 'saved-report-action reuse';
-            use.textContent = 'Use details';
-            use.setAttribute('aria-label', `Use participant details from record ${reportCode}`);
+            use.textContent = t('assessment.records.actions.assess-again');
+            use.setAttribute('aria-label', t('assessment.records.actions.assess-again-label', { recordCode: reportCode }));
             use.addEventListener('click', () => importPatientDetails(entry));
             const view = document.createElement('button');
             view.type = 'button';
             view.className = 'saved-report-action open';
-            view.textContent = 'Open report';
-            view.setAttribute('aria-label', `Open report ${reportCode}`);
+            view.textContent = t('assessment.records.actions.open-report');
+            view.setAttribute('aria-label', t('assessment.records.actions.open-report-label', { recordCode: reportCode }));
             view.addEventListener('click', () => showSavedReport(entry));
             const remove = document.createElement('button');
             remove.type = 'button';
             remove.className = 'saved-report-action delete';
             remove.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5"/></svg>';
-            remove.setAttribute('aria-label', `Delete report ${reportCode}`);
-            remove.title = 'Delete report';
+            remove.setAttribute('aria-label', t('assessment.records.actions.delete-report-label', { recordCode: reportCode }));
+            remove.title = t('assessment.records.actions.delete-report');
             remove.addEventListener('click', () => {
                 showAppDialog({
-                    title: 'Delete assessment report?',
-                    message: `This will remove the report${entry.patient?.name ? ` for ${entry.patient.name}` : ''} dated ${new Date(entry.report.generatedAt).toLocaleString()} ${state.storageMode === 'session' ? 'from this tab' : 'from this browser profile'}.`,
-                    confirmLabel: 'Delete report',
+                    title: t('assessment.dialogs.delete-report.title'),
+                    message: t(entry.patient?.name ? 'assessment.dialogs.delete-report.message-named' : 'assessment.dialogs.delete-report.message', {
+                        ...(entry.patient?.name ? { participant: entry.patient.name } : {}),
+                        date: localizedDate(entry.report.generatedAt),
+                        location: t(state.storageMode === 'session' ? 'assessment.storage.location-tab' : 'assessment.storage.location-browser')
+                    }),
+                    confirmLabel: t('assessment.records.actions.delete-report'),
                     danger: true,
                     onConfirm: () => removeSavedReport(entry)
                 });
@@ -685,7 +728,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-report-screen').classList.remove('hidden');
         byId('diagnosis-privacy-overview').classList.add('hidden');
         byId('diagnosis-start').classList.add('hidden');
-        byId('diagnosis-report-back').textContent = 'Back';
+        byId('diagnosis-report-back').textContent = t('common.actions.back');
         renderMovementReport(state.report);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -765,34 +808,38 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-report-screen').classList.add('hidden');
         fillIntakeForm(state.intake);
         byId('diagnosis-intake-state').textContent = state.intakeCompleted
-            ? (state.storageMode === 'device' ? 'Details saved on this device. Review or continue.' : 'Details kept in this tab. Review or continue.')
-            : 'Complete the required patient details, pain history, and privacy acceptance.';
+            ? t(state.storageMode === 'device' ? 'assessment.intake.state.saved-device' : 'assessment.intake.state.kept-tab')
+            : t('assessment.intake.state.complete-details');
         persistDraft();
         window.requestAnimationFrame(controller.resizeViewer);
     }
 
     function intakeOptionLabel(fieldName, value) {
-        if (!value) return '—';
+        if (!value) return t('common.punctuation.em-dash');
         const option = byId('diagnosis-intake-form').querySelector(`[name="${fieldName}"] option[value="${CSS.escape(String(value))}"]`);
-        return option?.textContent?.trim() || String(value).replaceAll('_', ' ');
+        return option?.textContent?.trim() || t('assessment.intake.options.unknown', { value: String(value) });
+    }
+
+    function sideLabel(side) {
+        return ['left', 'right'].includes(side) ? t(`common.sides.${side}`) : t('common.status.not-recorded');
     }
 
     function renderAssessmentPatientHeader() {
         const intake = state.intake ?? {};
-        const age = Number.isFinite(intake.ageYears) ? `${intake.ageYears} years` : '—';
+        const age = Number.isFinite(intake.ageYears) ? plural('common.age-years', intake.ageYears) : t('common.punctuation.em-dash');
         const size = [
-            Number.isFinite(intake.heightCm) ? `${intake.heightCm} cm` : '',
-            Number.isFinite(intake.weightKg) ? `${intake.weightKg} kg` : ''
-        ].filter(Boolean).join(' / ') || '—';
-        const painNow = Number.isFinite(intake.painNow) ? intake.painNow : '—';
-        const painWorst = Number.isFinite(intake.painWorst) ? intake.painWorst : '—';
-        byId('diagnosis-patient-name').textContent = intake.name || 'No label provided';
+            Number.isFinite(intake.heightCm) ? `${formatNumber(intake.heightCm)} cm` : '',
+            Number.isFinite(intake.weightKg) ? `${formatNumber(intake.weightKg)} kg` : ''
+        ].filter(Boolean).join(t('common.separator.slash')) || t('common.punctuation.em-dash');
+        const painNow = Number.isFinite(intake.painNow) ? formatNumber(intake.painNow) : t('common.punctuation.em-dash');
+        const painWorst = Number.isFinite(intake.painWorst) ? formatNumber(intake.painWorst) : t('common.punctuation.em-dash');
+        byId('diagnosis-patient-name').textContent = intake.name || t('assessment.participant.no-label');
         byId('diagnosis-current-record-code').textContent = recordCode();
         byId('diagnosis-patient-age').textContent = age;
         byId('diagnosis-patient-gender').textContent = intakeOptionLabel('gender', intake.gender);
         byId('diagnosis-patient-arm').textContent = intakeOptionLabel('assessedArm', intake.assessedArm);
         byId('diagnosis-patient-size').textContent = size;
-        byId('diagnosis-patient-pain').textContent = `${painNow} / ${painWorst}`;
+        byId('diagnosis-patient-pain').textContent = t('assessment.participant.pain-values', { current: painNow, worst: painWorst });
         byId('diagnosis-patient-duration').textContent = intakeOptionLabel('painDuration', intake.painDuration);
         byId('diagnosis-patient-location').textContent = intakeOptionLabel('primaryPainLocation', intake.primaryPainLocation);
     }
@@ -834,7 +881,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.remove('hidden');
-        byId('diagnosis-report-back').textContent = 'Back to assessment';
+        byId('diagnosis-report-back').textContent = t('assessment.report.back');
         renderMovementReport(state.report);
         state.reportStored = archiveReport(state.report);
         if (state.reportStored) {
@@ -842,9 +889,9 @@ export function createDiagnosisWorkflow(controller) {
         } else {
             persistDraft();
             showAppDialog({
-                title: 'Report could not be stored',
-                message: 'The resumable assessment has been kept. Download the report with direct identifiers excluded now, or return to the assessment and remove older saved reports before trying again.',
-                confirmLabel: 'Keep resumable assessment',
+                title: t('assessment.dialogs.report-storage.title'),
+                message: t('assessment.dialogs.report-storage.message'),
+                confirmLabel: t('assessment.dialogs.report-storage.confirm'),
                 danger: false,
                 onConfirm: () => {}
             });
@@ -889,9 +936,9 @@ export function createDiagnosisWorkflow(controller) {
 
     function requestDeleteAllLocalAssessmentData() {
         showAppDialog({
-            title: 'Delete all local assessment data?',
-            message: 'This permanently removes the saved draft and every saved assessment report for this application from this browser profile. It also clears the assessment and current-tab reports now open in this tab. Downloaded files are not affected.',
-            confirmLabel: 'Delete all assessment data',
+            title: t('assessment.dialogs.delete-all.title'),
+            message: t('assessment.dialogs.delete-all.message'),
+            confirmLabel: t('assessment.dialogs.delete-all.confirm'),
             danger: true,
             onConfirm: deleteAllLocalAssessmentData
         });
@@ -907,9 +954,9 @@ export function createDiagnosisWorkflow(controller) {
             return;
         }
         showAppDialog({
-            title: 'Start a new assessment?',
-            message: 'The unfinished personal details and position responses will be removed. Completed assessment reports will remain available.',
-            confirmLabel: 'Start new assessment',
+            title: t('assessment.dialogs.restart.title'),
+            message: t('assessment.dialogs.restart.message'),
+            confirmLabel: t('assessment.dialogs.restart.confirm'),
             danger: true,
             onConfirm: resetAssessmentData
         });
@@ -922,42 +969,43 @@ export function createDiagnosisWorkflow(controller) {
         const unlockedThrough = firstUnansweredIndex === -1 ? ASSESSMENT_POSITIONS.length - 1 : firstUnansweredIndex;
         const fieldOptions = {
             completion: [
-                ['not_recorded', 'Select'],
-                ['full', 'Full'],
-                ['partial', 'Partial'],
-                ['unable', 'Unable'],
-                ['stopped', 'Stopped'],
-                ['skipped', 'Skipped']
+                ['not_recorded', t('assessment.responses.completion.select')],
+                ['full', t('assessment.responses.completion.full')],
+                ['partial', t('assessment.responses.completion.partial')],
+                ['unable', t('assessment.responses.completion.unable')],
+                ['stopped', t('assessment.responses.completion.stopped')],
+                ['skipped', t('assessment.responses.completion.skipped')]
             ],
-            pain: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes']],
-            weakness: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes']],
-            stiffness: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes']],
-            compensation: [['not_recorded', 'Select'], ['no', 'No'], ['yes', 'Yes'], ['uncertain', 'Unsure']],
+            pain: [['not_recorded', t('common.options.select')], ['no', t('common.options.no')], ['yes', t('common.options.yes')]],
+            weakness: [['not_recorded', t('common.options.select')], ['no', t('common.options.no')], ['yes', t('common.options.yes')]],
+            stiffness: [['not_recorded', t('common.options.select')], ['no', t('common.options.no')], ['yes', t('common.options.yes')]],
+            compensation: [['not_recorded', t('common.options.select')], ['no', t('common.options.no')], ['yes', t('common.options.yes')], ['uncertain', t('assessment.responses.value.unsure')]],
             limitingFactor: [
-                ['', 'Select'], ['pain', 'Pain'], ['weakness', 'Weakness'], ['stiffness', 'Stiffness'],
-                ['instability', 'Instability'], ['fear', 'Fear'], ['coordination', 'Coordination'], ['other', 'Other']
+                ['', t('common.options.select')], ['pain', t('assessment.responses.limiting.pain')], ['weakness', t('assessment.responses.limiting.weakness')], ['stiffness', t('assessment.responses.limiting.stiffness')],
+                ['instability', t('assessment.responses.limiting.instability')], ['fear', t('assessment.responses.limiting.fear')], ['coordination', t('assessment.responses.limiting.coordination')], ['other', t('assessment.responses.limiting.other')]
             ]
         };
         const fieldLabels = {
-            completion: 'Completion',
-            pain: 'Pain',
-            weakness: 'Weakness',
-            stiffness: 'Stiffness',
-            compensation: 'Compensation'
+            completion: t('assessment.responses.fields.completion'),
+            pain: t('assessment.responses.fields.pain'),
+            weakness: t('assessment.responses.fields.weakness'),
+            stiffness: t('assessment.responses.fields.stiffness'),
+            compensation: t('assessment.responses.fields.compensation')
         };
-        const optionLabel = (field, value) => fieldOptions[field].find(([option]) => option === value)?.[1] ?? '—';
+        const optionLabel = (field, value) => fieldOptions[field].find(([option]) => option === value)?.[1] ?? t('common.punctuation.em-dash');
         const responseChoices = (field, response, position) => {
             const group = document.createElement('div');
             group.className = `capacity-choice-group ${field === 'completion' ? 'completion' : ''}`;
             group.setAttribute('role', 'group');
-            group.setAttribute('aria-label', `${fieldLabels[field]} for ${position.name}`);
+            const positionName = t(`assessment.positions.${position.id}.name`);
+            group.setAttribute('aria-label', t('assessment.responses.aria.field-for-position', { field: fieldLabels[field], position: positionName }));
             for (const [value, label] of fieldOptions[field].filter(([optionValue]) => optionValue !== 'not_recorded')) {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `capacity-choice-button choice-${field} value-${value}`;
                 button.classList.toggle('selected', response[field] === value);
                 button.setAttribute('aria-pressed', response[field] === value ? 'true' : 'false');
-                button.setAttribute('aria-label', `${label} ${fieldLabels[field].toLowerCase()} for ${position.name}`);
+                button.setAttribute('aria-label', t('assessment.responses.aria.choice-for-position', { choice: label, field: fieldLabels[field], position: positionName }));
                 button.textContent = label;
                 button.addEventListener('click', () => updateCapacityResponse(field, value));
                 group.append(button);
@@ -968,12 +1016,12 @@ export function createDiagnosisWorkflow(controller) {
             const wrapper = document.createElement('label');
             wrapper.className = 'capacity-detail-field';
             const caption = document.createElement('span');
-            caption.textContent = `${label}${required ? ' *' : ''}`;
+            caption.textContent = required ? t('assessment.responses.required-label', { label }) : label;
             const select = document.createElement('select');
             select.setAttribute('aria-label', label);
             const placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = 'Select';
+            placeholder.textContent = t('common.options.select');
             select.append(placeholder);
             for (const [optionValue, optionLabelText] of options) {
                 const option = document.createElement('option');
@@ -1001,9 +1049,12 @@ export function createDiagnosisWorkflow(controller) {
             positionButton.className = 'capacity-position-open';
             positionButton.disabled = locked;
             positionButton.setAttribute('aria-current', active ? 'step' : 'false');
-            if (locked) positionButton.setAttribute('aria-label', `${position.name}, locked until the previous posture is completed`);
-            const progressLabel = response.answered ? (response.completion === 'skipped' ? 'Skipped' : 'Recorded') : locked ? 'Locked' : 'Next';
-            positionButton.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(position.name)}</strong><em>${progressLabel}</em>`;
+            const positionName = t(`assessment.positions.${position.id}.name`);
+            if (locked) positionButton.setAttribute('aria-label', t('assessment.responses.aria.locked-position', { position: positionName }));
+            const progressLabel = response.answered
+                ? t(response.completion === 'skipped' ? 'assessment.responses.row-status.skipped' : 'assessment.responses.row-status.recorded')
+                : t(locked ? 'assessment.responses.row-status.locked' : 'assessment.responses.row-status.next');
+            positionButton.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(positionName)}</strong><em>${progressLabel}</em>`;
             positionButton.addEventListener('click', () => {
                 state.activeCapacityIndex = index;
                 renderCapacityList();
@@ -1021,20 +1072,20 @@ export function createDiagnosisWorkflow(controller) {
                     const value = document.createElement('span');
                     value.className = 'capacity-record-value';
                     value.textContent = `X ${optionLabel(field, response[field])}`;
-                    value.setAttribute('aria-label', `${fieldLabels[field]}: ${optionLabel(field, response[field])}`);
+                    value.setAttribute('aria-label', t('assessment.responses.aria.field-value', { field: fieldLabels[field], value: optionLabel(field, response[field]) }));
                     cell.append(value);
                 }
                 row.append(cell);
             });
             const commentsCell = document.createElement('td');
-            commentsCell.dataset.label = 'Notes';
+            commentsCell.dataset.label = t('assessment.responses.fields.notes');
             if (active) {
                 const notes = document.createElement('textarea');
                 notes.className = 'capacity-record-comments';
                 notes.maxLength = 500;
                 notes.rows = 2;
-                notes.placeholder = 'Optional';
-                notes.setAttribute('aria-label', `Comments for ${position.name}`);
+                notes.placeholder = t('assessment.responses.notes-optional');
+                notes.setAttribute('aria-label', t('assessment.responses.aria.comments-for-position', { position: positionName }));
                 notes.value = response.notes;
                 notes.addEventListener('input', (event) => {
                     response.notes = event.target.value.trim();
@@ -1063,7 +1114,7 @@ export function createDiagnosisWorkflow(controller) {
                 details.className = 'capacity-detail-fields';
                 if (['partial', 'unable', 'stopped'].includes(response.completion)) {
                     addDetailSelect(details, {
-                        label: 'Limiting factor',
+                        label: t('assessment.responses.fields.limiting-factor'),
                         field: 'limitingFactor',
                         value: response.limitingFactor,
                         options: fieldOptions.limitingFactor.slice(1),
@@ -1072,30 +1123,30 @@ export function createDiagnosisWorkflow(controller) {
                 }
                 if (response.pain === 'yes') {
                     addDetailSelect(details, {
-                        label: 'Pain 1–10',
+                        label: t('assessment.responses.fields.pain-score'),
                         field: 'painScore',
                         value: response.painScore,
                         options: Array.from({ length: 10 }, (_, value) => [String(value + 1), String(value + 1)]),
                         required: true
                     });
                     addDetailSelect(details, {
-                        label: 'Pain location',
+                        label: t('assessment.responses.fields.pain-location'),
                         field: 'painLocation',
                         value: response.painLocation,
                         options: [
-                            ['front_shoulder', 'Front shoulder'],
-                            ['top_shoulder', 'Top / AC region'],
-                            ['back_shoulder', 'Back shoulder'],
-                            ['lateral_upper_arm', 'Lateral upper arm'],
-                            ['neck_arm', 'Neck / radiating'],
-                            ['other', 'Other']
+                            ['front_shoulder', t('assessment.responses.pain-location.front-shoulder')],
+                            ['top_shoulder', t('assessment.responses.pain-location.top-shoulder')],
+                            ['back_shoulder', t('assessment.responses.pain-location.back-shoulder')],
+                            ['lateral_upper_arm', t('assessment.responses.pain-location.lateral-upper-arm')],
+                            ['neck_arm', t('assessment.responses.pain-location.neck-arm')],
+                            ['other', t('assessment.responses.pain-location.other')]
                         ],
                         required: true
                     });
                 }
                 if (response.weakness === 'yes') {
                     addDetailSelect(details, {
-                        label: 'Weakness 1–10',
+                        label: t('assessment.responses.fields.weakness-score'),
                         field: 'weaknessScore',
                         value: response.weaknessScore,
                         options: Array.from({ length: 10 }, (_, value) => [String(value + 1), String(value + 1)]),
@@ -1104,21 +1155,21 @@ export function createDiagnosisWorkflow(controller) {
                 }
                 if (response.compensation === 'yes') {
                     addDetailSelect(details, {
-                        label: 'Movement difference',
+                        label: t('assessment.responses.fields.movement-difference'),
                         field: 'compensationDetail',
                         value: response.compensationDetail,
                         options: [
-                            ['shoulder_hike', 'Shoulder hike'],
-                            ['trunk_lean', 'Trunk lean'],
-                            ['scapular_difference', 'Scapular difference'],
-                            ['other', 'Other']
+                            ['shoulder_hike', t('assessment.responses.movement-difference.shoulder-hike')],
+                            ['trunk_lean', t('assessment.responses.movement-difference.trunk-lean')],
+                            ['scapular_difference', t('assessment.responses.movement-difference.scapular-difference')],
+                            ['other', t('assessment.responses.movement-difference.other')]
                         ],
                         required: true
                     });
                 }
                 const help = document.createElement('span');
                 help.className = 'capacity-detail-help';
-                help.textContent = 'Complete the marked detail fields to continue.';
+                help.textContent = t('assessment.responses.details-required');
                 details.append(help);
                 detailCell.append(details);
                 detailRow.append(detailCell);
@@ -1134,7 +1185,7 @@ export function createDiagnosisWorkflow(controller) {
             reportButton.type = 'button';
             reportButton.className = 'capacity-report-list-button';
             reportButton.disabled = answeredCount !== ASSESSMENT_POSITIONS.length;
-            reportButton.innerHTML = `<span class="diagnosis-test-number" aria-hidden="true">✓</span><span class="diagnosis-test-copy"><strong>Review results</strong><span>${answeredCount} of ${ASSESSMENT_POSITIONS.length} positions complete</span></span>`;
+            reportButton.innerHTML = `<span class="diagnosis-test-number" aria-hidden="true">✓</span><span class="diagnosis-test-copy"><strong>${escapeHtml(t('assessment.responses.review-results'))}</strong><span>${escapeHtml(t('assessment.responses.positions-complete', { answered: answeredCount, total: ASSESSMENT_POSITIONS.length }))}</span></span>`;
         reportButton.addEventListener('click', showReportScreen);
         reportCell.append(reportButton);
         reportRow.append(reportCell);
@@ -1147,7 +1198,7 @@ export function createDiagnosisWorkflow(controller) {
         if (!position) return;
         const preview = ++state.previewGeneration;
         const loading = byId('capacity-view-loading');
-        loading.querySelector('strong').textContent = 'Loading posture…';
+        loading.querySelector('strong').textContent = t('assessment.responses.loading-posture');
         loading.classList.remove('hidden');
         controller.neutralizeActivation();
         try {
@@ -1156,8 +1207,9 @@ export function createDiagnosisWorkflow(controller) {
             geometry.mode = 'pose';
             for (const muscle of geometry.muscles ?? []) delete muscle.activation;
             controller.applyState(geometry);
-            controller.resetView();
-            loading.querySelector('strong').textContent = 'Calculating activation…';
+            if (typeof controller.frameDiagnosisPose === 'function') controller.frameDiagnosisPose();
+            else controller.resetView();
+            loading.querySelector('strong').textContent = t('assessment.responses.calculating-activation');
 
             const result = await controller.staticHold(position.coordinates, selectedMuscle(controller));
             if (preview !== state.previewGeneration || state.phase !== 'assessment') return;
@@ -1176,10 +1228,10 @@ export function createDiagnosisWorkflow(controller) {
         state.activeCapacityIndex = Math.max(0, Math.min(positions.length - 1, state.activeCapacityIndex));
         const position = positions[state.activeCapacityIndex];
         const response = state.capacityResponses[position.id];
-        byId('capacity-position-id').textContent = `Position ${state.activeCapacityIndex + 1} of ${positions.length}`;
-        byId('capacity-position-title').textContent = position.name;
-        byId('capacity-position-instruction').textContent = position.instruction ?? 'Do not attempt this posture if it is uncomfortable or unsuitable.';
-        byId('capacity-angle-grid').innerHTML = POSE_KEYS.map((key) => `<div><dt>${escapeHtml(CAPACITY_ANGLE_LABELS[key])}</dt><dd>${Number(position.coordinates[key]).toFixed(1)}°</dd></div>`).join('');
+        byId('capacity-position-id').textContent = t('assessment.position.progress', { current: state.activeCapacityIndex + 1, total: positions.length });
+        byId('capacity-position-title').textContent = t(`assessment.positions.${position.id}.name`);
+        byId('capacity-position-instruction').textContent = t(`assessment.positions.${position.id}.instruction`);
+        byId('capacity-angle-grid').innerHTML = POSE_KEYS.map((key) => `<div><dt>${escapeHtml(t(CAPACITY_ANGLE_LABELS[key]))}</dt><dd>${Number(position.coordinates[key]).toFixed(1)}°</dd></div>`).join('');
         byId('capacity-save-state').textContent = capacityResponseStatus(response);
         byId('capacity-previous').disabled = state.activeCapacityIndex === 0;
         state.capacityPreviewPromise = previewCapacityPose();
@@ -1205,19 +1257,21 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function capacityResponseStatus(response) {
-        if (response.completion === 'skipped') return 'Position skipped';
-        if (response.answered) return 'Observations saved';
-        if (response.pain === 'yes' && (!response.painScore || !response.painLocation)) return 'Record pain score and location';
-        if (response.weakness === 'yes' && !response.weaknessScore) return 'Record perceived weakness';
-        if (response.compensation === 'yes' && !response.compensationDetail) return 'Record the movement difference';
-        if (['partial', 'unable', 'stopped'].includes(response.completion) && !response.limitingFactor) return 'Record the limiting factor';
-        return 'Record completion, pain, weakness, stiffness, and compensation';
+        if (response.completion === 'skipped') return t('assessment.responses.status.position-skipped');
+        if (response.answered) return t('assessment.responses.status.observations-saved');
+        if (response.pain === 'yes' && (!response.painScore || !response.painLocation)) return t('assessment.responses.status.need-pain-details');
+        if (response.weakness === 'yes' && !response.weaknessScore) return t('assessment.responses.status.need-weakness');
+        if (response.compensation === 'yes' && !response.compensationDetail) return t('assessment.responses.status.need-movement-difference');
+        if (['partial', 'unable', 'stopped'].includes(response.completion) && !response.limitingFactor) return t('assessment.responses.status.need-limiting-factor');
+        return t('assessment.responses.status.need-required-observations');
     }
 
     function scheduleCapacityAdvance(position, wasAnswered) {
         const response = state.capacityResponses[position.id];
         if (!response?.answered || wasAnswered) return;
-        byId('capacity-save-state').textContent = response.completion === 'skipped' ? 'Skipped · opening next position…' : 'Saved · opening next position…';
+        byId('capacity-save-state').textContent = t(response.completion === 'skipped'
+            ? 'assessment.responses.status.skipped-opening-next'
+            : 'assessment.responses.status.saved-opening-next');
         const completedIndex = state.activeCapacityIndex;
         window.setTimeout(() => {
             if (state.activeCapacityIndex !== completedIndex || !state.capacityResponses[position.id]?.answered) return;
@@ -1308,13 +1362,15 @@ export function createDiagnosisWorkflow(controller) {
         const complete = safetyAnswersComplete();
         const button = byId('diagnosis-continue');
         button.disabled = !complete;
-        button.textContent = flags.length ? 'Record warnings and stop' : 'Continue';
+        button.textContent = t(flags.length ? 'assessment.safety.record-warnings-stop' : 'common.actions.continue');
         if (!complete) {
-            byId('diagnosis-safety-state').textContent = `${answered} of ${RED_FLAGS.length} answered · complete every row`;
+            byId('diagnosis-safety-state').textContent = t('assessment.safety.progress', { answered, total: RED_FLAGS.length });
         } else if (state.safetyReviewed) {
-            byId('diagnosis-safety-state').textContent = flags.length ? 'Warnings recorded · assessment paused' : 'Safety reviewed';
+            byId('diagnosis-safety-state').textContent = t(flags.length ? 'assessment.safety.warnings-recorded' : 'assessment.safety.reviewed');
         } else {
-            byId('diagnosis-safety-state').textContent = flags.length ? `${flags.length} warning${flags.length === 1 ? '' : 's'} selected` : 'All items answered · no warnings selected';
+            byId('diagnosis-safety-state').textContent = flags.length
+                ? plural('assessment.safety.warning-selected', flags.length)
+                : t('assessment.safety.all-clear');
         }
     }
 
@@ -1334,21 +1390,21 @@ export function createDiagnosisWorkflow(controller) {
         }
         const emergency = flags.some((flag) => flag.urgency === 'emergency');
         safetyWarning.textContent = emergency
-            ? 'Testing paused. A reported warning sign may require emergency assessment now. This tool cannot rule out a serious condition.'
-            : 'Testing paused. A reported warning sign may require urgent medical assessment before more movement testing.';
+            ? t('assessment.safety.warning-emergency')
+            : t('assessment.safety.warning-urgent');
         safetyWarning.classList.remove('hidden');
     }
 
     function renderSafetyForm() {
         const host = byId('diagnosis-safety-form');
         host.innerHTML = `<table class="diagnosis-safety-table">
-            <thead><tr><th scope="col">Warning sign</th><th scope="col">No</th><th scope="col">Yes</th></tr></thead>
+            <thead><tr><th scope="col">${escapeHtml(t('assessment.safety.columns.warning'))}</th><th scope="col">${escapeHtml(t('common.options.no'))}</th><th scope="col">${escapeHtml(t('common.options.yes'))}</th></tr></thead>
             <tbody>${RED_FLAGS.map((flag) => {
-                const heading = flag.urgency === 'emergency' ? 'Emergency warning' : flag.urgency === 'urgent' ? 'Urgent warning' : 'Review before testing';
+                const heading = t(`assessment.safety.urgency.${flag.urgency}`);
                 return `<tr>
-                    <th scope="row"><strong>${heading}</strong><span>${escapeHtml(flag.label)}</span></th>
-                    <td><label><input type="radio" name="safety-${flag.id}" value="no" data-red-flag="${flag.id}" ${state.redFlags[flag.id] === false ? 'checked' : ''}><span>No</span></label></td>
-                    <td><label class="warning-answer"><input type="radio" name="safety-${flag.id}" value="yes" data-red-flag="${flag.id}" ${state.redFlags[flag.id] === true ? 'checked' : ''}><span>Yes</span></label></td>
+                    <th scope="row"><strong>${escapeHtml(heading)}</strong><span>${escapeHtml(t(`assessment.safety.flags.${flag.id}`))}</span></th>
+                    <td><label><input type="radio" name="safety-${flag.id}" value="no" data-red-flag="${flag.id}" ${state.redFlags[flag.id] === false ? 'checked' : ''}><span>${escapeHtml(t('common.options.no'))}</span></label></td>
+                    <td><label class="warning-answer"><input type="radio" name="safety-${flag.id}" value="yes" data-red-flag="${flag.id}" ${state.redFlags[flag.id] === true ? 'checked' : ''}><span>${escapeHtml(t('common.options.yes'))}</span></label></td>
                 </tr>`;
             }).join('')}</tbody>
         </table>`;
@@ -1428,83 +1484,123 @@ export function createDiagnosisWorkflow(controller) {
         const trials = (report.trials ?? []).filter((trial) => trial.includeInHumanProtocol);
         const attempted = trials.filter((trial) => trial.observation?.attempted);
         const quality = report.dataQuality ?? {};
-        const protocolDemand = report.analyses?.genericProtocolDemand ?? {};
-        const label = (value) => escapeHtml(String(value ?? '—').replaceAll('_', ' '));
-        const stateLabel = (symptom) => ({ positive: 'Yes', recorded_zero: 'No', not_recorded: 'Not recorded' }[symptom?.state] ?? label(symptom?.state));
-        const scoreLabel = (symptom) => symptom?.state === 'recorded_zero'
-            ? '0/10'
-            : Number.isFinite(symptom?.score) ? `${symptom.score}/10` : '—';
+        const hasMatchedComparisonProtocol = (MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.matchedComparisons ?? []).length > 0;
         const comparisonRows = (report.matchedComparisons ?? []).filter((comparison) => comparison.observationsComplete);
-        const trialNames = new Map(trials.map((trial) => [trial.id, trial.name]));
-        const coordinateLabels = Object.fromEntries(Object.entries(CAPACITY_ANGLE_LABELS).map(([key, value]) => [key, value]));
-        const reportStatus = ({
-            incomplete_record: 'Incomplete record',
-            complete_record: 'Complete record',
-            conflicting_record: 'Record needs review'
-        })[quality.recordStatus] || 'Record status unavailable';
+        const protocolDemand = report.analyses?.genericProtocolDemand ?? {};
+        const e = escapeHtml;
+        const dash = e(t('common.punctuation.em-dash'));
+        const positionIds = new Set(ASSESSMENT_POSITIONS.map((position) => position.id));
+        const comparisonIds = new Set((MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.matchedComparisons ?? []).map((comparison) => comparison.id));
+        const positionName = (id) => positionIds.has(id)
+            ? t(`assessment.positions.${id}.name`)
+            : t('assessment.report.observations.unknown-position', { id: String(id ?? '') });
+        const comparisonName = (id) => comparisonIds.has(id)
+            ? t(`assessment.comparisons.${id}.name`)
+            : t('assessment.report.comparisons.unknown', { id: String(id ?? '') });
+        const trialNames = new Map(trials.map((trial) => [trial.id, positionName(trial.id)]));
+        const displayMuscle = (name) => controller.displayMuscle?.(name) ?? String(name ?? '');
+        const valueKey = (value) => String(value ?? '').replaceAll('_', '-');
+        const valueLabel = (value) => {
+            const supported = new Set(['positive', 'recorded-zero', 'not-recorded', 'full', 'partial', 'unable', 'stopped', 'skipped', 'uncertain', 'pain', 'weakness', 'stiffness', 'instability', 'fear', 'coordination', 'other']);
+            const normalized = valueKey(value);
+            return supported.has(normalized)
+                ? t(`assessment.report.values.${normalized}`)
+                : t('assessment.report.values.unknown', { value: String(value ?? '') });
+        };
+        const stateLabel = (symptom) => e(valueLabel(symptom?.state));
+        const scoreLabel = (symptom) => symptom?.state === 'recorded_zero'
+            ? e(t('assessment.report.score', { score: 0 }))
+            : Number.isFinite(symptom?.score)
+                ? e(t('assessment.report.score', { score: formatNumber(symptom.score) }))
+                : dash;
+        const reportStatusKey = ({
+            incomplete_record: 'incomplete-record', complete_record: 'complete-record', conflicting_record: 'conflicting-record'
+        })[quality.recordStatus] ?? 'unavailable';
+        const summaryStatusKey = ({
+            incomplete_record: 'incomplete-record', complete_record: 'complete-record', conflicting_record: 'conflicting-record'
+        })[report.summary?.status] ?? 'unavailable';
+        const warningCodes = new Set([
+            'pain_state_score_conflict', 'pain_unanswered_with_score', 'weakness_state_score_conflict',
+            'weakness_unanswered_with_score', 'skipped_trial_has_symptoms', 'legacy_report_migrated',
+            'assessment_protocol_identity_unverified', 'assessment_protocol_migration_required'
+        ]);
+        const warningMessage = (warning) => warningCodes.has(warning.code)
+            ? t(`assessment.report.quality.warnings.${warning.code.replaceAll('_', '-')}`)
+            : t('assessment.report.quality.warnings.unknown', { code: String(warning.code ?? '') });
+        const safetyLabel = report.safety?.positiveFlags?.length
+            ? plural('assessment.report.safety.warning-selected', report.safety.positiveFlags.length)
+            : t(report.safety?.reviewed ? 'assessment.report.safety.reviewed-clear' : 'assessment.report.safety.not-reviewed');
+        const limitationKeys = [
+            'no-single-test-diagnosis', 'generic-not-personal', 'achieved-pose-not-measured',
+            'static-recruitment', 'no-measured-load',
+            report.modelCoverage?.scapularStabilizersIncluded?.length ? 'scapular-included' : 'scapular-absent',
+            'mirrored-visual-only'
+        ];
+        if (report.assessment?.protocolIdentityVerified === false) limitationKeys.push('protocol-unverified');
+        if (report.assessment?.legacyModelRecord) limitationKeys.push('legacy-record');
         host.innerHTML = `
             <div class="diagnosis-report-summary">
-                <div><span>Data status</span><strong>${escapeHtml(reportStatus)}</strong></div>
-                <div><span>Postures attempted</span><strong>${attempted.length}/${quality.requiredTrialCount ?? trials.length}</strong></div>
-                <div><span>Pain answered</span><strong>${quality.painAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
-                <div><span>Weakness answered</span><strong>${quality.weaknessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
-                <div><span>Stiffness answered</span><strong>${quality.stiffnessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
+                <div><span>${e(t('assessment.report.metrics.data-status'))}</span><strong>${e(t(`assessment.report.status.${reportStatusKey}`))}</strong></div>
+                <div><span>${e(t('assessment.report.metrics.postures-attempted'))}</span><strong>${attempted.length}/${quality.requiredTrialCount ?? trials.length}</strong></div>
+                <div><span>${e(t('assessment.report.metrics.pain-answered'))}</span><strong>${quality.painAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
+                <div><span>${e(t('assessment.report.metrics.weakness-answered'))}</span><strong>${quality.weaknessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
+                <div><span>${e(t('assessment.report.metrics.stiffness-answered'))}</span><strong>${quality.stiffnessAnsweredCount ?? 0}/${quality.attemptedTrialCount ?? 0}</strong></div>
             </div>
-            <p><strong>${escapeHtml(report.summary?.statement || 'No summary is available.')}</strong></p>
-            <p>This on-screen record includes exact optional demographics and observation notes. The reduced-detail export removes notes and direct identifiers and groups age, height, and weight into broad bands, but it is not guaranteed anonymous. Review every file before sharing. Direct identifiers remain only in the ${state.storageMode === 'device' ? 'browser-profile record' : 'current-tab record'} and the explicit full export.</p>
-            ${quality.warnings?.length ? `<h3>Data-quality warnings</h3><ul>${quality.warnings.map((warning) => `<li>${escapeHtml(warning.trialId ? `${trialNames.get(warning.trialId) || 'Position'}: ${warning.message}` : warning.message)}</li>`).join('')}</ul>` : ''}
-            ${quality.missingRequiredFields?.length ? `<details><summary>Missing required observations (${quality.missingRequiredFields.length})</summary><p>Complete the highlighted fields in the guided positions before treating this record as complete.</p></details>` : ''}
-            <h3>Assessment context</h3>
+            <p><strong>${e(t(`assessment.report.summary.${summaryStatusKey}`, { recorded: quality.recordedTrialCount ?? 0, required: quality.requiredTrialCount ?? trials.length }))}</strong></p>
+            <p>${e(t(state.storageMode === 'device' ? 'assessment.report.onscreen-privacy.device' : 'assessment.report.onscreen-privacy.session'))}</p>
+            ${quality.warnings?.length ? `<h3>${e(t('assessment.report.quality.title'))}</h3><ul>${quality.warnings.map((warning) => `<li>${e(warning.trialId
+                ? t('assessment.report.quality.warning-position', { position: trialNames.get(warning.trialId) ?? positionName(warning.trialId), message: warningMessage(warning) })
+                : warningMessage(warning))}</li>`).join('')}</ul>` : ''}
+            ${quality.missingRequiredFields?.length ? `<details><summary>${e(plural('assessment.report.quality.missing', quality.missingRequiredFields.length))}</summary><p>${e(t('assessment.report.quality.missing-help'))}</p></details>` : ''}
+            <h3>${e(t('assessment.report.context.title'))}</h3>
             <div class="diagnosis-report-table-wrap"><table><tbody>
-                <tr><th>Age</th><td>${Number.isFinite(report.intake?.ageYears) ? report.intake.ageYears : '—'}</td><th>Gender</th><td>${label(report.intake?.gender)}</td></tr>
-                <tr><th>Assessed side</th><td>${label(report.intake?.assessedSide)}</td><th>Height / weight</th><td>${Number.isFinite(report.intake?.heightCm) ? `${report.intake.heightCm} cm` : '—'} / ${Number.isFinite(report.intake?.weightKg) ? `${report.intake.weightKg} kg` : '—'}</td></tr>
-                <tr><th>Symptom duration</th><td>${label(report.intake?.symptomDuration)}</td><th>Onset</th><td>${label(report.intake?.symptomOnset)}</td></tr>
-                <tr><th>Safety screen</th><td colspan="3">${report.safety?.positiveFlags?.length ? `${report.safety.positiveFlags.length} warning item(s) selected` : report.safety?.reviewed ? 'Reviewed; no warning item selected' : 'Not reviewed'}</td></tr>
+                <tr><th>${e(t('assessment.report.context.age'))}</th><td>${Number.isFinite(report.intake?.ageYears) ? e(formatNumber(report.intake.ageYears)) : dash}</td><th>${e(t('assessment.report.context.gender'))}</th><td>${e(intakeOptionLabel('gender', report.intake?.gender))}</td></tr>
+                <tr><th>${e(t('assessment.report.context.assessed-side'))}</th><td>${report.intake?.assessedSide ? e(sideLabel(report.intake.assessedSide)) : dash}</td><th>${e(t('assessment.report.context.height-weight'))}</th><td>${Number.isFinite(report.intake?.heightCm) ? `${e(formatNumber(report.intake.heightCm))} cm` : dash} / ${Number.isFinite(report.intake?.weightKg) ? `${e(formatNumber(report.intake.weightKg))} kg` : dash}</td></tr>
+                <tr><th>${e(t('assessment.report.context.symptom-duration'))}</th><td>${e(intakeOptionLabel('painDuration', report.intake?.symptomDuration))}</td><th>${e(t('assessment.report.context.onset'))}</th><td>${e(intakeOptionLabel('painOnset', report.intake?.symptomOnset))}</td></tr>
+                <tr><th>${e(t('assessment.report.context.safety-screen'))}</th><td colspan="3">${e(safetyLabel)}</td></tr>
             </tbody></table></div>
-            <h3>Recorded posture observations</h3>
+            <h3>${e(t('assessment.report.observations.title'))}</h3>
             <div class="diagnosis-report-table-wrap"><table>
-                <thead><tr><th>Posture</th><th>Completion</th><th>Pain</th><th>Weakness</th><th>Stiffness</th><th>Compensation</th><th>Notes</th><th>Generic model reference</th></tr></thead>
+                <thead><tr>${['posture', 'completion', 'pain', 'weakness', 'stiffness', 'compensation', 'notes', 'model-reference'].map((key) => `<th>${e(t(`assessment.report.observations.columns.${key}`))}</th>`).join('')}</tr></thead>
                 <tbody>${trials.map((trial) => `<tr>
-                    <td><strong>${escapeHtml(trial.name)}</strong></td>
-                    <td>${label(trial.observation.completion)}${trial.observation.limitingFactors?.length ? ` · ${trial.observation.limitingFactors.map(label).join(', ')}` : ''}</td>
+                    <td><strong>${e(positionName(trial.id))}</strong></td>
+                    <td>${e(valueLabel(trial.observation.completion))}${trial.observation.limitingFactors?.length ? ` · ${trial.observation.limitingFactors.map((value) => e(valueLabel(value))).join(', ')}` : ''}</td>
                     <td>${stateLabel(trial.observation.pain)}${trial.observation.pain.state !== 'not_recorded' ? ` · ${scoreLabel(trial.observation.pain)}` : ''}</td>
                     <td>${stateLabel(trial.observation.weakness)}${trial.observation.weakness.state !== 'not_recorded' ? ` · ${scoreLabel(trial.observation.weakness)}` : ''}</td>
                     <td>${stateLabel(trial.observation.stiffness)}</td>
                     <td>${stateLabel(trial.observation.compensation)}</td>
-                    <td>${escapeHtml(trial.observation.notes || '—')}</td>
+                    <td>${e(trial.observation.notes || dash)}</td>
                     <td>${trial.modelReference?.available
-                        ? trial.modelReference.topRelevantPredictedControls.slice(0, 3).map((muscle) => `${escapeHtml(muscle.name)} ${formatMetric(muscle.predictedModelControl)}`).join(' · ')
-                        : escapeHtml(trial.modelReference?.notComputableReason || 'Unavailable')}</td>
+                        ? trial.modelReference.topRelevantPredictedControls.slice(0, 3).map((muscle) => `${e(displayMuscle(muscle.name))} ${formatMetric(muscle.predictedModelControl)}`).join(' · ')
+                        : e(t('assessment.report.model-reference.unavailable'))}</td>
                 </tr>`).join('')}</tbody>
             </table></div>
-            <h3>Matched posture comparisons</h3>
-            <p>Each comparison changes one principal posture variable while keeping the listed protocol variables fixed. Numeric symptom deltas appear only when explicit scores are present.</p>
-            ${comparisonRows.length ? `<div class="diagnosis-report-table-wrap"><table><thead><tr><th>Comparison</th><th>Trials</th><th>Changed variable</th><th>Pain Δ</th><th>Weakness Δ</th><th>Status</th></tr></thead><tbody>${comparisonRows.map((comparison) => `<tr>
-                <td>${escapeHtml(comparison.name)}</td><td>${comparison.trialIds.map((trialId) => escapeHtml(trialNames.get(trialId) || 'Position')).join(' → ')}</td><td>${escapeHtml(coordinateLabels[comparison.changedVariable] || String(comparison.changedVariable ?? '').replaceAll('_', ' '))}</td>
+            ${hasMatchedComparisonProtocol ? `<h3>${e(t('assessment.report.comparisons.title'))}</h3>
+            <p>${e(t('assessment.report.comparisons.intro'))}</p>
+            ${comparisonRows.length ? `<div class="diagnosis-report-table-wrap"><table><thead><tr>${['comparison', 'trials', 'changed-variable', 'pain-delta', 'weakness-delta', 'status'].map((key) => `<th>${e(t(`assessment.report.comparisons.columns.${key}`))}</th>`).join('')}</tr></thead><tbody>${comparisonRows.map((comparison) => `<tr>
+                <td>${e(comparisonName(comparison.id))}</td><td>${comparison.trialIds.map((trialId) => e(trialNames.get(trialId) ?? positionName(trialId))).join(' → ')}</td><td>${e(CAPACITY_ANGLE_LABELS[comparison.changedVariable] ? t(CAPACITY_ANGLE_LABELS[comparison.changedVariable]) : t('assessment.report.values.unknown', { value: String(comparison.changedVariable ?? '') }))}</td>
                 <td>${Number.isFinite(comparison.observationDelta.painScore) ? `${comparison.observationDelta.painScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.painScore, 1)}` : '—'}</td>
                 <td>${Number.isFinite(comparison.observationDelta.weaknessScore) ? `${comparison.observationDelta.weaknessScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.weaknessScore, 1)}` : '—'}</td>
-                <td>${escapeHtml(comparison.observationDelta.notComputableReason || 'Complete')}</td>
-            </tr>`).join('')}</tbody></table></div>` : '<p>No matched comparison has complete observations.</p>'}
-            <h3>Generic model reference</h3>
-            <p>${escapeHtml(protocolDemand.statement || 'This summary uses only the generic model across protocol postures. It does not use participant symptoms and cannot identify a painful or impaired muscle.')}</p>
-            ${protocolDemand.ranking?.length ? `<ol>${protocolDemand.ranking.slice(0, 8).map((row) => `<li><strong>${escapeHtml(row.name)}</strong> · mean predicted model control ${formatMetric(row.meanPredictedModelControl)} · peak ${formatMetric(row.peakPredictedModelControl)}</li>`).join('')}</ol>` : '<p>No quality-gated generic model references are available.</p>'}
-            <h3>Model coverage and limitations</h3>
-            ${report.assessment?.legacyModelRecord ? `<p><strong>Archived historical record:</strong> ${escapeHtml(report.modelCoverage?.legacyNotice || 'This stored report predates the current model or protocol and remains read-only historical output.')}</p>` : ''}
-            <p><strong>Scapular-control coverage:</strong> ${report.modelCoverage?.scapularStabilizersIncluded?.length
-                ? `The static solve includes ${report.modelCoverage.scapularStabilizersIncluded.length} modeled trapezius, serratus-anterior, and related shoulder-girdle stabilizers. Their controls remain generic estimates and do not measure the observed person's scapular motion or compensation.`
-                : 'Independent scapular-stabilizer coverage was not recorded for this model result; do not infer shoulder-hiking or scapular compensation from it.'}</p>
-            <ul>${(report.limitations ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-        byId('diagnosis-report-title').textContent = 'Movement observation report';
-        byId('diagnosis-report-time').textContent = new Date(report.generatedAt).toLocaleString();
+                <td>${e(t(comparison.observationDelta.notComputableReason ? 'assessment.report.comparisons.status-scores-required' : 'assessment.report.comparisons.status-complete'))}</td>
+            </tr>`).join('')}</tbody></table></div>` : `<p>${e(t('assessment.report.comparisons.none'))}</p>`}` : ''}
+            <h3>${e(t('assessment.report.model-reference.title'))}</h3>
+            <p>${e(t('assessment.report.model-reference.statement'))}</p>
+            ${protocolDemand.ranking?.length ? `<ol>${protocolDemand.ranking.slice(0, 8).map((row) => `<li>${e(t('assessment.report.model-reference.ranking-item', { name: displayMuscle(row.name), mean: formatMetric(row.meanPredictedModelControl), peak: formatMetric(row.peakPredictedModelControl) }))}</li>`).join('')}</ol>` : `<p>${e(t('assessment.report.model-reference.none'))}</p>`}
+            <h3>${e(t('assessment.report.limitations.title'))}</h3>
+            ${report.assessment?.legacyModelRecord ? `<p><strong>${e(t('assessment.report.limitations.archived-heading'))}</strong> ${e(t('assessment.report.limitations.archived-notice'))}</p>` : ''}
+            <p><strong>${e(t('assessment.report.limitations.scapular-heading'))}</strong> ${e(t(report.modelCoverage?.scapularStabilizersIncluded?.length ? 'assessment.report.limitations.scapular-included' : 'assessment.report.limitations.scapular-absent', report.modelCoverage?.scapularStabilizersIncluded?.length ? { count: report.modelCoverage.scapularStabilizersIncluded.length } : {}))}</p>
+            <ul>${limitationKeys.map((key) => `<li>${e(t(`assessment.report.limitations.items.${key}`))}</li>`).join('')}</ul>`;
+        byId('diagnosis-report-title').textContent = t('assessment.report.title');
+        byId('diagnosis-report-time').textContent = localizedDate(report.generatedAt);
         byId('diagnosis-report').classList.remove('hidden');
         byId('diagnosis-copy-json').disabled = false;
         byId('diagnosis-download-json').disabled = false;
         byId('capacity-copy-json').disabled = false;
         byId('capacity-download-json').disabled = false;
-        byId('diagnosis-copy-json').textContent = 'Copy reduced-detail report';
-        byId('diagnosis-download-json').textContent = 'Download reduced-detail report';
-        byId('capacity-copy-json').textContent = 'Copy full report data';
-        byId('capacity-download-json').textContent = 'Download full report data';
+        byId('diagnosis-copy-json').textContent = t('assessment.report.copy-reduced');
+        byId('diagnosis-download-json').textContent = t('assessment.report.download-reduced');
+        byId('capacity-copy-json').textContent = t('assessment.report.copy-full');
+        byId('capacity-download-json').textContent = t('assessment.report.download-full');
     }
 
     async function copyJson(buttonId = 'diagnosis-copy-json') {
@@ -1514,8 +1610,8 @@ export function createDiagnosisWorkflow(controller) {
         const text = JSON.stringify(payload, null, 2);
         await navigator.clipboard.writeText(text);
         const button = byId(buttonId);
-        button.textContent = 'Copied';
-        const original = full ? 'Copy full report data' : 'Copy reduced-detail report';
+        button.textContent = t('assessment.report.copied');
+        const original = t(full ? 'assessment.report.copy-full' : 'assessment.report.copy-reduced');
         window.setTimeout(() => { button.textContent = original; }, 1400);
     }
 
@@ -1610,7 +1706,7 @@ export function createDiagnosisWorkflow(controller) {
         state.report = null;
         updateWarning();
         if (selectedRedFlags().length) {
-            byId('diagnosis-safety-state').textContent = 'Warning recorded · assessment paused';
+            byId('diagnosis-safety-state').textContent = t('assessment.safety.warnings-recorded');
             return;
         }
         showIntake();
@@ -1623,8 +1719,8 @@ export function createDiagnosisWorkflow(controller) {
         readIntake();
         const stored = persistDraft();
         byId('diagnosis-intake-state').textContent = state.storageMode === 'device'
-            ? (stored ? 'Saved on this device.' : 'Save failed; kept in this tab for now.')
-            : 'Kept in this tab only.';
+            ? t(stored ? 'assessment.intake.state.saved-device' : 'assessment.intake.state.save-failed-session')
+            : t('assessment.intake.state.kept-session');
     });
     byId('diagnosis-intake-form').addEventListener('change', () => {
         readIntake();
@@ -1634,7 +1730,7 @@ export function createDiagnosisWorkflow(controller) {
         event.preventDefault();
         const form = byId('diagnosis-intake-form');
         if (!form.reportValidity()) {
-            byId('diagnosis-intake-state').textContent = 'Complete the highlighted required fields.';
+            byId('diagnosis-intake-state').textContent = t('assessment.intake.state.complete-highlighted');
             return;
         }
         readIntake();
@@ -1685,6 +1781,19 @@ export function createDiagnosisWorkflow(controller) {
             event.preventDefault();
             first.focus();
         }
+    });
+    window.addEventListener('waajacu:language-change-request', (event) => {
+        const hasSessionOnlyData = state.storageMode === 'session'
+            && (Boolean(state.draftUpdatedAt) || state.sessionReports.length > 0);
+        if (!hasSessionOnlyData || !event.detail?.targetUrl) return;
+        event.preventDefault();
+        showAppDialog({
+            title: t('language.change-session.title'),
+            message: t('language.change-session.message'),
+            confirmLabel: t('language.change-session.confirm'),
+            danger: true,
+            onConfirm: () => window.location.assign(event.detail.targetUrl)
+        });
     });
     restoreDraft();
     fillIntakeForm(state.intake);

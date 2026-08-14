@@ -16,6 +16,31 @@ an origin root such as `https://example.org/` or below a subpath such as
 `https://example.org/medical/`, provided the host serves `index.html` from that
 directory with the documented MIME types and content-security policy.
 
+## Interface languages
+
+The English source catalog is `public/locales/en.json`; reviewed Spanish,
+German, and Simplified Chinese catalogs sit beside it. These translations
+still require review by fluent medical/legal reviewers before clinical research
+use. A small relative-URL
+bootstrap selects and validates the route's catalog before importing the
+application, so the browser never starts the assessment with missing or mixed interface copy.
+Static HTML and dynamic labels, dialogs, accessibility text, model vocabulary,
+and the on-screen report view all use stable catalog keys.
+
+GitHub Pages publishes the same static browser application at `/en/`, `/es/`,
+`/de/`, and `/zh/` tool routes. The Pages build materializes each route's
+catalog into its HTML, while the catalog remains the source for dynamic UI.
+The header language selector moves between those routes. A query-string fallback
+such as `?lang=es` supports local serving from `public/` without changing the
+production route contract.
+
+The integrity-pinned assessment protocol and the versioned JSON report remain
+canonical data contracts. Their stored IDs and English evidence text are not
+rewritten by localization; the interface presents them through catalog entries
+mapped from stable position, comparison, status, and warning codes. Future
+language builds can therefore use the same application and records without
+changing model or protocol hashes.
+
 ## Start locally
 
 ```powershell
@@ -97,8 +122,8 @@ From Windows PowerShell, run the complete local gate with:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\release.ps1
 ```
 
-This checks the exact deploy allowlist, UTF-8 text, browser-module syntax, the
-versioned assessment protocol, report/privacy/migration behavior, pinned model
+This checks the exact deploy allowlist, UTF-8 text, browser-module syntax, every
+localization catalog and its key/placeholder parity, the versioned assessment protocol, report/privacy/migration behavior, pinned model
 hashes, HTTP headers and routes, retired-route absence, and a clean Git
 baseline. It locates Node.js and Python from `PATH` or from Codex's bundled
 workspace runtime. HTTP verification is required: the command starts and stops
