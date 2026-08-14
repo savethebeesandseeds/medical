@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Experimental MS-Human assessment search</title>
+    <style>
+        :root { color-scheme: light; font: 16px/1.45 system-ui, sans-serif; color: #18231f; background: #edf2ef; }
+        * { box-sizing: border-box; }
+        body { margin: 0; }
+        main { width: min(1040px, calc(100% - 32px)); margin: 32px auto; }
+        .panel { background: #fff; border: 1px solid #c8d3ce; padding: 20px; margin-bottom: 16px; }
+        h1, h2 { margin: 0 0 8px; line-height: 1.15; }
+        h1 { font-size: clamp(1.55rem, 4vw, 2.25rem); }
+        h2 { font-size: 1.05rem; }
+        p { margin: 6px 0; }
+        .warning { border-left: 5px solid #c69519; background: #fff8dd; }
+        .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+        label { display: grid; gap: 4px; font-weight: 650; }
+        select, button { min-height: 42px; border: 1px solid #9bada5; background: #fff; padding: 8px 12px; font: inherit; }
+        button { cursor: pointer; font-weight: 700; color: #064f45; }
+        button.primary { color: #fff; border-color: #126e61; background: #126e61; }
+        button:disabled { cursor: not-allowed; opacity: .5; }
+        progress { display: block; width: 100%; height: 18px; margin: 14px 0 6px; }
+        #assessment-search-progress { min-height: 1.5em; font-variant-numeric: tabular-nums; }
+        #assessment-search-summary { min-height: 7em; margin: 12px 0; padding: 12px; overflow: auto; background: #f4f7f5; border: 1px solid #d4dcd8; white-space: pre-wrap; }
+        #assessment-search-result { width: 100%; min-height: 340px; resize: vertical; padding: 12px; border: 1px solid #9bada5; font: 12px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; }
+        .small { color: #56645f; font-size: .9rem; }
+        code { color: #064f45; }
+    </style>
+</head>
+<body>
+<main>
+    <section class="panel warning" role="note">
+        <h1>Experimental posture-atlas search</h1>
+        <p><strong>Research engineering only—not a diagnostic test.</strong></p>
+        <p>This temporary page searches generic MS-Human static model outputs. It does not measure a patient, identify painful tissue, prescribe movement, or establish that a posture is safe.</p>
+    </section>
+
+    <section class="panel">
+        <h2>Deterministic current-model run</h2>
+        <p class="small">Neutral plus a seven-dimensional Halton atlas in three moderate travel envelopes. Every retained candidate must pass the current browser solver's unchanged quality gates.</p>
+        <div class="controls">
+            <label>Candidate count
+                <select id="assessment-search-count">
+                    <option value="384">384</option>
+                    <option value="512" selected>512</option>
+                    <option value="768">768</option>
+                </select>
+            </label>
+            <button id="assessment-search-run" class="primary" type="button">Run search</button>
+            <button id="assessment-search-stop" type="button" disabled>Stop after current solve</button>
+            <button id="assessment-search-copy" type="button" disabled>Copy JSON</button>
+            <button id="assessment-search-download" type="button" disabled>Download JSON</button>
+        </div>
+        <progress id="assessment-search-progress-bar" max="1" value="0"></progress>
+        <div id="assessment-search-progress" role="status" aria-live="polite">Ready. The 512-candidate run can take several minutes.</div>
+    </section>
+
+    <section class="panel">
+        <h2>Result</h2>
+        <pre id="assessment-search-summary">No result yet.</pre>
+        <label for="assessment-search-result">Compact JSON atlas and selected panel</label>
+        <textarea id="assessment-search-result" readonly spellcheck="false" aria-label="Experimental assessment-search JSON result"></textarea>
+        <p class="small">The JSON retains the 88-element activation and active-force vectors for every usable candidate. Its selected panel is experimental and requires separate review.</p>
+    </section>
+</main>
+<script type="module" src="./assessment-search.js"></script>
+</body>
+</html>

@@ -18,8 +18,8 @@ directory with the documented MIME types and content-security policy.
 
 ## Interface languages
 
-The English source catalog is `public/locales/en.json`; reviewed Spanish,
-German, and Simplified Chinese catalogs sit beside it. These translations
+The English source catalog is `public/locales/en.json`; Spanish, German,
+Greek, Czech, and Simplified Chinese catalogs sit beside it. These translations
 still require review by fluent medical/legal reviewers before clinical research
 use. A small relative-URL
 bootstrap selects and validates the route's catalog before importing the
@@ -28,7 +28,7 @@ Static HTML and dynamic labels, dialogs, accessibility text, model vocabulary,
 and the on-screen report view all use stable catalog keys.
 
 GitHub Pages publishes the same static browser application at `/en/`, `/es/`,
-`/de/`, and `/zh/` tool routes. The Pages build materializes each route's
+`/de/`, `/el/`, `/cs/`, and `/zh/` tool routes. The Pages build materializes each route's
 catalog into its HTML, while the catalog remains the source for dynamic UI.
 The header language selector moves between those routes. A query-string fallback
 such as `?lang=es` supports local serving from `public/` without changing the
@@ -53,7 +53,8 @@ The page is served at <http://localhost:8080> and bound to `127.0.0.1`.
 ## What the application shows
 
 - An explicit region list for right arm, left arm, right leg, left leg,
-  Back & trunk, Head & neck, and the detailed right hand. Arm and Leg use true
+  right foot and ankle, left foot and ankle, Back & trunk, Head & neck, and the
+  detailed right hand. Arm, Leg, and Foot and ankle use true
   side-specific calculations; the visual mirror is never used as a substitute
   for a calculated side. Each region supplies only its own authored
   posture controls, muscle inventory, presets, support boundary, and camera focus.
@@ -65,7 +66,10 @@ The page is served at <http://localhost:8080> and bound to `127.0.0.1`.
   technical centerlines for inspecting the exact calculated paths. Body shape
   and thickness are illustrative; activation is encoded by color.
 - Mechanically selected regional inventories: 88 muscles per upper limb, 50
-  per lower limb, 222 for the six-coordinate trunk, and 54 for head/neck.
+  per lower limb, 11 extrinsic muscles per three-coordinate foot-and-ankle
+  focus, 222 for the six-coordinate trunk, and 54 for head/neck. The primary
+  model's foot focus has coarse talus, calcaneus, and toes bodies; it does not
+  contain individual-toe articulation or intrinsic foot muscles.
 - A separate MS-Human manipulation profile for the articulated right hand:
   23 wrist/finger coordinates, 44 extrinsic and intrinsic hand muscles, and
   eight unloaded hand-shape presets. It has no object contact or grip-force
@@ -92,7 +96,8 @@ and their equality dependents, and treats all remaining coordinates as
 externally prescribed support. It assumes zero velocity and acceleration,
 gravity and model self-weight, authored passive model forces, and no hand load,
 contact, measured support, or other external force. Lower-limb estimates fix
-the pelvis and include no foot contact or ground reaction; they are not stance,
+the pelvis, and foot-and-ankle estimates additionally fix the tibia, knee, and
+hip. Neither includes foot contact or ground reaction; they are not stance,
 gait, balance, or weight-bearing analyses.
 
 Activation colors are withheld unless the result has the region's exact unique finite muscle
@@ -107,11 +112,16 @@ tissue load, pain, injury, fatigue, diagnosis, treatment guidance, or a
 patient-specific result. Dynamic motion may require materially different
 activation.
 
-The movement-observation panel is application-designed for MS-Human-700 and
-mechanically screened against the same range, path, equilibrium, and reserve
-gates used by the viewer. That screening shows only that the generic model can
-realize and balance each reference posture under the stated assumptions. The
-panel is not a clinically validated examination and its comparisons cannot
+The movement-observation panel is application-designed for MS-Human-700. Its
+20 independent postures were selected from a deterministic 384-candidate atlas
+for both joint-space variety and separation of the generic model's 88-actuator
+activation patterns. The final five are supplemental, may be skipped, and were
+retained only while they added material activation-matrix information; the
+search stopped when another posture added less than one percent effective-rank
+improvement and no new robust dimension. Every selected posture passes the same range, path,
+equilibrium, reserve, and capacity gates used by the viewer. This is mechanical
+and experiment-design screening only: the panel is not a clinically validated
+examination, cannot prove that one anatomical muscle is isolated, and cannot
 identify a painful tissue or diagnose a condition.
 
 ## One-command release gate

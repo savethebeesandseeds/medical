@@ -28,6 +28,8 @@
                         <option value="en" lang="en" data-i18n="language.options.en"></option>
                         <option value="es" lang="es" data-i18n="language.options.es"></option>
                         <option value="de" lang="de" data-i18n="language.options.de"></option>
+                        <option value="el" lang="el" data-i18n="language.options.el"></option>
+                        <option value="cs" lang="cs" data-i18n="language.options.cs"></option>
                         <option value="zh" lang="zh-Hans" data-i18n="language.options.zh"></option>
                     </select>
                 </label>
@@ -78,12 +80,6 @@
                             </button>
                             <button id="zoom-out" class="scene-action-button" type="button" data-i18n-attrs="aria-label:explorer.actions.zoom-out;data-tooltip:explorer.actions.zoom-out">
                                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
-                            </button>
-                            <button id="mirror-view" class="scene-action-button" type="button" aria-pressed="false" data-i18n-attrs="aria-label:explorer.actions.mirror;data-tooltip:explorer.actions.mirror">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 3v18" stroke-dasharray="1.5 2" />
-                                    <path d="M9 6H5v12h4M15 6h4v12h-4M8 9l-3 3 3 3M16 9l3 3-3 3" />
-                                </svg>
                             </button>
                             <details id="viewer-download-menu" class="viewer-download-menu">
                                 <summary class="scene-action-button" role="button" aria-haspopup="true" aria-expanded="false" data-i18n-attrs="aria-label:explorer.downloads.open;data-tooltip:explorer.downloads.open">
@@ -211,27 +207,6 @@
                             <p id="region-scope" data-i18n="explorer.regions.loading"></p>
                             <p id="region-support-note" class="region-support-note"></p>
                         </section>
-                        <section id="back-presentation-controls" class="region-presentation-controls hidden" data-i18n-attrs="aria-label:explorer.back.presentation-label">
-                            <div class="presentation-control-row">
-                                <span data-i18n="explorer.back.view"></span>
-                                <div class="segmented-control" role="group" data-i18n-attrs="aria-label:explorer.back.direction-label">
-                                    <button type="button" data-region-view="back" aria-pressed="true" data-i18n="explorer.back.directions.back"></button>
-                                    <button type="button" data-region-view="front" aria-pressed="false" data-i18n="explorer.back.directions.front"></button>
-                                    <button type="button" data-region-view="side" aria-pressed="false" data-i18n="explorer.back.directions.side"></button>
-                                </div>
-                            </div>
-                            <label class="presentation-control-row" for="back-muscle-filter">
-                                <span data-i18n="common.nouns.muscles"></span>
-                                <select id="back-muscle-filter">
-                                    <option value="back" data-i18n="explorer.back.filters.back"></option>
-                                    <option value="extensors" data-i18n="explorer.back.filters.extensors"></option>
-                                    <option value="multifidus" data-i18n="explorer.back.filters.multifidus"></option>
-                                    <option value="ql" data-i18n="explorer.back.filters.ql"></option>
-                                    <option value="core" data-i18n="explorer.back.filters.core"></option>
-                                    <option value="overview" data-i18n="explorer.back.filters.overview"></option>
-                                </select>
-                            </label>
-                        </section>
                         <header class="pose-dock-header">
                             <h2 id="pose-title" data-i18n="explorer.pose.title"></h2>
                             <div id="position-status" class="position-status manual" role="status" aria-live="polite">
@@ -247,6 +222,14 @@
                                 <small id="preset-count">—</small>
                             </button>
                         </header>
+                        <section id="static-presets" class="preset-section preset-catalog hidden" aria-labelledby="preset-title">
+                            <div class="preset-heading">
+                                <h3 id="preset-title" data-i18n="explorer.presets.title"></h3>
+                                <span id="preset-summary" data-i18n="explorer.presets.reference"></span>
+                            </div>
+                            <p id="preset-note" class="catalog-note" data-i18n="explorer.presets.note"></p>
+                            <div id="pose-presets" class="preset-groups"></div>
+                        </section>
                         <div class="pose-viewer-controls" data-i18n-attrs="aria-label:explorer.controls.aria-label">
                             <div class="toolbar-group source-group">
                                 <span id="analysis-source-title" class="toolbar-label" data-i18n="explorer.controls.geometry"></span>
@@ -256,6 +239,36 @@
                                         <button id="toggle-long-origins" class="layer-toggle" type="button" aria-pressed="false" data-i18n="explorer.controls.extended-paths"></button>
                                     </div>
                                 </div>
+                            </div>
+                            <div id="region-side-controls" class="toolbar-group">
+                                <span class="toolbar-label" data-i18n="explorer.back.side"></span>
+                                <div class="path-view-switch region-side-switch" role="group" data-i18n-attrs="aria-label:explorer.back.side-label">
+                                    <button class="region-side-both hidden" type="button" data-region-side="both" aria-pressed="false" data-i18n="explorer.back.sides.both"></button>
+                                    <button type="button" data-region-side="left" aria-pressed="false" data-i18n="common.sides.left"></button>
+                                    <button class="active" type="button" data-region-side="right" aria-pressed="true" data-i18n="common.sides.right"></button>
+                                </div>
+                            </div>
+                            <div id="back-presentation-controls" class="region-presentation-controls hidden" data-i18n-attrs="aria-label:explorer.back.presentation-label">
+                                <div class="toolbar-group">
+                                    <span class="toolbar-label" data-i18n="explorer.back.view"></span>
+                                    <div class="path-view-switch region-view-switch" role="group" data-i18n-attrs="aria-label:explorer.back.direction-label">
+                                        <button type="button" data-region-view="back" aria-pressed="true" data-i18n="explorer.back.directions.back"></button>
+                                        <button type="button" data-region-view="front" aria-pressed="false" data-i18n="explorer.back.directions.front"></button>
+                                        <button type="button" data-region-view="side" aria-pressed="false" data-i18n="explorer.back.directions.side"></button>
+                                    </div>
+                                </div>
+                                <label class="toolbar-group" for="back-muscle-filter">
+                                    <span class="toolbar-label" data-i18n="common.nouns.muscles"></span>
+                                    <select id="back-muscle-filter" class="toolbar-select">
+                                        <option value="all" data-i18n="explorer.back.filters.all"></option>
+                                        <option value="back" data-i18n="explorer.back.filters.back"></option>
+                                        <option value="extensors" data-i18n="explorer.back.filters.extensors"></option>
+                                        <option value="multifidus" data-i18n="explorer.back.filters.multifidus"></option>
+                                        <option value="ql" data-i18n="explorer.back.filters.ql"></option>
+                                        <option value="core" data-i18n="explorer.back.filters.core"></option>
+                                        <option value="overview" data-i18n="explorer.back.filters.overview"></option>
+                                    </select>
+                                </label>
                             </div>
                             <div class="toolbar-group">
                                 <span class="toolbar-label" data-i18n="explorer.controls.muscle-view"></span>
@@ -272,14 +285,6 @@
                                 </div>
                             </div>
                         </div>
-                        <section id="static-presets" class="preset-section preset-catalog hidden" aria-labelledby="preset-title">
-                            <div class="preset-heading">
-                                <h3 id="preset-title" data-i18n="explorer.presets.title"></h3>
-                                <span id="preset-summary" data-i18n="explorer.presets.reference"></span>
-                            </div>
-                            <p id="preset-note" class="catalog-note" data-i18n="explorer.presets.note"></p>
-                            <div id="pose-presets" class="preset-groups"></div>
-                        </section>
                         <div id="coordinate-controls" class="coordinate-controls compact"></div>
                         <div id="static-actions" class="static-actions">
                         <button id="calculate-static" class="quiet-button hidden" type="button" data-i18n="common.actions.try-again"></button>

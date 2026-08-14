@@ -36,6 +36,8 @@ required_assets=(
     "${WEB_ROOT}/locales/en.json"
     "${WEB_ROOT}/locales/es.json"
     "${WEB_ROOT}/locales/de.json"
+    "${WEB_ROOT}/locales/el.json"
+    "${WEB_ROOT}/locales/cs.json"
     "${WEB_ROOT}/locales/zh-Hans.json"
     "${WEB_ROOT}/app-ms-human.js"
     "${WEB_ROOT}/ms-human-engine.js"
@@ -89,7 +91,7 @@ printf '%s  %s\n' \
     "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30" \
     "${WEB_ROOT}/vendor/MUJOCO_LICENSE.txt" | sha256sum --check --strict
 printf '%s  %s\n' \
-    "485e389aebe640687974a719ed7adf176c637617afc0800387b4fa5860c0da4e" \
+    "678594aec430f77342058673cd93c4ec6bf0f294e567efacb9351894f9be7e7a" \
     "${WEB_ROOT}/models/ms_human_700/body-regions.json" | sha256sum --check --strict
 printf '%s  %s\n' \
     "f6406c25bbb82593c96a639efa020bea758abae77d385f00ab6d16e7c6ce8005" \

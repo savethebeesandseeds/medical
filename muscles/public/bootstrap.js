@@ -37,7 +37,7 @@ try {
         canonical.search = '';
         canonical.hash = '';
         document.head.append(canonical);
-        for (const route of ['en', 'es', 'de', 'zh']) {
+        for (const route of ['en', 'es', 'de', 'el', 'cs', 'zh']) {
             const alternate = document.createElement('link');
             alternate.rel = 'alternate';
             alternate.hreflang = route === 'zh' ? 'zh-Hans' : route;

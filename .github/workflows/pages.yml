@@ -47,12 +47,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/en/tools/muscles _site/es/tools/muscles _site/de/tools/muscles _site/zh/tools/muscles _site/muscles
+          mkdir -p _site/en/tools/muscles _site/es/tools/muscles _site/de/tools/muscles _site/el/tools/muscles _site/cs/tools/muscles _site/zh/tools/muscles _site/muscles
           cp -R site/. _site/
           cp waajacu_medical_no_bg.png _site/waajacu_medical_no_bg.png
           cp -R muscles/public/. _site/en/tools/muscles/
           cp -R muscles/public/. _site/es/tools/muscles/
           cp -R muscles/public/. _site/de/tools/muscles/
+          cp -R muscles/public/. _site/el/tools/muscles/
+          cp -R muscles/public/. _site/cs/tools/muscles/
           cp -R muscles/public/. _site/zh/tools/muscles/
           node muscles/tools/build-localized-pages.mjs --source muscles/public --output _site
           touch _site/.nojekyll
@@ -74,16 +76,28 @@ jobs:
           test -f _site/de/tools/muscles/bootstrap.js
           test -f _site/de/tools/muscles/i18n.js
           test -f _site/de/tools/muscles/locales/de.json
+          test -f _site/el/tools/muscles/index.html
+          test -f _site/el/tools/muscles/bootstrap.js
+          test -f _site/el/tools/muscles/i18n.js
+          test -f _site/el/tools/muscles/locales/el.json
+          test -f _site/cs/tools/muscles/index.html
+          test -f _site/cs/tools/muscles/bootstrap.js
+          test -f _site/cs/tools/muscles/i18n.js
+          test -f _site/cs/tools/muscles/locales/cs.json
           test -f _site/zh/tools/muscles/index.html
           test -f _site/zh/tools/muscles/bootstrap.js
           test -f _site/zh/tools/muscles/i18n.js
           test -f _site/zh/tools/muscles/locales/zh-Hans.json
           test -f _site/es/tools/muscles/vendor/mujoco.wasm
           test -f _site/de/tools/muscles/vendor/mujoco.wasm
+          test -f _site/el/tools/muscles/vendor/mujoco.wasm
+          test -f _site/cs/tools/muscles/vendor/mujoco.wasm
           test -f _site/zh/tools/muscles/vendor/mujoco.wasm
           grep -Fq '<html class="i18n-loading" lang="en" dir="ltr">' _site/en/tools/muscles/index.html
           grep -Fq '<html class="i18n-loading" lang="es" dir="ltr">' _site/es/tools/muscles/index.html
           grep -Fq '<html class="i18n-loading" lang="de" dir="ltr">' _site/de/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="el" dir="ltr">' _site/el/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="cs" dir="ltr">' _site/cs/tools/muscles/index.html
           grep -Fq '<html class="i18n-loading" lang="zh-Hans" dir="ltr">' _site/zh/tools/muscles/index.html
           test -f _site/en/tools/muscles/vendor/mujoco.wasm
           test -f _site/muscles/index.html

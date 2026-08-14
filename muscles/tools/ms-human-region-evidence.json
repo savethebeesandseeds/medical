@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "manifestId": "MS_HUMAN_700_REGION_MANIFEST_V1",
-  "manifestContentDigestSha256": "caba1fc651c2eef253f04c008e2b27ea13eee17eff9d931c2c158b6816c9860d",
+  "manifestContentDigestSha256": "228ffd7d7b224cc4a23188b707079db95458b44d4b03b8f93c6697ce917bf5b9",
   "generatedAt": null,
   "clinicalValidation": false,
   "selectionMethod": {
@@ -63,7 +63,7 @@
         "name": "DELT1_r"
       },
       "contractDigestSha256": "f247de85853073e381a7aa95a80ecc5fe0cf7c2c71af8f7ec873265bd8a47e16",
-      "runtimeRegionDigestSha256": "63f189f3e7ca8932df475ae19685a2960a00d37c2c79354ecc3ca61fbae60d88",
+      "runtimeRegionDigestSha256": "5c54cbf7ec63e8606cb54fc4032c0149202cfcec20281b040141a1d04a7b9684",
       "coordinateEvidence": [
         {
           "name": "elv_angle_r",
@@ -126,7 +126,7 @@
         "name": "DELT1_l"
       },
       "contractDigestSha256": "bc2f98dcb73c91fb715e8acdb4e2277d39c6d37c315dcfc3b7d62b2afeec5561",
-      "runtimeRegionDigestSha256": "88c045e526dea350cc3dabc00c7df96b9096368ab963fedf4fca47a6eb745ce9",
+      "runtimeRegionDigestSha256": "c0703c94585310648a3a8a870d1a7aaceaffb1f6aa3d35475558956e16cabe34",
       "coordinateEvidence": [
         {
           "name": "elv_angle_l",
@@ -276,6 +276,80 @@
           "name": "mtp_angle_l",
           "candidateMuscles": 4,
           "maximumProjectedMomentNmPerUnitActivation": 5.17603046
+        }
+      ],
+      "legacyCompatibility": null
+    },
+    {
+      "id": "right-foot-ankle",
+      "presentationName": "Right foot and ankle",
+      "coordinateCount": 3,
+      "activeBodyCount": 3,
+      "candidateMuscleCount": 11,
+      "mechanicallyQualifiedMuscleCount": 11,
+      "defaultVisibleMuscleCount": 11,
+      "presetCount": 7,
+      "sweepPoseCount": 29,
+      "selectionThresholdNmPerUnitActivation": 2.419e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 241.904106153,
+      "defaultSelectedMuscle": {
+        "actuatorId": 32,
+        "name": "soleus_r"
+      },
+      "contractDigestSha256": "6c86a70107730ee24ebf5d1e33667dac2345a5ef8dbbd6a70108b5d3f4197eb6",
+      "runtimeRegionDigestSha256": "502dea7a817f9c5312b47678a0725e4f75373a8763211b2cfe67255422ab8a97",
+      "coordinateEvidence": [
+        {
+          "name": "ankle_angle_r",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 241.904106153
+        },
+        {
+          "name": "subtalar_angle_r",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 47.117562063
+        },
+        {
+          "name": "mtp_angle_r",
+          "candidateMuscles": 4,
+          "maximumProjectedMomentNmPerUnitActivation": 5.387129165
+        }
+      ],
+      "legacyCompatibility": null
+    },
+    {
+      "id": "left-foot-ankle",
+      "presentationName": "Left foot and ankle",
+      "coordinateCount": 3,
+      "activeBodyCount": 3,
+      "candidateMuscleCount": 11,
+      "mechanicallyQualifiedMuscleCount": 11,
+      "defaultVisibleMuscleCount": 11,
+      "presetCount": 7,
+      "sweepPoseCount": 29,
+      "selectionThresholdNmPerUnitActivation": 2.419e-8,
+      "maximumProjectedMomentNmPerUnitActivation": 241.904106153,
+      "defaultSelectedMuscle": {
+        "actuatorId": 82,
+        "name": "soleus_l"
+      },
+      "contractDigestSha256": "77d485dd096495455e349e6a5ddee3b4ce30cec4fb54ece9f5846cf8344190d1",
+      "runtimeRegionDigestSha256": "bbc9cf95700d09203f22947d50210dd999835ad3d7129f0a0a648f265dde9f52",
+      "coordinateEvidence": [
+        {
+          "name": "ankle_angle_l",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 241.904106153
+        },
+        {
+          "name": "subtalar_angle_l",
+          "candidateMuscles": 11,
+          "maximumProjectedMomentNmPerUnitActivation": 47.117562063
+        },
+        {
+          "name": "mtp_angle_l",
+          "candidateMuscles": 4,
+          "maximumProjectedMomentNmPerUnitActivation": 5.387129165
         }
       ],
       "legacyCompatibility": null

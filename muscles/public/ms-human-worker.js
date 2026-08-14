@@ -32,7 +32,7 @@ const URLS = Object.freeze({
 // owns and verifies the separate mesh download.
 const ASSET_SHA256 = Object.freeze({
     metadata: HAND_PROFILE ? 'e6d169bdc2edeed3e846d7ccbe03d7ef68968fb2f715c61f4b892bfa85307a46' : '4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e',
-    regions: HAND_PROFILE ? 'f6406c25bbb82593c96a639efa020bea758abae77d385f00ab6d16e7c6ce8005' : '485e389aebe640687974a719ed7adf176c637617afc0800387b4fa5860c0da4e',
+    regions: HAND_PROFILE ? 'f6406c25bbb82593c96a639efa020bea758abae77d385f00ab6d16e7c6ce8005' : '678594aec430f77342058673cd93c4ec6bf0f294e567efacb9351894f9be7e7a',
     geometry: HAND_PROFILE ? '5054f8ff61ca45db638bd36729f1ed71100fd889c58a60d219c673a3162f03ea' : '5cbdf2aebd44da09dbd9b546cca35abc7b3b2f64e927f879c0d03595e087f68c',
     runtime: HAND_PROFILE ? '40b75b5583aeb5f20cbda668c4b7e035109dab97175ce30b368551a204e98e1d' : '13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3',
     mujocoJs: '45e8e0e1617c19fbf7f00b36a6a72d1c0c980c0a4f38523e04f0641e8fbab7b9',

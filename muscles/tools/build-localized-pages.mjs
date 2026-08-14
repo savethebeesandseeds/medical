@@ -7,6 +7,8 @@ const ROUTES = Object.freeze([
     { route: 'en', catalog: 'en.json' },
     { route: 'es', catalog: 'es.json' },
     { route: 'de', catalog: 'de.json' },
+    { route: 'el', catalog: 'el.json' },
+    { route: 'cs', catalog: 'cs.json' },
     { route: 'zh', catalog: 'zh-Hans.json' }
 ]);
 

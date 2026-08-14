@@ -62,7 +62,7 @@ $RegionEvidencePath = Join-Path $ProjectRoot 'tools\ms-human-region-evidence.jso
 
 Assert-Hash $ModelPath 'D524F32FB22D18773674E5E5768B3272347A77F82CB507DAC19589D59D016CC5' 'MS-Human source model checksum mismatch'
 Assert-Hash $LicensePath '1EB85FC97224598DAD1852B5D6483BBCF0AA8608790DCC657A5A2A761AE9C8C6' 'MS-Human license checksum mismatch'
-Assert-Hash $RegionsPath '485E389AEBE640687974A719ED7ADF176C637617AFC0800387B4FA5860C0DA4E' 'Body-region manifest checksum mismatch'
+Assert-Hash $RegionsPath '678594AEC430F77342058673CD93C4EC6BF0F294E567EFACB9351894F9BE7E7A' 'Body-region manifest checksum mismatch'
 Assert-Hash $MetadataPath '4278FFE5171328047DD240711386AC2EA84BA7BCC54E1740DF359F263956414E' 'Right-arm metadata checksum mismatch'
 Assert-Hash $GeometryPath '5CBDF2AEBD44DA09DBD9B546CCA35ABC7B3B2F64E927F879C0D03595E087F68C' 'Complete-body context geometry checksum mismatch'
 Assert-Hash $RuntimePath '13D2B0BED35DB2B07F3B8076931ABEF4EC4E149CA8D89F326BDE22B84F821AD3' 'Right-arm runtime checksum mismatch'
@@ -107,7 +107,7 @@ Assert-Equal $Regions.defaultRegionId 'right-upper-limb' 'Unexpected default Exp
 Assert-True ($null -eq $Regions.generatedAt) 'Region manifest must remain deterministic and omit a generation timestamp'
 Assert-Equal $Regions.sourceTreeSha256 $ExpectedSourceTreeHash.ToLowerInvariant() 'Region manifest source hash mismatch'
 Assert-Equal $Regions.contractDigestSha256 '87f76588a6af99211537f4c2658a7a4cfd0e7eb7e68d6fd0acc1cafee2cd3e0e' 'Region contract digest changed'
-Assert-Equal $Regions.contentDigestSha256 'caba1fc651c2eef253f04c008e2b27ea13eee17eff9d931c2c158b6816c9860d' 'Canonical region-manifest content digest changed'
+Assert-Equal $Regions.contentDigestSha256 '228ffd7d7b224cc4a23188b707079db95458b44d4b03b8f93c6697ce917bf5b9' 'Canonical region-manifest content digest changed'
 Assert-Equal $HandRegions.contentDigestSha256 '3c2929b7c385dca29f8b3ae21d9834b482c2ad5bccaa303d6692111950fd39c4' 'Canonical hand-manifest content digest changed'
 Assert-Equal $Regions.model.runtime.sha256 '13d2b0bed35db2b07f3b8076931abef4ec4e149ca8d89f326bde22b84f821ad3' 'Region manifest runtime pin changed'
 Assert-Equal $Regions.model.geometry.sha256 '5cbdf2aebd44da09dbd9b546cca35abc7b3b2f64e927f879c0d03595e087f68c' 'Region manifest geometry pin changed'
@@ -138,6 +138,20 @@ $ExpectedRegions = @(
         BodyIds = '8,9,10,11,12,13'; CoordinateCount = 7; BodyCount = 6; MuscleCount = 50; PresetCount = 17
         MuscleIdentitySha256 = 'a0b250aaab4278f5d88ad77f30dec6bee675c431d0f99c87232cf3464ca1ab99'; PresetIds = $LowerPresetIds
         ContractDigest = 'a8aa2381f220adf70897778f9f9b3d30d30eb49b8b018f48943df8ee6a6b3bbb'
+    },
+    [pscustomobject]@{
+        Id = 'right-foot-ankle'; Coordinates = 'ankle_angle_r,subtalar_angle_r,mtp_angle_r'
+        BodyIds = '4,5,6'; CoordinateCount = 3; BodyCount = 3; MuscleCount = 11; PresetCount = 7
+        MuscleIdentitySha256 = 'd92e1526c8b18f2a4830f6da784881db1ffd50f9d5ba4cab569286ac5e69c7a1'
+        PresetIds = 'neutral,ankle-negative-20,ankle-positive-20,subtalar-negative-10,subtalar-positive-10,mtp-negative-20,mtp-positive-20'
+        ContractDigest = '6c86a70107730ee24ebf5d1e33667dac2345a5ef8dbbd6a70108b5d3f4197eb6'
+    },
+    [pscustomobject]@{
+        Id = 'left-foot-ankle'; Coordinates = 'ankle_angle_l,subtalar_angle_l,mtp_angle_l'
+        BodyIds = '10,11,12'; CoordinateCount = 3; BodyCount = 3; MuscleCount = 11; PresetCount = 7
+        MuscleIdentitySha256 = '5faad21ad33f2c6272e170a5fc1afea6059490a2a137c2f44c92c5ff7dcedaf8'
+        PresetIds = 'neutral,ankle-negative-20,ankle-positive-20,subtalar-negative-10,subtalar-positive-10,mtp-negative-20,mtp-positive-20'
+        ContractDigest = '77d485dd096495455e349e6a5ddee3b4ce30cec4fb54ece9f5846cf8344190d1'
     },
     [pscustomobject]@{
         Id = 'trunk'; Coordinates = 'L5_S1_FE,L5_S1_LB,L5_S1_AR,T12_L1_FE,T12_L1_LB,T12_L1_AR'
@@ -182,10 +196,17 @@ foreach ($ExpectedRegion in $ExpectedRegions) {
     Assert-Equal (@($PresetIds | Sort-Object -Unique).Count) $PresetIds.Count "Duplicate preset in $($ExpectedRegion.Id)"
 }
 
+foreach ($UpperRegionId in @('right-upper-limb', 'left-upper-limb')) {
+    $UpperRegion = @($Regions.regions | Where-Object id -eq $UpperRegionId)[0]
+    $HandBehindHead = @($UpperRegion.presetGroups | ForEach-Object { $_.presets } | Where-Object id -eq 'hand-behind-head')[0]
+    $RotationName = if ($UpperRegionId -eq 'right-upper-limb') { 'shoulder_rot_r' } else { 'shoulder_rot_l' }
+    Assert-Equal $HandBehindHead.coordinates.$RotationName -35 "$UpperRegionId hand-behind-head must use external shoulder rotation"
+}
+
 $AssessmentRegions = @($Regions.regions | Where-Object { $_.assessment.supported -eq $true })
 Assert-Equal $AssessmentRegions.Count 1 'Assessment must remain isolated to exactly one Explorer region'
 Assert-Equal $AssessmentRegions[0].id 'right-upper-limb' 'Assessment is no longer isolated to the right upper limb'
-Assert-Equal $AssessmentRegions[0].assessment.protocolId 'MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1' 'Assessment region protocol changed'
+Assert-Equal $AssessmentRegions[0].assessment.protocolId 'MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2' 'Assessment region protocol changed'
 foreach ($Region in @($Regions.regions | Where-Object id -ne 'right-upper-limb')) {
     Assert-True ($Region.assessment.supported -eq $false -and $null -eq $Region.assessment.protocolId) "Unsupported region unexpectedly declares an assessment protocol: $($Region.id)"
 }
@@ -292,7 +313,7 @@ Assert-Equal $HandMetadata.geometry.geoms.Count 132 'Unexpected articulated-hand
 
 $RequiredFiles = @(
     'index.html', 'styles.css', 'bootstrap.js', 'i18n.js', 'locales\en.json', 'locales\es.json',
-    'locales\de.json', 'locales\zh-Hans.json', 'app-ms-human.js', 'ms-human-engine.js',
+    'locales\de.json', 'locales\el.json', 'locales\cs.json', 'locales\zh-Hans.json', 'app-ms-human.js', 'ms-human-engine.js',
     'ms-human-worker.js', 'ms-human-assessment-protocol.js', 'diagnosis.js', 'report-v5.js', 'LICENSE',
     'THIRD_PARTY_NOTICES.md', 'waajacu_medical.png', 'vendor\MUJOCO_LICENSE.txt',
     'vendor\THREE_LICENSE.txt', 'models\ms_human_700\LICENSE',
@@ -333,7 +354,7 @@ Assert-True $Index.Contains('id="render-anatomical-bodies"') 'Procedural anatomi
 Assert-True (-not $Index.Contains('id="render-muscle-bodies"')) 'Removed simple muscle-body rendering control remains in the interface'
 Assert-True $Index.Contains('id="render-path-lines"') 'Technical path-line rendering control is missing'
 Assert-True $EnglishMessages.'model-info.shows.rendering-copy'.Contains('Body shape and thickness are illustrative') 'Illustrative muscle-body shape and thickness disclosure is missing'
-Assert-True $EnglishMessages.'assessment.workspace.guided-positions'.Contains('15 guided positions') 'Current assessment position count is missing from the interface'
+Assert-True $EnglishMessages.'assessment.workspace.guided-positions'.Contains('20 guided positions') 'Current assessment position count is missing from the interface'
 Assert-Equal $EnglishMessages.'assessment.privacy.intro' 'Everything you enter—including assessment answers and reports—is saved only in this browser on your device.' 'Device-storage behavior is not disclosed in the interface'
 Assert-True (-not $Index.Contains('name="email"')) 'Unused email collection remains in the assessment'
 Assert-True (-not $Index.Contains('name="city"')) 'Unused city collection remains in the assessment'
@@ -341,13 +362,13 @@ Assert-True $EnglishMessages.'legal.footer'.Contains('Waajacu™') 'Waajacu trad
 Assert-True $Index.Contains('DOI 10.1109/ICRA57147.2024.10610081') 'MS-Human academic citation is missing'
 Assert-True $Worker.Contains("'./models/ms_human_700/body-regions.json'") 'Worker does not load the reviewed regional manifest'
 Assert-True $Worker.Contains("'./models/ms_human_700/hand-region.json'") 'Worker does not load the reviewed articulated-hand manifest'
-Assert-True $Worker.Contains('485e389aebe640687974a719ed7adf176c637617afc0800387b4fa5860c0da4e') 'Worker regional-manifest integrity pin changed'
+Assert-True $Worker.Contains('678594aec430f77342058673cd93c4ec6bf0f294e567efacb9351894f9be7e7a') 'Worker regional-manifest integrity pin changed'
 Assert-True $Worker.Contains('f6406c25bbb82593c96a639efa020bea758abae77d385f00ab6d16e7c6ce8005') 'Worker hand-manifest integrity pin changed'
 Assert-True $App.Contains("const DEFAULT_REGION_ID = 'right-upper-limb';") 'Application default region changed'
 Assert-True $App.Contains("activateEngineProfile('primary', DEFAULT_REGION_ID)") 'Assessment no longer returns the viewer to the reviewed primary right-arm profile'
 Assert-True $App.Contains("app.profiles.get('primary').engine.pose(coordinates, selected, DEFAULT_REGION_ID)") 'Assessment pose requests are not isolated to the primary default region'
 Assert-True $App.Contains("app.profiles.get('primary').engine.staticHold(coordinates, selected, DEFAULT_REGION_ID)") 'Assessment static requests are not isolated to the primary default region'
-foreach ($RegionLabel in @('Right arm', 'Left arm', 'Right leg', 'Left leg', 'Back & trunk', 'Head & neck', 'Right hand')) {
+foreach ($RegionLabel in @('Right arm', 'Left arm', 'Right hand', 'Right leg', 'Left leg', 'Right foot and ankle', 'Left foot and ankle', 'Back & trunk', 'Head & neck')) {
     Assert-True ($EnglishMessages.PSObject.Properties.Value -contains $RegionLabel) "Explicit Explorer region is missing: $RegionLabel"
 }
 Assert-True $App.Contains('function pickMuscleAt') 'Direct 3D muscle picking is missing'
@@ -359,13 +380,13 @@ Assert-True $Diagnosis.Contains("storageMode: 'device'") 'Assessment device stor
 Assert-True (-not $Diagnosis.Contains('MODERATE_CAPACITY_POSITIONS')) 'Retired assessment posture panel remains in active diagnosis code'
 Assert-True (-not $Diagnosis.Contains('DIAGNOSIS_TESTS')) 'Dormant standard-test workflow remains in active diagnosis code'
 Assert-True (-not $Index.Contains('diagnosis-standard-only')) 'Dormant standard-test interface remains in the deploy tree'
-Assert-True $Protocol.Contains("id: 'MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1'") 'Unexpected MS-Human assessment protocol ID'
-Assert-Equal $ProtocolEvidence.protocolId 'MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1' 'Protocol evidence ID mismatch'
-Assert-Equal $ProtocolEvidence.protocolVersion '1.0.0' 'Protocol evidence version mismatch'
-Assert-Equal $ProtocolEvidence.summary.attempted 15 'Unexpected protocol posture count'
-Assert-Equal $ProtocolEvidence.summary.passed 15 'Not every protocol posture passed the recorded solver gates'
-Assert-Equal ($ProtocolEvidence.positions | Where-Object usable -eq $true).Count 15 'Protocol evidence contains an unusable posture'
-Assert-Equal ($ProtocolEvidence.positions | ForEach-Object id | Sort-Object -Unique).Count 15 'Protocol posture IDs are not unique'
+Assert-True $Protocol.Contains("id: 'MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2'") 'Unexpected MS-Human assessment protocol ID'
+Assert-Equal $ProtocolEvidence.protocolId 'MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2' 'Protocol evidence ID mismatch'
+Assert-Equal $ProtocolEvidence.protocolVersion '2.1.0' 'Protocol evidence version mismatch'
+Assert-Equal $ProtocolEvidence.summary.selectedPositions 20 'Unexpected protocol posture count'
+Assert-Equal $ProtocolEvidence.summary.passedPositions 20 'Not every protocol posture passed the recorded solver gates'
+Assert-Equal ($ProtocolEvidence.positions | Where-Object usable -eq $true).Count 20 'Protocol evidence contains an unusable posture'
+Assert-Equal ($ProtocolEvidence.positions | ForEach-Object id | Sort-Object -Unique).Count 20 'Protocol posture IDs are not unique'
 Assert-True ([double]$ProtocolEvidence.summary.maximumObservedResidualNm -le [double]$ProtocolEvidence.solverQualityLimits.maximumResidualNm) 'Protocol evidence exceeds the equilibrium-residual gate'
 Assert-True ([double]$ProtocolEvidence.summary.maximumObservedReserveNm -le [double]$ProtocolEvidence.solverQualityLimits.maximumReserveNm) 'Protocol evidence exceeds the reserve-torque gate'
 
@@ -377,6 +398,8 @@ $Routes = @(
     @{ Path = '/locales/en.json'; Type = 'application/json' },
     @{ Path = '/locales/es.json'; Type = 'application/json' },
     @{ Path = '/locales/de.json'; Type = 'application/json' },
+    @{ Path = '/locales/el.json'; Type = 'application/json' },
+    @{ Path = '/locales/cs.json'; Type = 'application/json' },
     @{ Path = '/locales/zh-Hans.json'; Type = 'application/json' },
     @{ Path = '/app-ms-human.js'; Type = 'text/javascript' },
     @{ Path = '/ms-human-engine.js'; Type = 'text/javascript' },

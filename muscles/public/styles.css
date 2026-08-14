@@ -350,10 +350,6 @@ h3 {
     gap: 5px;
 }
 
-body.diagnosis-active #mirror-view {
-    display: none;
-}
-
 .scene-action-button {
     position: relative;
     display: grid;
@@ -553,6 +549,35 @@ body.diagnosis-active #mirror-view {
 }
 
 .pose-viewer-controls button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.pose-viewer-controls .region-presentation-controls {
+    display: contents;
+}
+
+.pose-viewer-controls .region-presentation-controls.hidden {
+    display: none;
+}
+
+.pose-viewer-controls .region-side-switch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pose-viewer-controls #region-side-controls.trunk-sides .region-side-switch,
+.pose-viewer-controls .region-view-switch {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pose-viewer-controls .toolbar-select {
+    width: 100%;
+    min-width: 0;
+    min-height: 28px;
+    padding: 3px 24px 3px 7px;
+    border: 1px solid #cbd5d1;
+    border-radius: 3px;
+    background: #fff;
+    color: var(--text);
+    font-size: 9px;
+}
 
 .toolbar-label {
     color: #53645e;
@@ -957,15 +982,14 @@ body.diagnosis-active #mirror-view {
 }
 
 .preset-catalog {
-    position: absolute;
-    inset: 145px 7px 7px;
-    z-index: 12;
-    margin: 0;
+    position: static;
+    max-height: 430px;
+    margin: 0 6px 7px;
     padding: 8px;
     overflow-y: auto;
     border: 1px solid var(--line-strong);
     background: #fbfcfb;
-    box-shadow: 0 8px 24px rgba(25, 36, 32, 0.12);
+    box-shadow: inset 3px 0 0 rgba(35, 112, 96, 0.18);
     scrollbar-color: rgba(86, 98, 93, 0.45) transparent;
     scrollbar-width: thin;
 }
@@ -1532,7 +1556,7 @@ input[type="range"]:disabled { cursor: default; opacity: 0.5; }
 
 .activation-row {
     display: grid;
-    grid-template-columns: minmax(105px, 0.75fr) minmax(70px, 1fr) 36px;
+    grid-template-columns: minmax(145px, 1.55fr) minmax(54px, 0.62fr) 38px;
     align-items: center;
     gap: 6px;
     width: 100%;

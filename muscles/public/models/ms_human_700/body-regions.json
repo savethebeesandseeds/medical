@@ -2917,7 +2917,7 @@
               "coordinates": {
                 "elv_angle_r": 30,
                 "shoulder_elv_r": 120,
-                "shoulder_rot_r": 35,
+                "shoulder_rot_r": -35,
                 "elbow_flexion_r": 120
               }
             },
@@ -3107,7 +3107,7 @@
       },
       "assessment": {
         "supported": true,
-        "protocolId": "MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1",
+        "protocolId": "MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2",
         "reason": "The existing separately versioned right-upper-limb observation protocol may reference this region."
       },
       "semantics": {
@@ -5944,7 +5944,7 @@
               "coordinates": {
                 "elv_angle_l": 30,
                 "shoulder_elv_l": 120,
-                "shoulder_rot_l": 35,
+                "shoulder_rot_l": -35,
                 "elbow_flexion_l": 120
               }
             },
@@ -9694,6 +9694,900 @@
         "candidateMuscles": "Actuators with non-negligible equality-projected active generalized-force contribution over the deterministic pose sweep."
       },
       "contractDigestSha256": "a8aa2381f220adf70897778f9f9b3d30d30eb49b8b018f48943df8ee6a6b3bbb"
+    },
+    {
+      "id": "right-foot-ankle",
+      "label": "Right foot and ankle",
+      "presentationName": "Right foot and ankle",
+      "description": "Right foot and ankle regional posture and generic static muscle-mechanics inventory.",
+      "area": "foot-ankle",
+      "laterality": "right",
+      "calculationSide": "right",
+      "status": "data-ready",
+      "activeBodyRootNames": [
+        "talus_r"
+      ],
+      "activeBodyIds": [
+        4,
+        5,
+        6
+      ],
+      "activeBodies": [
+        {
+          "bodyId": 4,
+          "name": "talus_r",
+          "parentBodyId": 3
+        },
+        {
+          "bodyId": 5,
+          "name": "calcn_r",
+          "parentBodyId": 4
+        },
+        {
+          "bodyId": 6,
+          "name": "toes_r",
+          "parentBodyId": 5
+        }
+      ],
+      "coordinates": [
+        {
+          "name": "ankle_angle_r",
+          "engineName": "ankle_angle_r",
+          "label": "Ankle angle",
+          "jointId": 15,
+          "qposAddress": 15,
+          "dofAddress": 15,
+          "minimumDegrees": -38.9611,
+          "maximumDegrees": 29.7938,
+          "defaultDegrees": 0,
+          "equalityDependents": []
+        },
+        {
+          "name": "subtalar_angle_r",
+          "engineName": "subtalar_angle_r",
+          "label": "Subtalar angle",
+          "jointId": 16,
+          "qposAddress": 16,
+          "dofAddress": 16,
+          "minimumDegrees": -19.4806,
+          "maximumDegrees": 19.4806,
+          "defaultDegrees": 0,
+          "equalityDependents": []
+        },
+        {
+          "name": "mtp_angle_r",
+          "engineName": "mtp_angle_r",
+          "label": "MTP angle",
+          "jointId": 17,
+          "qposAddress": 17,
+          "dofAddress": 17,
+          "minimumDegrees": -28.6479,
+          "maximumDegrees": 28.6479,
+          "defaultDegrees": 0,
+          "equalityDependents": []
+        }
+      ],
+      "candidateMuscles": [
+        {
+          "actuatorId": 8,
+          "name": "edl_r",
+          "tendonId": 19,
+          "tendon": "edl_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5,
+            6
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 20.389397802,
+            "maximumRelativeContribution": 0.084287109163,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 20.389397802,
+              "subtalar_angle_r": 9.475823921,
+              "mtp_angle_r": 3.83906562
+            }
+          }
+        },
+        {
+          "actuatorId": 9,
+          "name": "ehl_r",
+          "tendonId": 20,
+          "tendon": "ehl_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5,
+            6
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 10.902935645,
+            "maximumRelativeContribution": 0.045071312838,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 10.902935645,
+              "subtalar_angle_r": 1.926503651,
+              "mtp_angle_r": 2.256072771
+            }
+          }
+        },
+        {
+          "actuatorId": 10,
+          "name": "fdl_r",
+          "tendonId": 21,
+          "tendon": "fdl_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5,
+            6
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 7.62511565,
+            "maximumRelativeContribution": 0.031521232818,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 4.608993649,
+              "subtalar_angle_r": 7.62511565,
+              "mtp_angle_r": 2.804541659
+            }
+          }
+        },
+        {
+          "actuatorId": 11,
+          "name": "fhl_r",
+          "tendonId": 22,
+          "tendon": "fhl_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5,
+            6
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 13.796804841,
+            "maximumRelativeContribution": 0.057034190369,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 13.796804841,
+              "subtalar_angle_r": 13.255286285,
+              "mtp_angle_r": 5.387129165
+            }
+          }
+        },
+        {
+          "actuatorId": 12,
+          "name": "gaslat_r",
+          "tendonId": 23,
+          "tendon": "gaslat_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            2,
+            5
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 64.472020694,
+            "maximumRelativeContribution": 0.266518918258,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 64.472020694,
+              "subtalar_angle_r": 13.062431723,
+              "mtp_angle_r": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 13,
+          "name": "gasmed_r",
+          "tendonId": 24,
+          "tendon": "gasmed_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            2,
+            5
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 123.898989154,
+            "maximumRelativeContribution": 0.512182249092,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 123.898989154,
+              "subtalar_angle_r": 19.757005738,
+              "mtp_angle_r": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 25,
+          "name": "perbrev_r",
+          "tendonId": 36,
+          "tendon": "perbrev_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 14.055830884,
+            "maximumRelativeContribution": 0.058104970221,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 5.236403432,
+              "subtalar_angle_r": 14.055830884,
+              "mtp_angle_r": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 26,
+          "name": "perlong_r",
+          "tendonId": 37,
+          "tendon": "perlong_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 27.412135117,
+            "maximumRelativeContribution": 0.11331818857,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 13.097566795,
+              "subtalar_angle_r": 27.412135117,
+              "mtp_angle_r": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 32,
+          "name": "soleus_r",
+          "tendonId": 43,
+          "tendon": "soleus_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 241.904106153,
+            "maximumRelativeContribution": 1,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 241.904106153,
+              "subtalar_angle_r": 47.117562063,
+              "mtp_angle_r": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 34,
+          "name": "tibant_r",
+          "tendonId": 45,
+          "tendon": "tibant_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 48.54697545,
+            "maximumRelativeContribution": 0.200686859857,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 48.54697545,
+              "subtalar_angle_r": 19.123602829,
+              "mtp_angle_r": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 35,
+          "name": "tibpost_r",
+          "tendonId": 46,
+          "tendon": "tibpost_r_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            3,
+            5
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 32.981187719,
+            "maximumRelativeContribution": 0.13633992512,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_r": 19.15178427,
+              "subtalar_angle_r": 32.981187719,
+              "mtp_angle_r": 0
+            }
+          }
+        }
+      ],
+      "defaultSelectedMuscle": {
+        "actuatorId": 32,
+        "name": "soleus_r"
+      },
+      "presetGroups": [
+        {
+          "id": "foot-ankle",
+          "label": "Foot and ankle",
+          "presets": [
+            {
+              "id": "neutral",
+              "label": "Neutral",
+              "description": "Authored neutral foot-and-ankle posture.",
+              "coordinates": {}
+            },
+            {
+              "id": "ankle-negative-20",
+              "label": "Ankle −20°",
+              "description": "Negative ankle-coordinate reference.",
+              "coordinates": {
+                "ankle_angle_r": -20
+              }
+            },
+            {
+              "id": "ankle-positive-20",
+              "label": "Ankle +20°",
+              "description": "Positive ankle-coordinate reference.",
+              "coordinates": {
+                "ankle_angle_r": 20
+              }
+            },
+            {
+              "id": "subtalar-negative-10",
+              "label": "Subtalar −10°",
+              "description": "Negative subtalar-coordinate reference.",
+              "coordinates": {
+                "subtalar_angle_r": -10
+              }
+            },
+            {
+              "id": "subtalar-positive-10",
+              "label": "Subtalar +10°",
+              "description": "Positive subtalar-coordinate reference.",
+              "coordinates": {
+                "subtalar_angle_r": 10
+              }
+            },
+            {
+              "id": "mtp-negative-20",
+              "label": "MTP −20°",
+              "description": "Negative MTP-coordinate reference.",
+              "coordinates": {
+                "mtp_angle_r": -20
+              }
+            },
+            {
+              "id": "mtp-positive-20",
+              "label": "MTP +20°",
+              "description": "Positive MTP-coordinate reference.",
+              "coordinates": {
+                "mtp_angle_r": 20
+              }
+            }
+          ]
+        }
+      ],
+      "camera": {
+        "fit": "active-bodies",
+        "viewDirection": [
+          0,
+          -1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ],
+        "padding": 1.24
+      },
+      "assessment": {
+        "supported": false,
+        "protocolId": null,
+        "reason": "No versioned, evidence-recorded assessment protocol exists for this region."
+      },
+      "semantics": {
+        "calculationSide": "right",
+        "gravityMPerS2": [
+          0,
+          0,
+          -9.81
+        ],
+        "externalLoad": "none",
+        "contact": "none",
+        "generalizedForceUnits": "N·m for the 3 selected rotational coordinates",
+        "solvedCoordinates": "Static equilibrium is solved only for ankle_angle_r, subtalar_angle_r, mtp_angle_r after projecting authored joint equalities.",
+        "equilibrium": "Static equilibrium is solved only for ankle_angle_r, subtalar_angle_r, mtp_angle_r after projecting authored joint equalities. Small reserve generalized forces are numerical balance variables, not measured support or strength.",
+        "interpretationBoundary": "Generic, non-patient-specific, static model output only. It is not measured activation, tissue load, pain evidence, a movement prescription, a diagnosis, or clinical validation. In particular, the result must not be interpreted as intrinsic-foot-muscle function, individual-toe mechanics, stance, gait, balance, ground reaction, or weight-bearing capacity.",
+        "clinicalValidation": false,
+        "fixedSupport": "The right tibia, knee, hip, pelvis, opposite lower limb, and all upper-body coordinates remain prescribed at the authored keyframe; only the selected ankle, subtalar, and MTP coordinates are solved.",
+        "supportDescription": "The right tibia, knee, hip, pelvis, opposite lower limb, and all upper-body coordinates remain prescribed at the authored keyframe; only the selected ankle, subtalar, and MTP coordinates are solved. The region contains only the model's coarse talus, calcaneus, and toes bodies and extrinsic foot-and-ankle muscles; it has no individual-toe articulation or intrinsic-foot-muscle inventory. There is no foot contact or ground-reaction model.",
+        "assumptions": [
+          "The right tibia, knee, hip, pelvis, opposite lower limb, and all upper-body coordinates remain prescribed at the authored keyframe; only the selected ankle, subtalar, and MTP coordinates are solved.",
+          "The model represents this region with three coarse articulated bodies: talus, calcaneus, and toes.",
+          "Candidate actuators are extrinsic foot-and-ankle muscles only; intrinsic foot muscles are not represented.",
+          "No individual-toe articulation, foot contact, floor reaction, balance constraint, or stance phase is modeled.",
+          "Static posture: zero velocity and zero acceleration.",
+          "Gravity and model self-weight only; no held load or measured external force.",
+          "Authored passive muscle and joint forces are included.",
+          "Candidate-muscle membership is mechanical inventory selection, not clinical validation."
+        ],
+        "activeBodies": "Anatomical surfaces emphasized for this region; downstream bodies moved by the kinematic chain are not thereby region-active.",
+        "candidateMuscles": "Actuators with non-negligible equality-projected active generalized-force contribution over the deterministic pose sweep."
+      },
+      "contractDigestSha256": "6c86a70107730ee24ebf5d1e33667dac2345a5ef8dbbd6a70108b5d3f4197eb6"
+    },
+    {
+      "id": "left-foot-ankle",
+      "label": "Left foot and ankle",
+      "presentationName": "Left foot and ankle",
+      "description": "Left foot and ankle regional posture and generic static muscle-mechanics inventory.",
+      "area": "foot-ankle",
+      "laterality": "left",
+      "calculationSide": "left",
+      "status": "data-ready",
+      "activeBodyRootNames": [
+        "talus_l"
+      ],
+      "activeBodyIds": [
+        10,
+        11,
+        12
+      ],
+      "activeBodies": [
+        {
+          "bodyId": 10,
+          "name": "talus_l",
+          "parentBodyId": 9
+        },
+        {
+          "bodyId": 11,
+          "name": "calcn_l",
+          "parentBodyId": 10
+        },
+        {
+          "bodyId": 12,
+          "name": "toes_l",
+          "parentBodyId": 11
+        }
+      ],
+      "coordinates": [
+        {
+          "name": "ankle_angle_l",
+          "engineName": "ankle_angle_l",
+          "label": "Ankle angle",
+          "jointId": 30,
+          "qposAddress": 30,
+          "dofAddress": 30,
+          "minimumDegrees": -38.9611,
+          "maximumDegrees": 29.7938,
+          "defaultDegrees": 0,
+          "equalityDependents": []
+        },
+        {
+          "name": "subtalar_angle_l",
+          "engineName": "subtalar_angle_l",
+          "label": "Subtalar angle",
+          "jointId": 31,
+          "qposAddress": 31,
+          "dofAddress": 31,
+          "minimumDegrees": -19.4806,
+          "maximumDegrees": 19.4806,
+          "defaultDegrees": 0,
+          "equalityDependents": []
+        },
+        {
+          "name": "mtp_angle_l",
+          "engineName": "mtp_angle_l",
+          "label": "MTP angle",
+          "jointId": 32,
+          "qposAddress": 32,
+          "dofAddress": 32,
+          "minimumDegrees": -28.6479,
+          "maximumDegrees": 28.6479,
+          "defaultDegrees": 0,
+          "equalityDependents": []
+        }
+      ],
+      "candidateMuscles": [
+        {
+          "actuatorId": 58,
+          "name": "edl_l",
+          "tendonId": 69,
+          "tendon": "edl_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11,
+            12
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 20.389397802,
+            "maximumRelativeContribution": 0.084287109163,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 20.389397802,
+              "subtalar_angle_l": 9.475823921,
+              "mtp_angle_l": 3.83906562
+            }
+          }
+        },
+        {
+          "actuatorId": 59,
+          "name": "ehl_l",
+          "tendonId": 70,
+          "tendon": "ehl_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11,
+            12
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 10.902935645,
+            "maximumRelativeContribution": 0.045071312838,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 10.902935645,
+              "subtalar_angle_l": 1.926503651,
+              "mtp_angle_l": 2.256072771
+            }
+          }
+        },
+        {
+          "actuatorId": 60,
+          "name": "fdl_l",
+          "tendonId": 71,
+          "tendon": "fdl_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11,
+            12
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 7.62511565,
+            "maximumRelativeContribution": 0.031521232818,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 4.608993649,
+              "subtalar_angle_l": 7.62511565,
+              "mtp_angle_l": 2.804541659
+            }
+          }
+        },
+        {
+          "actuatorId": 61,
+          "name": "fhl_l",
+          "tendonId": 72,
+          "tendon": "fhl_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11,
+            12
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 13.796804841,
+            "maximumRelativeContribution": 0.057034190369,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 13.796804841,
+              "subtalar_angle_l": 13.255286285,
+              "mtp_angle_l": 5.387129165
+            }
+          }
+        },
+        {
+          "actuatorId": 62,
+          "name": "gaslat_l",
+          "tendonId": 73,
+          "tendon": "gaslat_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            8,
+            11
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 64.472020694,
+            "maximumRelativeContribution": 0.266518918258,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 64.472020694,
+              "subtalar_angle_l": 13.062431723,
+              "mtp_angle_l": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 63,
+          "name": "gasmed_l",
+          "tendonId": 74,
+          "tendon": "gasmed_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            8,
+            11
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 123.898989154,
+            "maximumRelativeContribution": 0.512182249092,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 123.898989154,
+              "subtalar_angle_l": 19.757005738,
+              "mtp_angle_l": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 75,
+          "name": "perbrev_l",
+          "tendonId": 86,
+          "tendon": "perbrev_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 14.055830884,
+            "maximumRelativeContribution": 0.058104970221,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 5.236403432,
+              "subtalar_angle_l": 14.055830884,
+              "mtp_angle_l": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 76,
+          "name": "perlong_l",
+          "tendonId": 87,
+          "tendon": "perlong_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 27.412135117,
+            "maximumRelativeContribution": 0.11331818857,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 13.097566795,
+              "subtalar_angle_l": 27.412135117,
+              "mtp_angle_l": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 82,
+          "name": "soleus_l",
+          "tendonId": 93,
+          "tendon": "soleus_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 241.904106153,
+            "maximumRelativeContribution": 1,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 241.904106153,
+              "subtalar_angle_l": 47.117562063,
+              "mtp_angle_l": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 84,
+          "name": "tibant_l",
+          "tendonId": 95,
+          "tendon": "tibant_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 48.54697545,
+            "maximumRelativeContribution": 0.200686859857,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 48.54697545,
+              "subtalar_angle_l": 19.123602829,
+              "mtp_angle_l": 0
+            }
+          }
+        },
+        {
+          "actuatorId": 85,
+          "name": "tibpost_l",
+          "tendonId": 96,
+          "tendon": "tibpost_l_tendon",
+          "group": "Extrinsic foot and ankle muscle",
+          "visibleByDefault": true,
+          "pathBodyIds": [
+            9,
+            11
+          ],
+          "selection": {
+            "method": "equality-projected-active-generalized-force",
+            "maximumProjectedMomentNmPerUnitActivation": 32.981187719,
+            "maximumRelativeContribution": 0.13633992512,
+            "posesWithContribution": 29,
+            "maximumByCoordinateNm": {
+              "ankle_angle_l": 19.15178427,
+              "subtalar_angle_l": 32.981187719,
+              "mtp_angle_l": 0
+            }
+          }
+        }
+      ],
+      "defaultSelectedMuscle": {
+        "actuatorId": 82,
+        "name": "soleus_l"
+      },
+      "presetGroups": [
+        {
+          "id": "foot-ankle",
+          "label": "Foot and ankle",
+          "presets": [
+            {
+              "id": "neutral",
+              "label": "Neutral",
+              "description": "Authored neutral foot-and-ankle posture.",
+              "coordinates": {}
+            },
+            {
+              "id": "ankle-negative-20",
+              "label": "Ankle −20°",
+              "description": "Negative ankle-coordinate reference.",
+              "coordinates": {
+                "ankle_angle_l": -20
+              }
+            },
+            {
+              "id": "ankle-positive-20",
+              "label": "Ankle +20°",
+              "description": "Positive ankle-coordinate reference.",
+              "coordinates": {
+                "ankle_angle_l": 20
+              }
+            },
+            {
+              "id": "subtalar-negative-10",
+              "label": "Subtalar −10°",
+              "description": "Negative subtalar-coordinate reference.",
+              "coordinates": {
+                "subtalar_angle_l": -10
+              }
+            },
+            {
+              "id": "subtalar-positive-10",
+              "label": "Subtalar +10°",
+              "description": "Positive subtalar-coordinate reference.",
+              "coordinates": {
+                "subtalar_angle_l": 10
+              }
+            },
+            {
+              "id": "mtp-negative-20",
+              "label": "MTP −20°",
+              "description": "Negative MTP-coordinate reference.",
+              "coordinates": {
+                "mtp_angle_l": -20
+              }
+            },
+            {
+              "id": "mtp-positive-20",
+              "label": "MTP +20°",
+              "description": "Positive MTP-coordinate reference.",
+              "coordinates": {
+                "mtp_angle_l": 20
+              }
+            }
+          ]
+        }
+      ],
+      "camera": {
+        "fit": "active-bodies",
+        "viewDirection": [
+          0,
+          1,
+          0
+        ],
+        "up": [
+          0,
+          0,
+          1
+        ],
+        "padding": 1.24
+      },
+      "assessment": {
+        "supported": false,
+        "protocolId": null,
+        "reason": "No versioned, evidence-recorded assessment protocol exists for this region."
+      },
+      "semantics": {
+        "calculationSide": "left",
+        "gravityMPerS2": [
+          0,
+          0,
+          -9.81
+        ],
+        "externalLoad": "none",
+        "contact": "none",
+        "generalizedForceUnits": "N·m for the 3 selected rotational coordinates",
+        "solvedCoordinates": "Static equilibrium is solved only for ankle_angle_l, subtalar_angle_l, mtp_angle_l after projecting authored joint equalities.",
+        "equilibrium": "Static equilibrium is solved only for ankle_angle_l, subtalar_angle_l, mtp_angle_l after projecting authored joint equalities. Small reserve generalized forces are numerical balance variables, not measured support or strength.",
+        "interpretationBoundary": "Generic, non-patient-specific, static model output only. It is not measured activation, tissue load, pain evidence, a movement prescription, a diagnosis, or clinical validation. In particular, the result must not be interpreted as intrinsic-foot-muscle function, individual-toe mechanics, stance, gait, balance, ground reaction, or weight-bearing capacity.",
+        "clinicalValidation": false,
+        "fixedSupport": "The left tibia, knee, hip, pelvis, opposite lower limb, and all upper-body coordinates remain prescribed at the authored keyframe; only the selected ankle, subtalar, and MTP coordinates are solved.",
+        "supportDescription": "The left tibia, knee, hip, pelvis, opposite lower limb, and all upper-body coordinates remain prescribed at the authored keyframe; only the selected ankle, subtalar, and MTP coordinates are solved. The region contains only the model's coarse talus, calcaneus, and toes bodies and extrinsic foot-and-ankle muscles; it has no individual-toe articulation or intrinsic-foot-muscle inventory. There is no foot contact or ground-reaction model.",
+        "assumptions": [
+          "The left tibia, knee, hip, pelvis, opposite lower limb, and all upper-body coordinates remain prescribed at the authored keyframe; only the selected ankle, subtalar, and MTP coordinates are solved.",
+          "The model represents this region with three coarse articulated bodies: talus, calcaneus, and toes.",
+          "Candidate actuators are extrinsic foot-and-ankle muscles only; intrinsic foot muscles are not represented.",
+          "No individual-toe articulation, foot contact, floor reaction, balance constraint, or stance phase is modeled.",
+          "Static posture: zero velocity and zero acceleration.",
+          "Gravity and model self-weight only; no held load or measured external force.",
+          "Authored passive muscle and joint forces are included.",
+          "Candidate-muscle membership is mechanical inventory selection, not clinical validation."
+        ],
+        "activeBodies": "Anatomical surfaces emphasized for this region; downstream bodies moved by the kinematic chain are not thereby region-active.",
+        "candidateMuscles": "Actuators with non-negligible equality-projected active generalized-force contribution over the deterministic pose sweep."
+      },
+      "contractDigestSha256": "77d485dd096495455e349e6a5ddee3b4ce30cec4fb54ece9f5846cf8344190d1"
     },
     {
       "id": "trunk",
@@ -17847,5 +18741,5 @@
       "contractDigestSha256": "9af4680cc29c84968d9eb38f2034cdd04ee8737dea22ecfc93764fd1804d75b6"
     }
   ],
-  "contentDigestSha256": "caba1fc651c2eef253f04c008e2b27ea13eee17eff9d931c2c158b6816c9860d"
+  "contentDigestSha256": "228ffd7d7b224cc4a23188b707079db95458b44d4b03b8f93c6697ce917bf5b9"
 }

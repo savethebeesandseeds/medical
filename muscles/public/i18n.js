@@ -2,12 +2,14 @@ const CATALOG_SCHEMA_VERSION = 1;
 const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*(?:\.[A-Za-z0-9][A-Za-z0-9_-]*)*$/;
 const TRANSLATABLE_ATTRIBUTES = new Set(['aria-label', 'title', 'placeholder', 'data-tooltip', 'data-label']);
 const PLACEHOLDER_PATTERN = /\{([a-z][a-zA-Z0-9]*)\}/g;
-const TOOL_ROUTE_PATTERN = /\/(en|es|de|zh)(?=\/tools\/muscles(?:\/|$))/i;
+const TOOL_ROUTE_PATTERN = /\/(en|es|de|el|cs|zh)(?=\/tools\/muscles(?:\/|$))/i;
 
 export const SUPPORTED_LANGUAGES = Object.freeze({
     en: Object.freeze({ route: 'en', locale: 'en', catalog: 'en.json' }),
     es: Object.freeze({ route: 'es', locale: 'es', catalog: 'es.json' }),
     de: Object.freeze({ route: 'de', locale: 'de', catalog: 'de.json' }),
+    el: Object.freeze({ route: 'el', locale: 'el', catalog: 'el.json' }),
+    cs: Object.freeze({ route: 'cs', locale: 'cs', catalog: 'cs.json' }),
     zh: Object.freeze({ route: 'zh', locale: 'zh-Hans', catalog: 'zh-Hans.json' })
 });
 

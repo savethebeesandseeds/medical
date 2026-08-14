@@ -6,6 +6,8 @@ const catalogUrl = new URL('locales/en.json', publicRoot);
 const translatedCatalogDefinitions = [
     { file: 'es.json', locale: 'es' },
     { file: 'de.json', locale: 'de' },
+    { file: 'el.json', locale: 'el' },
+    { file: 'cs.json', locale: 'cs' },
     { file: 'zh-Hans.json', locale: 'zh-Hans' }
 ];
 const htmlUrl = new URL('index.html', publicRoot);
@@ -74,6 +76,45 @@ function collectLiteralCalls(source, functionName) {
 function placeholders(value) {
     return [...String(value).matchAll(placeholderPattern)].map((match) => match[1]).sort();
 }
+
+const expectedExplorerRegionChoiceOrder = [
+    'arm',
+    'hand',
+    'leg',
+    'foot-ankle',
+    'trunk',
+    'head-neck'
+];
+const regionChoiceBody = appSource.match(/const REGION_CHOICES = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] ?? '';
+const explorerRegionChoiceOrder = [...regionChoiceBody.matchAll(/Object\.freeze\(\{\s*id:\s*['"]([^'"]+)['"]/g)]
+    .map((match) => match[1]);
+const explorerRegionIds = [...regionChoiceBody.matchAll(/(?:right|left|regionId):\s*['"]([^'"]+)['"]/g)]
+    .map((match) => match[1]);
+const explorerRegionChoiceLabelKeys = [...regionChoiceBody.matchAll(/labelKey:\s*['"]([^'"]+)['"]/g)]
+    .map((match) => match[1]);
+const readyManifestRegionIds = manifests
+    .flatMap((manifest) => manifest.regions ?? [])
+    .filter((region) => !region.status || ['ready', 'data-ready'].includes(region.status))
+    .map((region) => region.id);
+check(
+    JSON.stringify(explorerRegionChoiceOrder) === JSON.stringify(expectedExplorerRegionChoiceOrder),
+    `Explorer region choice order changed: ${explorerRegionChoiceOrder.join(', ')}`
+);
+check(
+    explorerRegionChoiceOrder.length === new Set(explorerRegionChoiceOrder).size,
+    'Explorer region choices contain a duplicate logical ID.'
+);
+check(
+    explorerRegionIds.length === new Set(explorerRegionIds).size,
+    'Explorer region choices contain a duplicate model region ID.'
+);
+for (const regionId of readyManifestRegionIds) {
+    check(explorerRegionIds.includes(regionId), `Ready manifest region is missing from the Explorer selector: ${regionId}`);
+}
+for (const regionId of explorerRegionIds) {
+    check(readyManifestRegionIds.includes(regionId), `Explorer selector references a region that is not ready: ${regionId}`);
+}
+requireKeys(explorerRegionChoiceLabelKeys, 'Explorer logical region choices');
 
 function validateCatalogShape(candidate, label, expectedLocale) {
     check(candidate && typeof candidate === 'object' && !Array.isArray(candidate), `${label} must contain an object.`);
@@ -203,7 +244,9 @@ for (const match of protocolSource.matchAll(/\bcomparison\(\s*'([^']+)'/g)) {
     protocolKeys.push(`assessment.comparisons.${match[1]}.name`);
 }
 check(positionIds.length > 0, 'No protocol positions were discovered.');
-check(comparisonIds.length > 0, 'No protocol comparisons were discovered.');
+// Independent global panels intentionally have no arbitrary matched pairs.
+// Archived protocols may still declare comparisons, so validate them when
+// present without requiring every protocol design to manufacture one.
 requireKeys(protocolKeys, 'Protocol messages');
 
 const qualityFunction = workerSource.match(/function staticQualityStatus\([^)]*\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
@@ -258,6 +301,8 @@ assert.equal(i18n.plural('common.age-years', 2), '2 years');
 assert.throws(() => i18n.installCatalogForTest({ ...catalog, messages: { ...catalog.messages, 'bad key': 'value' } }), /invalid message key/i);
 assert.throws(() => i18n.installCatalogForTest({ ...catalog, messages: { ...catalog.messages, 'verify.blank': ' ' } }), /is empty/i);
 assert.equal(i18n.resolveLanguage({ pathname: '/medical/es/tools/muscles/', search: '' }).locale, 'es');
+assert.equal(i18n.resolveLanguage({ pathname: '/medical/el/tools/muscles/', search: '' }).locale, 'el');
+assert.equal(i18n.resolveLanguage({ pathname: '/medical/cs/tools/muscles/', search: '' }).locale, 'cs');
 assert.equal(i18n.resolveLanguage({ pathname: '/zh/tools/muscles/', search: '' }).locale, 'zh-Hans');
 assert.equal(i18n.resolveLanguage({ pathname: '/ZH/tools/muscles/', search: '' }).locale, 'zh-Hans');
 assert.equal(i18n.routeLanguage('/medical/de/tools/muscles/'), 'de');
@@ -298,4 +343,4 @@ if (failures.length) {
     throw new Error(`Localization verification failed:\n- ${failures.join('\n- ')}`);
 }
 
-console.log(`Verified 4 localization catalogs: ${Object.keys(catalog.messages).length} messages each, ${htmlReferences.length} HTML references, ${regionKeys.length + coordinateKeys.length + presetKeys.length} manifest-derived references, ${protocolKeys.length} protocol references.`);
+console.log(`Verified ${translatedCatalogs.length + 1} localization catalogs: ${Object.keys(catalog.messages).length} messages each, ${htmlReferences.length} HTML references, ${regionKeys.length + coordinateKeys.length + presetKeys.length} manifest-derived references, ${protocolKeys.length} protocol references.`);

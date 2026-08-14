@@ -1,17 +1,16 @@
 /**
- * MS-Human-native moderate right-arm assessment panel.
+ * MS-Human right-arm activation-diverse observation panel, version 2.
  *
- * This panel is generated from the seven authored MS-Human coordinate ranges.
- * It is intentionally a compact paired-contrast design rather than a copied
- * angle grid: every comparison changes exactly one model coordinate while the
- * other six remain fixed. Solver feasibility is mechanical quality assurance;
- * it is not clinical validation or evidence that a posture is safe for a
- * particular person.
+ * The 20 independent postures below were selected from a deterministic
+ * 384-candidate, seven-coordinate atlas evaluated with the pinned browser
+ * solver. Selection jointly rewards posture and 88-actuator activation
+ * diversity while rejecting failed, reserve-dependent, saturated, and
+ * high-demand candidates. This is experimental test design for a generic
+ * model. It is not clinical validation, a diagnosis, or proof that any
+ * posture isolates one anatomical muscle in a person.
  */
 
-export const MS_HUMAN_ASSESSMENT_PROTOCOL_SCHEMA_VERSION = 1;
-
-const roundToControlStep = (value) => Number(value.toFixed(1));
+export const MS_HUMAN_ASSESSMENT_PROTOCOL_SCHEMA_VERSION = 2;
 
 export const MS_HUMAN_AUTHORED_COORDINATES = Object.freeze({
     elv_angle_r: Object.freeze({ label: 'Shoulder elevation plane', minimum: -91.6732, maximum: 126.0507, default: 0 }),
@@ -25,144 +24,110 @@ export const MS_HUMAN_AUTHORED_COORDINATES = Object.freeze({
 
 export const MS_HUMAN_ASSESSMENT_COORDINATE_KEYS = Object.freeze(Object.keys(MS_HUMAN_AUTHORED_COORDINATES));
 
-function towardBound(coordinateName, bound, fraction) {
-    const coordinate = MS_HUMAN_AUTHORED_COORDINATES[coordinateName];
-    const limit = bound === 'minimum' ? coordinate.minimum : coordinate.maximum;
-    return roundToControlStep(coordinate.default + (limit - coordinate.default) * fraction);
-}
-
-function neutralPose() {
-    return Object.fromEntries(MS_HUMAN_ASSESSMENT_COORDINATE_KEYS.map((name) => [name, 0]));
-}
-
 function pose(values = {}) {
-    return Object.freeze({ ...neutralPose(), ...values });
+    return Object.freeze(Object.fromEntries(MS_HUMAN_ASSESSMENT_COORDINATE_KEYS
+        .map((name) => [name, Number(values[name] ?? MS_HUMAN_AUTHORED_COORDINATES[name].default)])));
 }
 
-function position(id, name, instruction, coordinates, designRole) {
-    return Object.freeze({ id, name, instruction, coordinates, designRole });
+function position(id, name, instruction, coordinates, designRole, sourceCandidateId) {
+    return Object.freeze({ id, name, instruction, coordinates: pose(coordinates), designRole, sourceCandidateId });
 }
 
-// Fractions are measured from each coordinate's authored default toward the
-// named authored bound. No selected value is more than 74% of that travel.
-export const MS_HUMAN_ASSESSMENT_DESIGN = Object.freeze({
-    plane: Object.freeze({
-        heldElevation: Object.freeze(['shoulder_elv_r', 'maximum', 0.24]),
-        heldElbow: Object.freeze(['elbow_flexion_r', 'maximum', 0.44]),
-        first: Object.freeze(['elv_angle_r', 'maximum', 0.08]),
-        second: Object.freeze(['elv_angle_r', 'maximum', 0.62])
-    }),
-    elevation: Object.freeze({
-        heldPlane: Object.freeze(['elv_angle_r', 'maximum', 0.28]),
-        heldElbow: Object.freeze(['elbow_flexion_r', 'maximum', 0.44]),
-        first: Object.freeze(['shoulder_elv_r', 'maximum', 0.14]),
-        second: Object.freeze(['shoulder_elv_r', 'maximum', 0.38])
-    }),
-    shoulderRotation: Object.freeze({
-        heldPlane: Object.freeze(['elv_angle_r', 'maximum', 0.28]),
-        heldElevation: Object.freeze(['shoulder_elv_r', 'maximum', 0.20]),
-        heldElbow: Object.freeze(['elbow_flexion_r', 'maximum', 0.60]),
-        first: Object.freeze(['shoulder_rot_r', 'minimum', 0.42]),
-        second: Object.freeze(['shoulder_rot_r', 'maximum', 0.28])
-    }),
-    elbow: Object.freeze({
-        heldPlane: Object.freeze(['elv_angle_r', 'maximum', 0.28]),
-        heldElevation: Object.freeze(['shoulder_elv_r', 'maximum', 0.14]),
-        first: Object.freeze(['elbow_flexion_r', 'maximum', 0.28]),
-        second: Object.freeze(['elbow_flexion_r', 'maximum', 0.74])
-    }),
-    forearm: Object.freeze({
-        heldPlane: Object.freeze(['elv_angle_r', 'maximum', 0.20]),
-        heldElevation: Object.freeze(['shoulder_elv_r', 'maximum', 0.12]),
-        heldElbow: Object.freeze(['elbow_flexion_r', 'maximum', 0.62]),
-        first: Object.freeze(['pro_sup_r', 'minimum', 0.42]),
-        second: Object.freeze(['pro_sup_r', 'maximum', 0.42])
-    }),
-    wristFlexion: Object.freeze({
-        heldPlane: Object.freeze(['elv_angle_r', 'maximum', 0.20]),
-        heldElevation: Object.freeze(['shoulder_elv_r', 'maximum', 0.08]),
-        heldElbow: Object.freeze(['elbow_flexion_r', 'maximum', 0.55]),
-        first: Object.freeze(['flexion_r', 'minimum', 0.50]),
-        second: Object.freeze(['flexion_r', 'maximum', 0.50])
-    }),
-    wristDeviation: Object.freeze({
-        heldPlane: Object.freeze(['elv_angle_r', 'maximum', 0.20]),
-        heldElevation: Object.freeze(['shoulder_elv_r', 'maximum', 0.08]),
-        heldElbow: Object.freeze(['elbow_flexion_r', 'maximum', 0.55]),
-        first: Object.freeze(['deviation_r', 'minimum', 0.50]),
-        second: Object.freeze(['deviation_r', 'maximum', 0.50])
-    })
-});
+const followDisplay = (description) => `Follow the displayed ${description}. Move only within a comfortable range; stop or skip if symptoms increase.`;
+const optionalDisplay = (description) => `Optional higher-demand posture: follow the displayed ${description} only within a comfortable range, or skip it.`;
+const supplementalDisplay = (description) => `Optional supplemental posture: follow the displayed ${description} only within a comfortable range, or skip it.`;
 
-const value = (specification) => towardBound(...specification);
-const planeBase = {
-    shoulder_elv_r: value(MS_HUMAN_ASSESSMENT_DESIGN.plane.heldElevation),
-    elbow_flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.plane.heldElbow)
-};
-const elevationBase = {
-    elv_angle_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elevation.heldPlane),
-    elbow_flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elevation.heldElbow)
-};
-const shoulderRotationBase = {
-    elv_angle_r: value(MS_HUMAN_ASSESSMENT_DESIGN.shoulderRotation.heldPlane),
-    shoulder_elv_r: value(MS_HUMAN_ASSESSMENT_DESIGN.shoulderRotation.heldElevation),
-    elbow_flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.shoulderRotation.heldElbow)
-};
-const elbowBase = {
-    elv_angle_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elbow.heldPlane),
-    shoulder_elv_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elbow.heldElevation)
-};
-const forearmBase = {
-    elv_angle_r: value(MS_HUMAN_ASSESSMENT_DESIGN.forearm.heldPlane),
-    shoulder_elv_r: value(MS_HUMAN_ASSESSMENT_DESIGN.forearm.heldElevation),
-    elbow_flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.forearm.heldElbow)
-};
-const wristBase = {
-    elv_angle_r: value(MS_HUMAN_ASSESSMENT_DESIGN.wristFlexion.heldPlane),
-    shoulder_elv_r: value(MS_HUMAN_ASSESSMENT_DESIGN.wristFlexion.heldElevation),
-    elbow_flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.wristFlexion.heldElbow)
-};
-
+// Ordered from reference and lower-demand postures toward broader optional
+// postures. The source candidate identifiers tie every row to the full atlas
+// and its recorded 88-actuator vector.
 export const MS_HUMAN_ASSESSMENT_POSITIONS = Object.freeze([
-    position('MSH-A01', 'Natural arm reference', 'Let the arm rest comfortably at the side. No hold is required if this is uncomfortable.', pose(), 'reference'),
-    position('MSH-A02', 'Low side-diagonal reach', 'Lift the partly bent arm a short distance, only slightly forward of the side.', pose({ ...planeBase, elv_angle_r: value(MS_HUMAN_ASSESSMENT_DESIGN.plane.first) }), 'plane contrast A'),
-    position('MSH-A03', 'Low forward-diagonal reach', 'Keep the same height and elbow bend, but place the arm in the more forward direction shown.', pose({ ...planeBase, elv_angle_r: value(MS_HUMAN_ASSESSMENT_DESIGN.plane.second) }), 'plane contrast B'),
-    position('MSH-A04', 'Shallow diagonal reach', 'Raise the partly bent arm diagonally to the low position shown.', pose({ ...elevationBase, shoulder_elv_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elevation.first) }), 'elevation contrast A'),
-    position('MSH-A05', 'Mid diagonal reach', 'Use the same plane and elbow bend, raising only to the moderate position shown.', pose({ ...elevationBase, shoulder_elv_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elevation.second) }), 'elevation contrast B'),
-    position('MSH-A06', 'Gentle outward shoulder turn', 'With the elbow bent, turn the upper arm outward only to the displayed position.', pose({ ...shoulderRotationBase, shoulder_rot_r: value(MS_HUMAN_ASSESSMENT_DESIGN.shoulderRotation.first) }), 'shoulder-rotation contrast A'),
-    position('MSH-A07', 'Gentle inward shoulder turn', 'Keep the same arm position and turn the upper arm inward only to the displayed position.', pose({ ...shoulderRotationBase, shoulder_rot_r: value(MS_HUMAN_ASSESSMENT_DESIGN.shoulderRotation.second) }), 'shoulder-rotation contrast B'),
-    position('MSH-A08', 'Longer-arm diagonal hold', 'Hold the arm low and diagonal with the elbow only partly bent.', pose({ ...elbowBase, elbow_flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elbow.first) }), 'elbow contrast A'),
-    position('MSH-A09', 'Compact-arm diagonal hold', 'Keep the upper arm in place and bring the hand closer by bending the elbow.', pose({ ...elbowBase, elbow_flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.elbow.second) }), 'elbow contrast B'),
-    position('MSH-A10', 'Palm-up carry', 'Keep the elbow bent and turn the palm upward only to the displayed moderate angle.', pose({ ...forearmBase, pro_sup_r: value(MS_HUMAN_ASSESSMENT_DESIGN.forearm.first) }), 'forearm-rotation contrast A'),
-    position('MSH-A11', 'Palm-down carry', 'Keep the same upper-arm and elbow position and turn the palm downward.', pose({ ...forearmBase, pro_sup_r: value(MS_HUMAN_ASSESSMENT_DESIGN.forearm.second) }), 'forearm-rotation contrast B'),
-    position('MSH-A12', 'Wrist gently extended', 'With the elbow comfortably bent, angle the hand backward only to the displayed position.', pose({ ...wristBase, flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.wristFlexion.first) }), 'wrist-flexion contrast A'),
-    position('MSH-A13', 'Wrist gently flexed', 'Keep the forearm still and angle the hand forward only to the displayed position.', pose({ ...wristBase, flexion_r: value(MS_HUMAN_ASSESSMENT_DESIGN.wristFlexion.second) }), 'wrist-flexion contrast B'),
-    position('MSH-A14', 'Small wrist deviation A', 'Keep the forearm still and angle the hand slightly in the first displayed side direction.', pose({ ...wristBase, deviation_r: value(MS_HUMAN_ASSESSMENT_DESIGN.wristDeviation.first) }), 'wrist-deviation contrast A'),
-    position('MSH-A15', 'Small wrist deviation B', 'Keep the forearm still and angle the hand slightly in the opposite displayed side direction.', pose({ ...wristBase, deviation_r: value(MS_HUMAN_ASSESSMENT_DESIGN.wristDeviation.second) }), 'wrist-deviation contrast B')
+    position('MSH-V2-01', 'Natural arm reference', 'Let the arm rest comfortably at the side. No hold is required if this is uncomfortable.', {}, 'reference', 'MSH-EXP-0000'),
+    position('MSH-V2-02', 'Low diagonal reach', followDisplay('low diagonal arm posture'), {
+        elv_angle_r: 33.2, shoulder_elv_r: 9.9, shoulder_rot_r: -5.1, elbow_flexion_r: 31.8,
+        pro_sup_r: 30.2, deviation_r: -4.2, flexion_r: -4.8
+    }, 'core', 'MSH-EXP-0261'),
+    position('MSH-V2-03', 'Low turned reach', followDisplay('low turned-arm posture'), {
+        elv_angle_r: -23.4, shoulder_elv_r: 16.9, shoulder_rot_r: 51.0, elbow_flexion_r: 55.3,
+        pro_sup_r: -29.8, deviation_r: -1.2, flexion_r: 17.0
+    }, 'core', 'MSH-EXP-0354'),
+    position('MSH-V2-04', 'Low open-arm reach', followDisplay('low open-arm posture'), {
+        elv_angle_r: 63.7, shoulder_elv_r: 19.9, shoulder_rot_r: 25.9, elbow_flexion_r: 18.5,
+        pro_sup_r: 17.8, deviation_r: -3.9, flexion_r: 11.9
+    }, 'core', 'MSH-EXP-0183'),
+    position('MSH-V2-05', 'Low across-body bend', followDisplay('low across-body posture with the elbow bent'), {
+        elv_angle_r: -19.7, shoulder_elv_r: 8.3, shoulder_rot_r: -7.5, elbow_flexion_r: 70.2,
+        pro_sup_r: 45.9, deviation_r: 8.0, flexion_r: -25.2
+    }, 'core', 'MSH-EXP-0306'),
+    position('MSH-V2-06', 'Straight-arm diagonal reach', followDisplay('diagonal posture with the elbow nearly straight'), {
+        elv_angle_r: -9.3, shoulder_elv_r: 44.9, shoulder_rot_r: 38.0, elbow_flexion_r: 2.1,
+        pro_sup_r: -47.3, deviation_r: 12.5, flexion_r: -16.3
+    }, 'core', 'MSH-EXP-0154'),
+    position('MSH-V2-07', 'Mid bent-arm reach', followDisplay('mid-height bent-arm posture'), {
+        elv_angle_r: 59.6, shoulder_elv_r: 34.8, shoulder_rot_r: 58.4, elbow_flexion_r: 53.0,
+        pro_sup_r: 49.1, deviation_r: -5.2, flexion_r: 22.8
+    }, 'core', 'MSH-EXP-0339'),
+    position('MSH-V2-08', 'Mid long-arm reach', followDisplay('mid-height longer-arm posture'), {
+        elv_angle_r: 82.6, shoulder_elv_r: 58.6, shoulder_rot_r: 26.5, elbow_flexion_r: 28.0,
+        pro_sup_r: -5.6, deviation_r: -6.3, flexion_r: 4.0
+    }, 'core', 'MSH-EXP-0247'),
+    position('MSH-V2-09', 'Cross-body reach', followDisplay('cross-body longer-arm posture'), {
+        elv_angle_r: -63.7, shoulder_elv_r: 46.1, shoulder_rot_r: 10.4, elbow_flexion_r: 28.6,
+        pro_sup_r: -52.9, deviation_r: -5.1, flexion_r: 11.0
+    }, 'core', 'MSH-EXP-0352'),
+    position('MSH-V2-10', 'Straight-arm forward reach', followDisplay('straight-arm forward posture'), {
+        elv_angle_r: 79.8, shoulder_elv_r: 54.3, shoulder_rot_r: 42.1, elbow_flexion_r: 0.0,
+        pro_sup_r: -30.8, deviation_r: 2.6, flexion_r: -15.9
+    }, 'core', 'MSH-EXP-0343'),
+    position('MSH-V2-11', 'Compact rotated reach', followDisplay('compact posture with the forearm turned'), {
+        elv_angle_r: 67.2, shoulder_elv_r: 21.8, shoulder_rot_r: 38.8, elbow_flexion_r: 83.8,
+        pro_sup_r: -63.3, deviation_r: 16.4, flexion_r: -6.8
+    }, 'core', 'MSH-EXP-0363'),
+    position('MSH-V2-12', 'Forward bent-arm reach', followDisplay('forward bent-arm posture'), {
+        elv_angle_r: 83.5, shoulder_elv_r: 45.6, shoulder_rot_r: 3.0, elbow_flexion_r: 73.7,
+        pro_sup_r: 19.6, deviation_r: 15.4, flexion_r: 25.0
+    }, 'core', 'MSH-EXP-0271'),
+    position('MSH-V2-13', 'High across-body reach', optionalDisplay('higher across-body posture'), {
+        elv_angle_r: -59.9, shoulder_elv_r: 76.4, shoulder_rot_r: 49.4, elbow_flexion_r: 43.5,
+        pro_sup_r: 22.8, deviation_r: 4.1, flexion_r: 19.4
+    }, 'optional-advanced', 'MSH-EXP-0304'),
+    position('MSH-V2-14', 'High bent-arm reach', optionalDisplay('higher bent-arm posture'), {
+        elv_angle_r: 8.0, shoulder_elv_r: 79.7, shoulder_rot_r: -4.3, elbow_flexion_r: 90.9,
+        pro_sup_r: -59.2, deviation_r: -5.8, flexion_r: 19.2
+    }, 'optional-advanced', 'MSH-EXP-0286'),
+    position('MSH-V2-15', 'Overhead diagonal reach', optionalDisplay('overhead diagonal posture'), {
+        elv_angle_r: 58.4, shoulder_elv_r: 104.0, shoulder_rot_r: -32.8, elbow_flexion_r: 35.6,
+        pro_sup_r: -60.3, deviation_r: -2.1, flexion_r: -13.6
+    }, 'optional-advanced', 'MSH-EXP-0275'),
+    position('MSH-V2-16', 'Low compact bent-arm reach', supplementalDisplay('low compact posture with the elbow bent'), {
+        elv_angle_r: 37.1, shoulder_elv_r: 22.5, shoulder_rot_r: 14.4, elbow_flexion_r: 71.0,
+        pro_sup_r: 12.8, deviation_r: -0.4, flexion_r: 19.3
+    }, 'optional-supplemental', 'MSH-EXP-0237'),
+    position('MSH-V2-17', 'Low across-body straight reach', supplementalDisplay('low across-body posture with the elbow nearly straight'), {
+        elv_angle_r: -42.8, shoulder_elv_r: 23.7, shoulder_rot_r: 31.6, elbow_flexion_r: 5.1,
+        pro_sup_r: -19.3, deviation_r: 14.2, flexion_r: 16.5
+    }, 'optional-supplemental', 'MSH-EXP-0168'),
+    position('MSH-V2-18', 'High compact open reach', optionalDisplay('higher compact open-arm posture'), {
+        elv_angle_r: 30.7, shoulder_elv_r: 81.3, shoulder_rot_r: 37.2, elbow_flexion_r: 72.1,
+        pro_sup_r: 0.7, deviation_r: -3.6, flexion_r: -4.3
+    }, 'optional-advanced', 'MSH-EXP-0313'),
+    position('MSH-V2-19', 'High bent-arm side reach', optionalDisplay('higher side posture with the elbow bent'), {
+        elv_angle_r: 84.8, shoulder_elv_r: 93.2, shoulder_rot_r: -23.0, elbow_flexion_r: 91.1,
+        pro_sup_r: 2.8, deviation_r: 14.2, flexion_r: 10.8
+    }, 'optional-advanced', 'MSH-EXP-0335'),
+    position('MSH-V2-20', 'Overhead bent-arm turned reach', optionalDisplay('overhead bent-arm posture with the forearm turned'), {
+        elv_angle_r: 39.5, shoulder_elv_r: 122.4, shoulder_rot_r: 1.4, elbow_flexion_r: 79.7,
+        pro_sup_r: -53.9, deviation_r: -1.3, flexion_r: -21.9
+    }, 'optional-advanced', 'MSH-EXP-0341')
 ]);
 
-function comparison(id, name, firstPositionId, secondPositionId, changedCoordinate, purpose) {
-    const first = MS_HUMAN_ASSESSMENT_POSITIONS.find((item) => item.id === firstPositionId);
-    const heldCoordinates = Object.fromEntries(MS_HUMAN_ASSESSMENT_COORDINATE_KEYS
-        .filter((key) => key !== changedCoordinate)
-        .map((key) => [key, first.coordinates[key]]));
-    return Object.freeze({ id, name, firstPositionId, secondPositionId, changedCoordinate, heldCoordinates, purpose });
-}
-
-export const MS_HUMAN_ASSESSMENT_COMPARISONS = Object.freeze([
-    comparison('MSH-C01', 'Elevation-plane contrast', 'MSH-A02', 'MSH-A03', 'elv_angle_r', 'Compare the same arm height and elbow bend in two authored elevation planes.'),
-    comparison('MSH-C02', 'Elevation contrast', 'MSH-A04', 'MSH-A05', 'shoulder_elv_r', 'Compare lower and moderate elevation with plane and elbow bend held fixed.'),
-    comparison('MSH-C03', 'Shoulder-rotation contrast', 'MSH-A06', 'MSH-A07', 'shoulder_rot_r', 'Compare outward and inward shoulder rotation in one modest raised-arm setup.'),
-    comparison('MSH-C04', 'Elbow-flexion contrast', 'MSH-A08', 'MSH-A09', 'elbow_flexion_r', 'Compare two elbow bends while the upper arm remains in the same pose.'),
-    comparison('MSH-C05', 'Forearm-rotation contrast', 'MSH-A10', 'MSH-A11', 'pro_sup_r', 'Compare palm-up and palm-down forearm rotation with the rest of the arm fixed.'),
-    comparison('MSH-C06', 'Wrist-flexion contrast', 'MSH-A12', 'MSH-A13', 'flexion_r', 'Compare modest wrist extension and flexion with the proximal posture fixed.'),
-    comparison('MSH-C07', 'Wrist-deviation contrast', 'MSH-A14', 'MSH-A15', 'deviation_r', 'Compare the two modeled wrist-deviation directions with the proximal posture fixed.')
-]);
+// V2 intentionally uses independent globally selected postures. It does not
+// present arbitrary angle pairs as controlled clinical comparisons.
+export const MS_HUMAN_ASSESSMENT_COMPARISONS = Object.freeze([]);
 
 export const MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT = Object.freeze({
     schemaVersion: MS_HUMAN_ASSESSMENT_PROTOCOL_SCHEMA_VERSION,
-    id: 'MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1',
-    version: '1.0.0',
+    id: 'MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2',
+    version: '2.1.0',
     model: Object.freeze({
         modelId: 'MS_HUMAN_700_RIGHT_ARM_STATIC_V1',
         modelDigest: '38815fed122d1beb61155f0afd85e72a52093111fcae183bbb273f2483291971',
@@ -170,47 +135,38 @@ export const MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT = Object.freeze({
         coordinateMetadataSha256: '4278ffe5171328047dd240711386ac2ea84ba7bcc54e1740df359f263956414e'
     }),
     derivation: Object.freeze({
-        algorithm: 'authored-range-normalized-paired-contrast-v1',
+        algorithm: 'deterministic-halton-atlas-constrained-weighted-maximin-v2',
+        candidateCount: 384,
+        usableCandidateCount: 327,
         coordinateSource: 'The seven ranges and defaults in the pinned MS-Human right-arm metadata asset.',
         roundingDegrees: 0.1,
         maximumAuthoredTravelFraction: 0.74,
-        design: 'Neutral reference plus seven matched pairs. Each pair changes exactly one independent MS-Human coordinate and holds the other six fixed.',
-        selection: 'Values are fixed fractions of authored travel from the model default; no value was copied from a previous assessment grid.',
-        solverScreen: 'Every pose must pass the unchanged browser static solver finite-value, path, equilibrium, reserve, and capacity gates. Failed candidates are replaced, never admitted by weakening a gate.',
-        interpretation: 'Solver feasibility is mechanical quality assurance for this generic model, not clinical validation, personal safety clearance, diagnostic evidence, or an instruction to move through pain.'
+        design: 'One neutral reference and 19 independent postures selected for normalized joint-space and 88-actuator activation-pattern diversity. The final five are supplemental and may be skipped.',
+        selection: 'Candidates with solver failure, reserve dependence, activation at or above 0.995, maximum activation above 0.85, or activation RMS above 0.15 were excluded. Five supplemental postures were then admitted by deterministic constrained weighted-maximin marginal gain; selection stopped at 20 because a 21st posture added less than one percent effective-rank improvement and no robust-rank improvement.',
+        solverScreen: 'Every admitted posture passed the unchanged browser static solver finite-value, path, equilibrium, reserve, and capacity gates. Failed candidates were rejected, never admitted by weakening a gate.',
+        interpretation: 'This is generic-model experimental test design, not clinical validation, personal safety clearance, proof of muscle isolation, diagnostic evidence, or an instruction to move through pain.'
     }),
     coordinateRanges: MS_HUMAN_AUTHORED_COORDINATES,
-    designFractions: MS_HUMAN_ASSESSMENT_DESIGN,
     positions: MS_HUMAN_ASSESSMENT_POSITIONS,
     comparisons: MS_HUMAN_ASSESSMENT_COMPARISONS
 });
 
-// SHA-256 of canonical JSON for MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT. The
-// repository validator recomputes it so any posture or wording change requires
-// an intentional protocol version/digest update.
-export const MS_HUMAN_ASSESSMENT_PROTOCOL_DIGEST = 'dd1775262214462c39440f6b461c2562fa8d7addd58ab4ceb6b56643e63b18b1';
+// Updated by the repository validator whenever the canonical protocol content
+// changes. A placeholder is intentionally invalid until evidence generation.
+export const MS_HUMAN_ASSESSMENT_PROTOCOL_DIGEST = '6dbdc21fc004d90cb0df687c1265d3398f8a39623e366c5bc53844c3768107b9';
 
 export const MS_HUMAN_ASSESSMENT_PROTOCOL = Object.freeze({
     ...MS_HUMAN_ASSESSMENT_PROTOCOL_CONTENT,
     contentDigestSha256: MS_HUMAN_ASSESSMENT_PROTOCOL_DIGEST
 });
 
-// Shape consumed by report-v5. The digest prefix is part of that report API's
-// verified protocol-identity contract.
 export const MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL = Object.freeze({
     id: MS_HUMAN_ASSESSMENT_PROTOCOL.id,
     version: MS_HUMAN_ASSESSMENT_PROTOCOL.version,
     digest: `sha256:${MS_HUMAN_ASSESSMENT_PROTOCOL_DIGEST}`,
-    name: 'MS-Human authored-range paired-contrast right-arm panel',
+    name: 'MS-Human activation-diverse right-arm observation panel',
     trialIds: Object.freeze(MS_HUMAN_ASSESSMENT_POSITIONS.map((item) => item.id)),
-    matchedComparisons: Object.freeze(MS_HUMAN_ASSESSMENT_COMPARISONS.map((item) => Object.freeze({
-        id: item.id,
-        name: item.name,
-        trialIds: Object.freeze([item.firstPositionId, item.secondPositionId]),
-        controlledVariables: Object.freeze(Object.entries(item.heldCoordinates)
-            .map(([coordinate, degrees]) => `${coordinate} ${degrees.toFixed(1)} degrees`)),
-        changedVariable: item.changedCoordinate
-    })))
+    matchedComparisons: MS_HUMAN_ASSESSMENT_COMPARISONS
 });
 
 export default MS_HUMAN_ASSESSMENT_PROTOCOL;

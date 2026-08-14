@@ -35,14 +35,13 @@ const CONTROL_STEP_DEGREES = 0.1;
 const ANATOMICAL_BODY_RADIAL_SEGMENTS = 12;
 const ANATOMICAL_BODY_SAMPLE_SPACING = 0.012;
 const compactViewer = () => globalThis.matchMedia?.('(max-width: 700px)').matches === true;
-const REGION_OPTION_ORDER = Object.freeze([
-    'right-upper-limb',
-    'left-upper-limb',
-    'right-lower-limb',
-    'left-lower-limb',
-    'trunk',
-    'head-neck',
-    'right-hand'
+const REGION_CHOICES = Object.freeze([
+    Object.freeze({ id: 'arm', labelKey: 'explorer.regions.choices.arm', sides: Object.freeze({ right: 'right-upper-limb', left: 'left-upper-limb' }) }),
+    Object.freeze({ id: 'hand', labelKey: 'explorer.regions.choices.hand', regionId: 'right-hand' }),
+    Object.freeze({ id: 'leg', labelKey: 'explorer.regions.choices.leg', sides: Object.freeze({ right: 'right-lower-limb', left: 'left-lower-limb' }) }),
+    Object.freeze({ id: 'foot-ankle', labelKey: 'explorer.regions.choices.foot-ankle', sides: Object.freeze({ right: 'right-foot-ankle', left: 'left-foot-ankle' }) }),
+    Object.freeze({ id: 'trunk', labelKey: 'explorer.regions.trunk.name', regionId: 'trunk' }),
+    Object.freeze({ id: 'head-neck', labelKey: 'explorer.regions.head-neck.name', regionId: 'head-neck' })
 ]);
 const regionMessageKey = (regionId, field = 'name') => `explorer.regions.${regionId}.${field}`;
 
@@ -196,9 +195,11 @@ const app = {
     engineMetadata: null,
     metadata: null,
     regionId: DEFAULT_REGION_ID,
+    preferredSide: 'right',
     regionGeneration: 0,
     musclePresentation: 'overview',
     presentationMuscleNames: null,
+    trunkSide: 'both',
     regionView: 'front',
     model: null,
     state: null,
@@ -321,6 +322,7 @@ function availableRegions() {
 function regionArea(region) {
     if (region?.area === 'upper-limb' || region?.id?.includes('upper-limb')) return 'upper-limb';
     if (region?.area === 'lower-limb' || region?.id?.includes('lower-limb')) return 'lower-limb';
+    if (region?.area === 'foot-ankle' || region?.id?.includes('foot-ankle')) return 'foot-ankle';
     if (region?.area === 'hand' || region?.id?.includes('hand')) return 'hand';
     if (region?.area === 'head-neck' || region?.id === 'head-neck') return 'head-neck';
     return region?.area || region?.id || 'trunk';
@@ -336,23 +338,27 @@ function profileRegions(profileId) {
     return Array.isArray(metadata?.regions) ? metadata.regions : [];
 }
 
+function regionChoiceForRegionId(regionId) {
+    return REGION_CHOICES.find((choice) => choice.regionId === regionId
+        || Object.values(choice.sides || {}).includes(regionId));
+}
+
 function explorerRegionOptions() {
-    const byId = new Map(profileRegions('primary').map((region) => [region.id, region]));
-    const handRegion = profileRegions('hand')[0] || {
-        id: 'right-hand',
-        presentationName: 'Right hand',
-        status: 'data-ready'
-    };
-    byId.set(handRegion.id, handRegion);
-    return REGION_OPTION_ORDER
-        .map((id) => byId.get(id))
-        .filter((region) => region && (!region.status || ['ready', 'data-ready'].includes(region.status)));
+    return REGION_CHOICES;
+}
+
+function resolveRegionChoice(choiceId, side = app.preferredSide) {
+    const choice = REGION_CHOICES.find((candidate) => candidate.id === choiceId);
+    if (!choice) return null;
+    if (choice.sides) return choice.sides[side] || choice.sides.right || choice.sides.left;
+    return choice.regionId;
 }
 
 function syncRegionControls() {
     const region = app.metadata?.region;
     if (!region) return;
-    $('#focus-region').value = region.id;
+    const choice = regionChoiceForRegionId(region.id);
+    if (choice) $('#focus-region').value = choice.id;
 }
 
 function regionViewYaw() {
@@ -363,7 +369,19 @@ function regionViewYaw() {
 
 function syncRegionPresentationControls() {
     const back = app.regionId === 'trunk';
+    const choice = regionChoiceForRegionId(app.regionId);
+    const sideControls = $('#region-side-controls');
+    const sideApplicable = back || Boolean(choice?.sides);
+    sideControls.classList.toggle('hidden', !sideApplicable);
+    sideControls.classList.toggle('trunk-sides', back);
+    sideControls.querySelector('.region-side-both').classList.toggle('hidden', !back);
     $('#back-presentation-controls').classList.toggle('hidden', !back);
+    const selectedSide = back ? app.trunkSide : app.metadata?.region?.laterality;
+    for (const button of document.querySelectorAll('[data-region-side]')) {
+        const active = button.dataset.regionSide === selectedSide;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+    }
     if (!back) return;
     $('#back-muscle-filter').value = app.musclePresentation;
     for (const button of document.querySelectorAll('[data-region-view]')) {
@@ -381,13 +399,66 @@ function setRegionView(view) {
 }
 
 function setMusclePresentation(value) {
-    app.musclePresentation = Object.hasOwn(BACK_MUSCLE_PATTERNS, value) || value === 'overview' ? value : 'back';
+    app.musclePresentation = Object.hasOwn(BACK_MUSCLE_PATTERNS, value) || ['all', 'overview'].includes(value) ? value : 'back';
     app.presentationMuscleNames = buildPresentationMuscleSet();
     app.activationRankingExpanded = false;
     syncRegionPresentationControls();
     updateInventory();
     renderPaths();
     updateActivationRanking();
+}
+
+// The source model's two unsuffixed thoracic multifidus names are the right-side
+// partners of otherwise identical `_L` actuators; they are not midline muscles.
+const UNSUFFIXED_RIGHT_TRUNK_MUSCLES = new Set(['multifidus_L2_T12', 'multifidus_L1_T11']);
+
+function trunkMuscleSide(muscle) {
+    const name = String(muscle?.name ?? '');
+    if (UNSUFFIXED_RIGHT_TRUNK_MUSCLES.has(name)) return 'right';
+    if (/_l$/i.test(name)) return 'left';
+    if (/_r$/i.test(name)) return 'right';
+    return 'midline';
+}
+
+function muscleMatchesTrunkSide(muscle) {
+    if (app.regionId !== 'trunk' || app.trunkSide === 'both') return true;
+    const side = trunkMuscleSide(muscle);
+    return side === 'midline' || side === app.trunkSide;
+}
+
+function muscleListId(muscle) {
+    const id = muscleModelId(muscle.name);
+    if (app.regionId !== 'trunk' || app.trunkSide !== 'both') return id;
+    const side = trunkMuscleSide(muscle);
+    if (side === 'left') return `${id} · ${t('common.sides.left')}`;
+    if (side === 'right') return `${id} · ${t('common.sides.right')}`;
+    return id;
+}
+
+function ensureSelectedMuscleMatchesTrunkSide() {
+    if (app.regionId !== 'trunk' || app.trunkSide === 'both') return;
+    const selected = app.metadata.muscles.find((muscle) => muscle.name === app.selectedMuscle);
+    if (!selected || muscleMatchesTrunkSide(selected)) return;
+    const baseName = selected.name.replace(/_[lr]$/i, '');
+    const paired = app.metadata.muscles.find((muscle) => (
+        muscle.name.replace(/_[lr]$/i, '') === baseName && muscleMatchesTrunkSide(muscle)
+    ));
+    const fallback = app.metadata.muscles
+        .filter((muscle) => muscleMatchesTrunkSide(muscle) && muscleMatchesActivePresentation(muscle))
+        .sort((left, right) => muscleSelectionScore(right) - muscleSelectionScore(left))[0];
+    app.selectedMuscle = paired?.name || fallback?.name || app.selectedMuscle;
+}
+
+function setTrunkSide(value) {
+    app.trunkSide = ['both', 'left', 'right'].includes(value) ? value : 'both';
+    ensureSelectedMuscleMatchesTrunkSide();
+    app.activationRankingExpanded = false;
+    syncRegionPresentationControls();
+    buildMuscleSelect();
+    updateInventory();
+    renderPaths();
+    updateActivationRanking();
+    updateDetails();
 }
 
 function normalizedCoordinate(coordinate) {
@@ -834,15 +905,35 @@ function muscleSelectionScore(muscle) {
     return Number.isFinite(value) ? value : 0;
 }
 
-function presentationCandidates(pattern, limit = 48) {
+function presentationCandidates(pattern, limit = 48, side = 'both') {
     return app.metadata.muscles
-        .filter((muscle) => pattern.test(muscle.name))
+        .filter((muscle) => pattern.test(muscle.name)
+            && (side === 'both' || trunkMuscleSide(muscle) === side))
         .sort((left, right) => muscleSelectionScore(right) - muscleSelectionScore(left))
         .slice(0, limit);
 }
 
+function bilateralPresentationCandidates(pattern, limit = 48) {
+    const leftLimit = Math.floor(limit / 2);
+    const rightLimit = limit - leftLimit;
+    const selected = [
+        ...presentationCandidates(pattern, leftLimit, 'left'),
+        ...presentationCandidates(pattern, rightLimit, 'right')
+    ];
+    if (selected.length < limit) {
+        const selectedNames = new Set(selected.map((muscle) => muscle.name));
+        selected.push(...presentationCandidates(pattern, limit)
+            .filter((muscle) => !selectedNames.has(muscle.name))
+            .slice(0, limit - selected.length));
+    }
+    return selected.sort((left, right) => muscleSelectionScore(right) - muscleSelectionScore(left));
+}
+
 function buildPresentationMuscleSet() {
     if (app.regionId !== 'trunk') return null;
+    if (app.musclePresentation === 'all') {
+        return new Set(app.metadata.muscles.map((muscle) => muscle.name));
+    }
     if (app.musclePresentation === 'overview') {
         return new Set(app.metadata.muscles.filter((muscle) => muscle.visibleByDefault !== false).map((muscle) => muscle.name));
     }
@@ -852,18 +943,20 @@ function buildPresentationMuscleSet() {
             [/^(?:MF_|multifidus_)/i, 14],
             [/^QL_/i, 12],
             [/^LD_/i, 6]
-        ].flatMap(([pattern, limit]) => presentationCandidates(pattern, limit));
+        ].flatMap(([pattern, limit]) => bilateralPresentationCandidates(pattern, limit));
         return new Set(balanced.map((muscle) => muscle.name));
     }
     const pattern = BACK_MUSCLE_PATTERNS[app.musclePresentation] || BACK_MUSCLE_PATTERNS.back;
-    return new Set(presentationCandidates(pattern).map((muscle) => muscle.name));
+    return new Set(bilateralPresentationCandidates(pattern).map((muscle) => muscle.name));
 }
 
 function muscleMatchesActivePresentation(muscle) {
-    return !app.presentationMuscleNames || app.presentationMuscleNames.has(muscle.name);
+    return muscleMatchesTrunkSide(muscle)
+        && (!app.presentationMuscleNames || app.presentationMuscleNames.has(muscle.name));
 }
 
 function pathVisible(muscle) {
+    if (!muscleMatchesTrunkSide(muscle)) return false;
     if (app.presentationMuscleNames) return app.presentationMuscleNames.has(muscle.name);
     return muscle.visibleByDefault !== false || app.showLongOrigins;
 }
@@ -1054,9 +1147,11 @@ function renderPaths() {
     const available = activationAvailable();
     const showOnly = app.pathView === 'one';
     for (const muscle of app.state?.muscles ?? []) {
+        if (!muscleMatchesTrunkSide(muscle)) continue;
         const selected = muscle.name === app.selectedMuscle;
-        if ((!pathVisible(muscle) && !(showOnly && selected)) || (showOnly && !selected)) continue;
-        const color = available ? activationColor(muscle.activation) : (selected && showOnly ? SELECTED_COLOR : NEUTRAL_COLOR);
+        if (!pathVisible(muscle) && !selected) continue;
+        const dimmed = showOnly && !selected;
+        const color = dimmed ? NEUTRAL_COLOR : available ? activationColor(muscle.activation) : (selected && showOnly ? SELECTED_COLOR : NEUTRAL_COLOR);
         if (app.muscleRendering === 'anatomical') {
             const geometry = createAnatomicalMuscleBodyGeometry(muscle, color, selected && showOnly);
             if (!geometry) continue;
@@ -1065,7 +1160,7 @@ function renderPaths() {
                 roughness: 0.54,
                 metalness: 0,
                 transparent: true,
-                opacity: selected && showOnly ? 0.98 : available ? 0.84 : 0.56,
+                opacity: selected && showOnly ? 0.98 : dimmed ? 0.2 : available ? 0.84 : 0.56,
                 depthWrite: selected && showOnly,
                 side: THREE.DoubleSide
             });
@@ -1075,7 +1170,7 @@ function renderPaths() {
             mesh.userData.muscleName = muscle.name;
             app.pathGroup.add(mesh);
         } else {
-            const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: selected ? 1 : available ? 0.82 : 0.58, depthWrite: false });
+            const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: selected ? 1 : dimmed ? 0.22 : available ? 0.82 : 0.58, depthWrite: false });
             for (const [index, segment] of (muscle.segments ?? []).entries()) {
                 const mesh = new THREE.Mesh(unitCylinder, material);
                 mesh.renderOrder = 2;
@@ -1106,7 +1201,7 @@ function renderSelected() {
     disposeChildren(app.selectedGroup);
     if (app.pathView === 'all') return;
     const muscle = app.state?.muscles?.find((candidate) => candidate.name === app.selectedMuscle);
-    if (!muscle) return;
+    if (!muscle || !muscleMatchesTrunkSide(muscle)) return;
     const available = activationAvailable();
     const color = available ? activationColor(muscle.activation) : SELECTED_COLOR;
     const endpointMaterial = new THREE.MeshBasicMaterial({ color: 0x17201d });
@@ -1204,11 +1299,13 @@ function setMirroredView(mirrored) {
     app.mirrored = Boolean(mirrored);
     displayRoot.scale.x = app.mirrored ? -1 : 1;
     const button = $('#mirror-view');
-    button.classList.toggle('active', app.mirrored);
-    button.setAttribute('aria-pressed', String(app.mirrored));
     const mirrorLabel = t(app.mirrored ? 'explorer.actions.unmirror' : 'explorer.actions.mirror');
-    button.setAttribute('aria-label', mirrorLabel);
-    button.dataset.tooltip = mirrorLabel;
+    if (button) {
+        button.classList.toggle('active', app.mirrored);
+        button.setAttribute('aria-pressed', String(app.mirrored));
+        button.setAttribute('aria-label', mirrorLabel);
+        button.dataset.tooltip = mirrorLabel;
+    }
     const regionName = regionDisplayName(app.metadata?.region);
     if (app.inDiagnosis) {
         setText('#viewer-title', t(app.mirrored ? 'explorer.viewer.assessment-mirrored-title' : 'explorer.viewer.title'));
@@ -1310,11 +1407,12 @@ function buildCoordinateControls() {
 function buildRegionPicker() {
     const select = $('#focus-region');
     const fragment = document.createDocumentFragment();
-    for (const region of explorerRegionOptions()) {
+    const currentChoice = regionChoiceForRegionId(app.regionId);
+    for (const choice of explorerRegionOptions()) {
         const option = document.createElement('option');
-        option.value = region.id;
-        option.textContent = regionDisplayName(region);
-        option.selected = region.id === app.regionId;
+        option.value = choice.id;
+        option.textContent = t(choice.labelKey);
+        option.selected = choice.id === currentChoice?.id;
         fragment.append(option);
     }
     select.replaceChildren(fragment);
@@ -1390,8 +1488,6 @@ function applyPosePreset(name) {
         button.classList.toggle('active', active);
         button.setAttribute('aria-pressed', String(active));
     }
-    app.presetLibraryVisible = false;
-    syncPresetLibrary();
     schedulePostureUpdate(0, 50);
 }
 
@@ -1417,7 +1513,7 @@ function buildMuscleSelect() {
     const select = $('#muscle-select');
     select.replaceChildren();
     const groups = new Map();
-    for (const muscle of app.metadata.muscles) {
+    for (const muscle of app.metadata.muscles.filter(muscleMatchesTrunkSide)) {
         if (!groups.has(muscle.group)) groups.set(muscle.group, []);
         groups.get(muscle.group).push(muscle);
     }
@@ -1427,7 +1523,7 @@ function buildMuscleSelect() {
         for (const muscle of muscles) {
             const option = document.createElement('option');
             option.value = muscle.name;
-            option.textContent = `${muscleDisplayName(muscle.name)} — ${muscleModelId(muscle.name)}`;
+            option.textContent = `${muscleDisplayName(muscle.name)} — ${muscleListId(muscle)}`;
             option.selected = muscle.name === app.selectedMuscle;
             options.append(option);
         }
@@ -1526,7 +1622,7 @@ function updateActivationRanking() {
         row.title = `${displayName} · ${muscle.name} · ${groupName}`;
         row.innerHTML = '<span class="rank-label"><span class="rank-name"></span><small class="rank-id"></small></span><span class="rank-track"><span class="rank-fill"></span></span><span class="rank-value"></span>';
         row.querySelector('.rank-name').textContent = displayName;
-        row.querySelector('.rank-id').textContent = muscleModelId(muscle.name);
+        row.querySelector('.rank-id').textContent = muscleListId(muscle);
         row.querySelector('.rank-fill').style.width = `${THREE.MathUtils.clamp(muscle.activation, 0, 1) * 100}%`;
         row.querySelector('.rank-fill').style.background = `#${activationColor(muscle.activation).getHexString()}`;
         row.querySelector('.rank-value').textContent = muscle.activation.toFixed(3);
@@ -1759,6 +1855,19 @@ async function switchExplorerRegionSelection(regionId) {
     if (availableRegions().some((region) => region.id === regionId)) await switchExplorerRegion(regionId);
 }
 
+async function switchRegionSide(side) {
+    if (app.regionId === 'trunk') {
+        setTrunkSide(side);
+        return;
+    }
+    if (!['left', 'right'].includes(side)) return;
+    const choice = regionChoiceForRegionId(app.regionId);
+    const regionId = choice?.sides?.[side];
+    if (!regionId || regionId === app.regionId) return;
+    app.preferredSide = side;
+    await switchExplorerRegionSelection(regionId);
+}
+
 function configureRegion(regionId) {
     window.clearTimeout(app.poseTimer);
     window.clearTimeout(app.solveTimer);
@@ -1771,7 +1880,11 @@ function configureRegion(regionId) {
     app.showLongOrigins = false;
     app.presetLibraryVisible = false;
     activateRegionMetadata(regionId);
+    if (['left', 'right'].includes(app.metadata.region?.laterality) && regionChoiceForRegionId(regionId)?.sides) {
+        app.preferredSide = app.metadata.region.laterality;
+    }
     app.musclePresentation = regionId === 'trunk' ? 'back' : 'overview';
+    app.trunkSide = 'both';
     app.presentationMuscleNames = buildPresentationMuscleSet();
     app.regionView = regionId === 'trunk' ? 'back' : 'front';
     assignRegionGeometry();
@@ -1823,7 +1936,9 @@ function updateInventory() {
     setText('#count-muscles', app.metadata.model.functionalMuscles);
     setText('#count-meshes', activeMeshes);
     setText('#active-region-legend', regionName);
-    const shown = app.presentationMuscleNames?.size;
+    const shown = app.presentationMuscleNames
+        ? app.metadata.muscles.filter((muscle) => muscleMatchesActivePresentation(muscle)).length
+        : undefined;
     const shownCopy = Number.isInteger(shown) ? t('explorer.regions.shown', { count: shown }) : '';
     setText('#region-scope', t('explorer.regions.scope', { muscles: app.metadata.model.functionalMuscles, shown: shownCopy, controls: app.metadata.coordinates.length }));
     const supportCopy = t(regionMessageKey(app.regionId, 'support'));
@@ -1868,7 +1983,9 @@ function canvasToPngBlob(canvas) {
 }
 
 function drawActivationExportOverlay(context, pixelScale, sourceWidth, sourceHeight) {
-    const muscles = activationAvailable() ? [...app.state.muscles].sort((a, b) => b.activation - a.activation) : [];
+    const muscles = activationAvailable()
+        ? [...app.state.muscles].filter(muscleMatchesActivePresentation).sort((a, b) => b.activation - a.activation)
+        : [];
     const visibleRows = muscles.slice(0, Math.max(1, Math.floor((sourceHeight - 90) / 12)));
     const x = 12;
     const y = 12;
@@ -1994,8 +2111,9 @@ function pickMuscleAt(clientX, clientY) {
         let bestDepth = Number.POSITIVE_INFINITY;
         const showOnly = app.pathView === 'one';
         for (const muscle of app.state.muscles) {
+            if (!muscleMatchesTrunkSide(muscle)) continue;
             const selected = muscle.name === app.selectedMuscle;
-            if ((!pathVisible(muscle) && !(showOnly && selected)) || (showOnly && !selected)) continue;
+            if (!pathVisible(muscle) && !selected) continue;
             for (const segment of muscle.segments ?? []) {
                 pickStart.set(segment[0], segment[1], segment[2]);
                 pickEnd.set(segment[3], segment[4], segment[5]);
@@ -2129,8 +2247,20 @@ function enterDiagnosisWorkspace() {
         activationPanelVisible: app.activationPanelVisible,
         musclePanelVisible: app.musclePanelVisible,
         musclePresentation: app.musclePresentation,
+        trunkSide: app.trunkSide,
         regionView: app.regionView,
-        mirrored: app.mirrored
+        mirrored: app.mirrored,
+        camera: {
+            yaw: cameraState.yaw,
+            pitch: cameraState.pitch,
+            radius: cameraState.radius,
+            initialRadius: cameraState.initialRadius,
+            target: cameraState.target.clone(),
+            initialTarget: cameraState.initialTarget.clone(),
+            framingOffset: cameraState.framingOffset.clone(),
+            near: camera.near,
+            far: camera.far
+        }
     };
     window.clearTimeout(app.poseTimer);
     window.clearTimeout(app.solveTimer);
@@ -2155,8 +2285,10 @@ function leaveDiagnosisWorkspace() {
     const viewer = document.querySelector('.viewer-panel');
     if (viewer && viewer.parentElement !== $('#explorer-workspace')) $('#explorer-workspace').append(viewer);
     app.inDiagnosis = false;
+    let explorerCamera = null;
     if (diagnosisViewerSnapshot) {
         const snapshot = diagnosisViewerSnapshot;
+        explorerCamera = snapshot.camera ?? null;
         if (app.profileId !== snapshot.profileId) activateEngineProfile(snapshot.profileId, snapshot.regionId);
         else if (app.regionId !== snapshot.regionId) configureRegion(snapshot.regionId);
         app.selectedMuscle = app.metadata.muscleNames.includes(snapshot.selectedMuscle)
@@ -2177,14 +2309,29 @@ function leaveDiagnosisWorkspace() {
         app.activationPanelVisible = diagnosisViewerSnapshot.activationPanelVisible;
         app.musclePanelVisible = diagnosisViewerSnapshot.musclePanelVisible;
         app.musclePresentation = snapshot.musclePresentation || app.musclePresentation;
+        app.trunkSide = snapshot.trunkSide || 'both';
         app.presentationMuscleNames = buildPresentationMuscleSet();
+        ensureSelectedMuscleMatchesTrunkSide();
+        buildMuscleSelect();
         app.regionView = snapshot.regionView || app.regionView;
         syncRegionPresentationControls();
         setMirroredView(diagnosisViewerSnapshot.mirrored);
         diagnosisViewerSnapshot = null;
     }
     cameraState.diagnosisRadius = null;
-    resetView();
+    if (explorerCamera) {
+        cameraState.yaw = explorerCamera.yaw;
+        cameraState.pitch = explorerCamera.pitch;
+        cameraState.radius = explorerCamera.radius;
+        cameraState.initialRadius = explorerCamera.initialRadius;
+        cameraState.target.copy(explorerCamera.target);
+        cameraState.initialTarget.copy(explorerCamera.initialTarget);
+        cameraState.framingOffset.copy(explorerCamera.framingOffset);
+        camera.near = explorerCamera.near;
+        camera.far = explorerCamera.far;
+    } else {
+        resetView();
+    }
     $('#focus-region').disabled = !app.initialized;
     syncViewerDrawers();
     resizeRenderer();
@@ -2195,11 +2342,25 @@ function bindInterface() {
     $('#focus-region').addEventListener('change', async () => {
         if (!app.initialized) return;
         try {
-            await switchExplorerRegionSelection($('#focus-region').value);
+            const regionId = resolveRegionChoice($('#focus-region').value);
+            if (regionId) await switchExplorerRegionSelection(regionId);
         } catch (error) {
         showError(t('explorer.errors.region-load'));
         console.error(error);
             buildRegionPicker();
+            setLoading('', false);
+            $('#focus-region').disabled = false;
+        }
+    });
+    $('#region-side-controls').addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-region-side]');
+        if (!button || !app.initialized) return;
+        try {
+            await switchRegionSide(button.dataset.regionSide);
+        } catch (error) {
+            showError(t('explorer.errors.region-load'));
+            console.error(error);
+            syncRegionPresentationControls();
             setLoading('', false);
             $('#focus-region').disabled = false;
         }
@@ -2212,7 +2373,6 @@ function bindInterface() {
     $('#reset-view').addEventListener('click', resetView);
     $('#zoom-in').addEventListener('click', () => zoomView(1 / 1.18));
     $('#zoom-out').addEventListener('click', () => zoomView(1.18));
-    $('#mirror-view').addEventListener('click', toggleMirroredView);
     $('#reset-pose').addEventListener('click', resetPose);
     $('#calculate-static').addEventListener('click', () => requestStaticHold());
     $('#toggle-preset-library').addEventListener('click', () => { app.presetLibraryVisible = !app.presetLibraryVisible; syncPresetLibrary(); });

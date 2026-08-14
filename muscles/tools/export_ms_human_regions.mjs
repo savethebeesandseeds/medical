@@ -53,6 +53,12 @@ const LOWER_COORDINATES = Object.freeze([
     ['mtp_angle', 'MTP angle']
 ]);
 
+const FOOT_ANKLE_COORDINATES = Object.freeze([
+    ['ankle_angle', 'Ankle angle'],
+    ['subtalar_angle', 'Subtalar angle'],
+    ['mtp_angle', 'MTP angle']
+]);
+
 const TRUNK_COORDINATES = Object.freeze([
     ['L5_S1_FE', 'Lower-trunk flexion / extension'],
     ['L5_S1_LB', 'Lower-trunk lateral bending'],
@@ -78,7 +84,7 @@ function upperPresetGroups(side) {
                 { id: 'forward-reach', label: 'Forward reach', description: 'Moderate forward reach with a partly bent elbow.', coordinates: pose({ elv_angle: 90, shoulder_elv: 45, elbow_flexion: 30 }) },
                 { id: 'hand-to-mouth', label: 'Hand to mouth', description: 'Flexed elbow with moderate forearm supination.', coordinates: pose({ elv_angle: 90, shoulder_elv: 35, elbow_flexion: 120, pro_sup: -45 }) },
                 { id: 'cross-body-reach', label: 'Cross-body reach', description: 'Raised, partly bent cross-body reference.', coordinates: pose({ elv_angle: 120, shoulder_elv: 90, elbow_flexion: 30 }) },
-                { id: 'hand-behind-head', label: 'Hand behind head', description: 'Raised and externally rotated shoulder reference.', coordinates: pose({ elv_angle: 30, shoulder_elv: 120, shoulder_rot: 35, elbow_flexion: 120 }) },
+                { id: 'hand-behind-head', label: 'Hand behind head', description: 'Raised and externally rotated shoulder reference.', coordinates: pose({ elv_angle: 30, shoulder_elv: 120, shoulder_rot: -35, elbow_flexion: 120 }) },
                 { id: 'high-forward-reach', label: 'High forward reach', description: 'High forward elevation reference.', coordinates: pose({ elv_angle: 90, shoulder_elv: 110 }) }
             ]
         },
@@ -146,6 +152,24 @@ function lowerPresetGroups(side) {
                 { id: 'ankle-positive-20', label: 'Ankle +20°', description: 'Positive ankle-coordinate reference.', coordinates: pose({ ankle_angle: 20 }) },
                 { id: 'subtalar-negative-10', label: 'Subtalar −10°', description: 'Negative subtalar-coordinate reference.', coordinates: pose({ subtalar_angle: -10 }) },
                 { id: 'subtalar-positive-10', label: 'Subtalar +10°', description: 'Positive subtalar-coordinate reference.', coordinates: pose({ subtalar_angle: 10 }) },
+                { id: 'mtp-positive-20', label: 'MTP +20°', description: 'Positive MTP-coordinate reference.', coordinates: pose({ mtp_angle: 20 }) }
+            ]
+        }
+    ];
+}
+
+function footAnklePresetGroups(side) {
+    const key = (name) => `${name}_${side}`;
+    const pose = (values = {}) => Object.fromEntries(Object.entries(values).map(([name, value]) => [key(name), value]));
+    return [
+        {
+            id: 'foot-ankle', label: 'Foot and ankle', presets: [
+                { id: 'neutral', label: 'Neutral', description: 'Authored neutral foot-and-ankle posture.', coordinates: {} },
+                { id: 'ankle-negative-20', label: 'Ankle −20°', description: 'Negative ankle-coordinate reference.', coordinates: pose({ ankle_angle: -20 }) },
+                { id: 'ankle-positive-20', label: 'Ankle +20°', description: 'Positive ankle-coordinate reference.', coordinates: pose({ ankle_angle: 20 }) },
+                { id: 'subtalar-negative-10', label: 'Subtalar −10°', description: 'Negative subtalar-coordinate reference.', coordinates: pose({ subtalar_angle: -10 }) },
+                { id: 'subtalar-positive-10', label: 'Subtalar +10°', description: 'Positive subtalar-coordinate reference.', coordinates: pose({ subtalar_angle: 10 }) },
+                { id: 'mtp-negative-20', label: 'MTP −20°', description: 'Negative MTP-coordinate reference.', coordinates: pose({ mtp_angle: -20 }) },
                 { id: 'mtp-positive-20', label: 'MTP +20°', description: 'Positive MTP-coordinate reference.', coordinates: pose({ mtp_angle: 20 }) }
             ]
         }
@@ -222,6 +246,16 @@ const REGION_DEFINITIONS = Object.freeze([
         id: 'left-lower-limb', presentationName: 'Left lower limb', area: 'lower-limb', laterality: 'left',
         bodyRoot: 'femur_l', coordinatePairs: LOWER_COORDINATES.map(([name, label]) => [`${name}_l`, label]),
         presetGroups: lowerPresetGroups('l'), camera: { fit: 'active-bodies', viewDirection: [0, -1, 0], up: [0, 0, 1], padding: 1.16 }
+    },
+    {
+        id: 'right-foot-ankle', presentationName: 'Right foot and ankle', area: 'foot-ankle', laterality: 'right',
+        bodyRoot: 'talus_r', coordinatePairs: FOOT_ANKLE_COORDINATES.map(([name, label]) => [`${name}_r`, label]),
+        presetGroups: footAnklePresetGroups('r'), camera: { fit: 'active-bodies', viewDirection: [0, -1, 0], up: [0, 0, 1], padding: 1.24 }
+    },
+    {
+        id: 'left-foot-ankle', presentationName: 'Left foot and ankle', area: 'foot-ankle', laterality: 'left',
+        bodyRoot: 'talus_l', coordinatePairs: FOOT_ANKLE_COORDINATES.map(([name, label]) => [`${name}_l`, label]),
+        presetGroups: footAnklePresetGroups('l'), camera: { fit: 'active-bodies', viewDirection: [0, 1, 0], up: [0, 0, 1], padding: 1.24 }
     },
     {
         id: 'trunk', presentationName: 'Trunk', area: 'trunk', laterality: 'midline',
@@ -536,6 +570,7 @@ function regionalMuscleGroup(region, muscleName, actuatorId, pathBodyIds) {
         return 'Shoulder stabilizer';
     }
     if (region.area === 'lower-limb') return outside ? 'Pelvis-spanning muscle' : 'Lower-limb muscle';
+    if (region.area === 'foot-ankle') return 'Extrinsic foot and ankle muscle';
     if (region.area === 'trunk') return outside ? 'Hip/shoulder-spanning muscle' : 'Trunk muscle';
     if (region.area === 'head-neck') return 'Head and neck mover';
     return outside ? 'Cross-region mover' : 'Regional mover';
@@ -582,6 +617,26 @@ function regionSemantics(definition, coordinateNames) {
             assumptions: [
                 fixedSupport,
                 'No foot contact, floor reaction, balance constraint, or stance phase is modeled.',
+                'Static posture: zero velocity and zero acceleration.',
+                'Gravity and model self-weight only; no held load or measured external force.',
+                'Authored passive muscle and joint forces are included.',
+                'Candidate-muscle membership is mechanical inventory selection, not clinical validation.'
+            ]
+        };
+    }
+    if (definition.area === 'foot-ankle') {
+        const side = definition.laterality === 'right' ? 'right' : 'left';
+        const fixedSupport = `The ${side} tibia, knee, hip, pelvis, opposite lower limb, and all upper-body coordinates remain prescribed at the authored keyframe; only the selected ankle, subtalar, and MTP coordinates are solved.`;
+        return {
+            ...common,
+            fixedSupport,
+            supportDescription: `${fixedSupport} The region contains only the model's coarse talus, calcaneus, and toes bodies and extrinsic foot-and-ankle muscles; it has no individual-toe articulation or intrinsic-foot-muscle inventory. There is no foot contact or ground-reaction model.`,
+            interpretationBoundary: `${common.interpretationBoundary} In particular, the result must not be interpreted as intrinsic-foot-muscle function, individual-toe mechanics, stance, gait, balance, ground reaction, or weight-bearing capacity.`,
+            assumptions: [
+                fixedSupport,
+                'The model represents this region with three coarse articulated bodies: talus, calcaneus, and toes.',
+                'Candidate actuators are extrinsic foot-and-ankle muscles only; intrinsic foot muscles are not represented.',
+                'No individual-toe articulation, foot contact, floor reaction, balance constraint, or stance phase is modeled.',
                 'Static posture: zero velocity and zero acceleration.',
                 'Gravity and model self-weight only; no held load or measured external force.',
                 'Authored passive muscle and joint forces are included.',
@@ -722,7 +777,7 @@ export async function buildRegionArtifacts() {
                 camera: definition.camera,
                 assessment: {
                     supported: definition.id === 'right-upper-limb',
-                    protocolId: definition.id === 'right-upper-limb' ? 'MSH700-RIGHT-ARM-PAIRED-CONTRAST-V1' : null,
+                    protocolId: definition.id === 'right-upper-limb' ? 'MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2' : null,
                     reason: definition.id === 'right-upper-limb'
                         ? 'The existing separately versioned right-upper-limb observation protocol may reference this region.'
                         : 'No versioned, evidence-recorded assessment protocol exists for this region.'
@@ -925,6 +980,20 @@ export function validateRegionArtifacts(manifest, evidence) {
         if (canonicalJson(groups) !== canonicalJson(expectedUpperGroups)) throw new Error(`${regionId} has unexpected display groups.`);
         if (region.candidateMuscles.filter((muscle) => muscle.group === 'Long torso origin' && muscle.visibleByDefault).length) throw new Error(`${regionId} exposes a long torso origin by default.`);
         if (region.candidateMuscles.filter((muscle) => muscle.visibleByDefault).length !== 74) throw new Error(`${regionId} must expose all 74 Arm and Shoulder stabilizer candidates by default.`);
+    }
+    const footMuscleStems = ['edl', 'ehl', 'fdl', 'fhl', 'gaslat', 'gasmed', 'perbrev', 'perlong', 'soleus', 'tibant', 'tibpost'];
+    for (const side of ['r', 'l']) {
+        const regionId = side === 'r' ? 'right-foot-ankle' : 'left-foot-ankle';
+        const region = manifest.regions.find((candidate) => candidate.id === regionId);
+        const expectedCoordinates = ['ankle_angle', 'subtalar_angle', 'mtp_angle'].map((name) => `${name}_${side}`);
+        const expectedBodies = ['talus', 'calcn', 'toes'].map((name) => `${name}_${side}`);
+        const expectedMuscles = footMuscleStems.map((name) => `${name}_${side}`);
+        if (canonicalJson(region.coordinates.map((coordinate) => coordinate.name)) !== canonicalJson(expectedCoordinates)) throw new Error(`${regionId} must expose only ankle, subtalar, and MTP controls.`);
+        if (canonicalJson(region.activeBodies.map((body) => body.name)) !== canonicalJson(expectedBodies)) throw new Error(`${regionId} must emphasize only talus, calcaneus, and coarse toes bodies.`);
+        if (canonicalJson(region.candidateMuscles.map((muscle) => muscle.name)) !== canonicalJson(expectedMuscles)) throw new Error(`${regionId} extrinsic-muscle inventory changed.`);
+        if (region.candidateMuscles.some((muscle) => muscle.group !== 'Extrinsic foot and ankle muscle' || !muscle.visibleByDefault)) throw new Error(`${regionId} must label and show all 11 extrinsic candidates.`);
+        if (!region.semantics.supportDescription.includes('no individual-toe articulation or intrinsic-foot-muscle inventory')) throw new Error(`${regionId} detailed-foot limitation is missing.`);
+        if (!region.semantics.interpretationBoundary.includes('stance, gait, balance, ground reaction, or weight-bearing capacity')) throw new Error(`${regionId} no-contact interpretation boundary is missing.`);
     }
     return true;
 }
