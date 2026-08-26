@@ -29,8 +29,7 @@ source, verification, and licensing boundary while sharing one public catalog.
 - `/zh/tools/muscles/` - Simplified Chinese interface
 - `/muscles/` - compatibility redirect to the canonical tool route
 
-The public site is assembled by `.github/workflows/pages.yml`. Only `site/`,
-the catalog logo, and each explicitly selected tool's static distribution are
+The public site is assembled by `.github/workflows/pages.yml`. Only `site/` and each explicitly selected tool's static distribution are
 included in the GitHub Pages artifact. Development files and `tmp/` are never
 published.
 
