@@ -21,9 +21,11 @@ source, verification, and licensing boundary while sharing one public catalog.
 ## Published routes
 
 - `/` - catalog of available medical tools
-- `/en/tools/muscles/` - MS-Human-700 musculoskeletal explorer
+- `/en/tools/muscles/` - Biomechanics research tool, English interface
 - `/es/tools/muscles/` - Spanish interface
 - `/de/tools/muscles/` - German interface
+- `/el/tools/muscles/` - Greek interface
+- `/cs/tools/muscles/` - Czech interface
 - `/zh/tools/muscles/` - Simplified Chinese interface
 - `/muscles/` - compatibility redirect to the canonical tool route
 
@@ -36,8 +38,20 @@ published.
 
 ### Biomechanics research tool
 
-The source is in `muscles/`. Its browser distribution is `muscles/public/`,
-and its independent verification command is:
+The source is in `muscles/` and its browser distribution is
+`muscles/public/`. Docker Desktop is the preferred local runtime:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\muscles\run.ps1
+```
+
+This creates or reuses the loopback-only `ms-human-muscles` container and
+serves the application at <http://127.0.0.1:8080>. See the
+[muscles README](./muscles/README.md) for container lifecycle and custom-port
+instructions. The container is only a static web host; the model and solver
+still run in the browser.
+
+The independent verification command is:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\muscles\release.ps1

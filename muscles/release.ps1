@@ -49,16 +49,19 @@ function Resolve-Executable {
         return (Resolve-Path -LiteralPath $ExplicitPath).Path
     }
 
-    foreach ($Name in $CommandNames) {
-        $Command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($null -ne $Command) { return $Command.Source }
-    }
-
+    # Prefer the known bundled runtime when it exists. On Windows, Get-Command
+    # can otherwise resolve the Microsoft Store Python alias, which is an
+    # application stub rather than a usable interpreter for the release gate.
     foreach ($Candidate in $FallbackPaths) {
         if (-not [string]::IsNullOrWhiteSpace($Candidate) -and
             (Test-Path -LiteralPath $Candidate -PathType Leaf)) {
             return (Resolve-Path -LiteralPath $Candidate).Path
         }
+    }
+
+    foreach ($Name in $CommandNames) {
+        $Command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -ne $Command) { return $Command.Source }
     }
 
     throw "$Label is required. Install it, add it to PATH, or pass its exact path."
@@ -147,8 +150,10 @@ $GitExe = Resolve-Executable -CommandNames @('git.exe', 'git') -FallbackPaths $G
 # deliberate review and an update here; unlisted files make the gate fail.
 $DeployAllowlist = @(
     'app-ms-human.js',
+    'assessment-protocol-registry.js',
     'bootstrap.js',
     'diagnosis.js',
+    'generated-regional-assessment-protocols.js',
     'i18n.js',
     'index.html',
     'LICENSE',
@@ -264,6 +269,9 @@ Invoke-Node @((Join-Path $ProjectRoot 'tools\verify-i18n.mjs'))
 
 Write-Stage 'Validating the versioned MS-Human assessment protocol'
 Invoke-Node @((Join-Path $ProjectRoot 'tools\validate-ms-human-assessment-protocol.mjs'))
+
+Write-Stage 'Validating the regional assessment protocol registry'
+Invoke-Node @((Join-Path $ProjectRoot 'tools\validate-regional-assessment-protocols.mjs'))
 
 Write-Stage 'Validating the deterministic MS-Human region manifest'
 Invoke-Node @((Join-Path $ProjectRoot 'tools\validate-ms-human-regions.mjs'))

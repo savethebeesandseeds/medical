@@ -227,6 +227,8 @@ const app = {
     diagnosis: null,
     cameraFitted: false,
     inDiagnosis: false,
+    assessmentProfileId: null,
+    assessmentRegionId: null,
     initialized: false
 };
 
@@ -336,6 +338,13 @@ function regionDisplayName(region) {
 function profileRegions(profileId) {
     const metadata = app.profiles.get(profileId)?.metadata;
     return Array.isArray(metadata?.regions) ? metadata.regions : [];
+}
+
+function profileIdForRegion(regionId) {
+    for (const [profileId, profile] of app.profiles) {
+        if (profile?.metadata?.regions?.some((region) => region.id === regionId)) return profileId;
+    }
+    return regionId === 'right-hand' ? 'hand' : 'primary';
 }
 
 function regionChoiceForRegionId(regionId) {
@@ -530,7 +539,69 @@ function activateRegionMetadata(regionId) {
         || muscles[0]?.name
         || '';
     app.coordinates = Object.fromEntries(coordinates.map((coordinate) => [coordinate.name, coordinate.default]));
+    if (app.model) app.model = currentModelDescriptor();
     return app.metadata;
+}
+
+function modelDescriptorForRegion(regionId = app.regionId) {
+    const profileId = profileIdForRegion(regionId);
+    const profile = app.profiles.get(profileId);
+    const metadata = regionId === app.regionId ? app.engineMetadata : profile?.metadata;
+    const activeRegionMetadata = regionId === app.regionId ? app.metadata : null;
+    const region = activeRegionMetadata?.region
+        ?? metadata?.regions?.find((candidate) => candidate.id === regionId)
+        ?? null;
+    if (!metadata || !region) return null;
+    const coordinates = activeRegionMetadata?.coordinates
+        ?? (region.coordinates || []).map(normalizedCoordinate);
+    const muscles = activeRegionMetadata?.muscles
+        ?? (region.muscles || region.candidateMuscles || []).map((muscle) => ({
+            ...muscle,
+            group: muscle.group || 'Regional muscles',
+            visibleByDefault: muscle.visibleByDefault !== false
+        }));
+    const solverConfig = activeRegionMetadata?.solverConfig ?? region.solverConfig ?? metadata.solverConfig ?? null;
+    const sourceModelId = metadata.identity?.modelId ?? null;
+    const usesSourceDescriptorId =
+        region.id === DEFAULT_REGION_ID || profileId === 'hand' || profileId === 'right-hand';
+    const descriptorId = usesSourceDescriptorId
+        ? sourceModelId
+        : 'MS_HUMAN_700_PRIMARY_REGIONS_V1';
+
+    return {
+        id: descriptorId,
+        sourceModelId,
+        runtimeSourceModelId: sourceModelId,
+        modelDigest: metadata.identity?.modelDigest ?? null,
+        name: metadata.model?.name ?? null,
+        variant: metadata.model?.variant ?? null,
+        scope: metadata.model?.variant ?? null,
+        runtime: metadata.model?.runtime ?? null,
+        source: metadata.source ?? null,
+        profileId,
+        runtimeModelSha256: metadata.identity?.runtimeModelSha256 ?? null,
+        sourceCommit: metadata.identity?.sourceCommit ?? metadata.source?.commit ?? null,
+        solverConfigurationId: solverConfig?.id ?? solverConfig?.configurationId ?? null,
+        solverConfigurationDigest: solverConfig?.digest ?? null,
+        regionId: region.id,
+        regionDigest: activeRegionMetadata?.regionDigest ?? region.digest ?? region.regionDigest ?? null,
+        staticHold: solverConfig,
+        analysisType: solverConfig?.algorithm ?? null,
+        controlFloor: 0,
+        functionalMuscleCount: muscles.length,
+        coordinates,
+        muscles,
+        actuatorIds: muscles.map((muscle) => muscle.actuatorId),
+        capabilities: { ...metadata.capabilities, ...region.capabilities },
+        semantics: region.semantics ?? null,
+        scapularStabilizers: muscles
+            .filter((muscle) => muscle.group === 'Shoulder stabilizer')
+            .map((muscle) => muscle.name)
+    };
+}
+
+function currentModelDescriptor() {
+    return modelDescriptorForRegion(app.regionId);
 }
 
 function showError(message) {
@@ -1308,7 +1379,9 @@ function setMirroredView(mirrored) {
     }
     const regionName = regionDisplayName(app.metadata?.region);
     if (app.inDiagnosis) {
-        setText('#viewer-title', t(app.mirrored ? 'explorer.viewer.assessment-mirrored-title' : 'explorer.viewer.title'));
+        setText('#viewer-title', app.mirrored
+            ? t('explorer.viewer.assessment-mirrored-title')
+            : regionName);
         setText('#viewer-instructions', t(app.mirrored
             ? 'explorer.viewer.assessment-mirrored-instructions'
             : 'explorer.viewer.assessment-instructions'));
@@ -2234,6 +2307,75 @@ function zoomView(factor) {
     zoomAtNdc(factor, 0, 0);
 }
 
+async function activateAssessmentRegion(regionId = DEFAULT_REGION_ID) {
+    if (typeof regionId !== 'string' || !regionId) throw new TypeError('An assessment region ID is required.');
+    if (!app.inDiagnosis) enterDiagnosisWorkspace();
+    if (!app.inDiagnosis) throw new Error('The assessment viewer is not available.');
+
+    const profileId = profileIdForRegion(regionId);
+    if (app.assessmentProfileId === profileId && app.assessmentRegionId === regionId
+            && app.profileId === profileId && app.regionId === regionId) {
+        app.model = currentModelDescriptor();
+        return app.model;
+    }
+
+    const generation = ++app.profileGeneration;
+    const label = t(regionMessageKey(regionId));
+    window.clearTimeout(app.poseTimer);
+    window.clearTimeout(app.solveTimer);
+    app.poseGeneration += 1;
+    app.solveGeneration += 1;
+    $('#focus-region').disabled = true;
+    setLoading(t('explorer.status.loading-region', { region: label }));
+    try {
+        const profile = await ensureEngineProfile(profileId);
+        if (generation !== app.profileGeneration) throw new StaleRequestError('The assessment region change was superseded.');
+        const region = profileRegions(profileId).find((candidate) => candidate.id === regionId);
+        if (!region) throw new RangeError(`${label} is not available in the ${profileId} model profile.`);
+
+        if (app.profileId !== profileId) activateEngineProfile(profileId, regionId);
+        else if (app.regionId !== regionId) configureRegion(regionId);
+        if (generation !== app.profileGeneration) throw new StaleRequestError('The assessment region change was superseded.');
+
+        app.assessmentProfileId = profileId;
+        app.assessmentRegionId = regionId;
+        app.model = currentModelDescriptor();
+        app.pathView = 'all';
+        app.activationPanelVisible = false;
+        app.musclePanelVisible = false;
+        neutralizeDisplayedActivation();
+        syncViewerDrawers();
+        resizeRenderer();
+        return app.model;
+    } finally {
+        if (generation === app.profileGeneration) {
+            setLoading('', false);
+            $('#focus-region').disabled = !app.initialized;
+        }
+    }
+}
+
+async function requestAssessmentState(method, coordinates, selectedMuscle, regionId) {
+    const targetRegionId = regionId || app.assessmentRegionId || DEFAULT_REGION_ID;
+    const targetProfileId = profileIdForRegion(targetRegionId);
+    if (!app.inDiagnosis || app.assessmentProfileId !== targetProfileId
+            || app.assessmentRegionId !== targetRegionId || app.profileId !== targetProfileId
+            || app.regionId !== targetRegionId) {
+        await activateAssessmentRegion(targetRegionId);
+    }
+    const generation = app.profileGeneration;
+    const engine = app.engine;
+    const validSelectedMuscle = app.metadata.muscleNames.includes(selectedMuscle)
+        ? selectedMuscle
+        : app.selectedMuscle;
+    const state = await engine[method](coordinates, validSelectedMuscle, targetRegionId);
+    if (generation !== app.profileGeneration || engine !== app.engine
+            || targetProfileId !== app.profileId || targetRegionId !== app.regionId) {
+        throw new StaleRequestError('The assessment posture was superseded by a region change.');
+    }
+    return state;
+}
+
 function enterDiagnosisWorkspace() {
     const viewer = document.querySelector('.viewer-panel');
     const slot = $('#diagnosis-viewer-slot');
@@ -2268,10 +2410,13 @@ function enterDiagnosisWorkspace() {
     app.solveGeneration += 1;
     app.profileGeneration += 1;
     app.inDiagnosis = true;
+    app.assessmentProfileId = 'primary';
+    app.assessmentRegionId = DEFAULT_REGION_ID;
     cameraState.diagnosisRadius = null;
     $('#focus-region').disabled = !app.initialized;
     if (app.profileId !== 'primary') activateEngineProfile('primary', DEFAULT_REGION_ID);
     else if (app.regionId !== DEFAULT_REGION_ID) configureRegion(DEFAULT_REGION_ID);
+    app.model = currentModelDescriptor();
     app.pathView = 'all';
     app.activationPanelVisible = false;
     app.musclePanelVisible = false;
@@ -2285,6 +2430,8 @@ function leaveDiagnosisWorkspace() {
     const viewer = document.querySelector('.viewer-panel');
     if (viewer && viewer.parentElement !== $('#explorer-workspace')) $('#explorer-workspace').append(viewer);
     app.inDiagnosis = false;
+    app.assessmentProfileId = null;
+    app.assessmentRegionId = null;
     let explorerCamera = null;
     if (diagnosisViewerSnapshot) {
         const snapshot = diagnosisViewerSnapshot;
@@ -2423,28 +2570,7 @@ async function initialize() {
         if (!geometryResponse.ok) throw new Error(`Model geometry request failed (${geometryResponse.status}).`);
         app.engineMetadata = metadata;
         activateRegionMetadata(metadata.defaultRegionId || DEFAULT_REGION_ID);
-        app.model = {
-            id: metadata.identity.modelId,
-            modelDigest: metadata.identity.modelDigest,
-            name: metadata.model.name,
-            variant: metadata.model.variant,
-            scope: metadata.model.variant,
-            runtime: metadata.model.runtime,
-            source: metadata.source,
-            solverConfigurationId: metadata.solverConfig.id,
-            regionId: metadata.defaultRegionId || DEFAULT_REGION_ID,
-            regionDigest: metadata.regions?.find((region) => region.id === (metadata.defaultRegionId || DEFAULT_REGION_ID))?.digest,
-            staticHold: metadata.solverConfig,
-            analysisType: metadata.solverConfig.algorithm,
-            controlFloor: 0,
-            functionalMuscleCount: metadata.model.functionalMuscles,
-            coordinates: metadata.coordinates,
-            muscles: metadata.muscleNames,
-            actuatorIds: metadata.muscles.map((muscle) => muscle.actuatorId),
-            scapularStabilizers: metadata.muscles
-                .filter((muscle) => muscle.group === 'Shoulder stabilizer')
-                .map((muscle) => muscle.name)
-        };
+        app.model = currentModelDescriptor();
         const geometryBuffer = await verifiedGeometryBuffer(geometryResponse, metadata.geometry.sha256);
         const geometry = parseGeometry(geometryBuffer);
         const primaryProfile = app.profiles.get('primary');
@@ -2459,10 +2585,11 @@ async function initialize() {
         $('#server-status').className = 'server-status online';
         $('#server-status span:last-child').textContent = t('common.status.model-ready-local');
         app.diagnosis = createDiagnosisWorkflow({
-            pose: (coordinates, selected) => app.profiles.get('primary').engine.pose(coordinates, selected, DEFAULT_REGION_ID),
-            staticHold: (coordinates, selected) => app.profiles.get('primary').engine.staticHold(coordinates, selected, DEFAULT_REGION_ID),
+            pose: (coordinates, selected, regionId) => requestAssessmentState('pose', coordinates, selected, regionId),
+            staticHold: (coordinates, selected, regionId) => requestAssessmentState('staticHold', coordinates, selected, regionId),
             applyState,
-            getModel: () => app.model,
+            activateAssessmentRegion,
+            getModel: (regionId) => modelDescriptorForRegion(regionId || app.assessmentRegionId || app.regionId),
             getSelectedMuscle: () => app.selectedMuscle,
             displayMuscle: muscleDisplayName,
             setMirroredView,

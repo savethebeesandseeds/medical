@@ -31,12 +31,14 @@ try {
     const canonicalRoute = routeLanguage(window.location.pathname);
     if (canonicalRoute) {
         document.querySelector('link[rel="canonical"]')?.remove();
+        document.querySelectorAll('link[rel="alternate"][hreflang]').forEach((element) => element.remove());
         const canonical = document.createElement('link');
         canonical.rel = 'canonical';
         canonical.href = languageUrl(canonicalRoute, window.location);
         canonical.search = '';
         canonical.hash = '';
         document.head.append(canonical);
+        document.querySelector('meta[property="og:url"]')?.setAttribute('content', canonical.href);
         for (const route of ['en', 'es', 'de', 'el', 'cs', 'zh']) {
             const alternate = document.createElement('link');
             alternate.rel = 'alternate';
@@ -46,6 +48,13 @@ try {
             alternate.hash = '';
             document.head.append(alternate);
         }
+        const defaultAlternate = document.createElement('link');
+        defaultAlternate.rel = 'alternate';
+        defaultAlternate.hreflang = 'x-default';
+        defaultAlternate.href = languageUrl('en', window.location);
+        defaultAlternate.search = '';
+        defaultAlternate.hash = '';
+        document.head.append(defaultAlternate);
     }
 
     const selector = document.querySelector('#language-selector');

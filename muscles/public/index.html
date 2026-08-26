@@ -4,7 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title></title>
+    <meta name="robots" content="index, follow">
+    <meta name="application-name" content="Waajacu's Medical">
+    <meta name="description" content="Explore model-estimated posture and muscle activation for arms, hands, legs, feet, back, trunk, head and neck, with guided movement assessment reports." data-i18n-attrs="content:meta.description">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Waajacu's Medical">
+    <meta property="og:title" content="Waajacu's Medical | Muscle Activation &amp; Movement Assessment" data-i18n-attrs="content:meta.title">
+    <meta property="og:description" content="Explore model-estimated posture and muscle activation for arms, hands, legs, feet, back, trunk, head and neck, with guided movement assessment reports." data-i18n-attrs="content:meta.description">
+    <meta property="og:url" content="https://medical.waajacu.com/en/tools/muscles/">
+    <meta property="og:image" content="https://medical.waajacu.com/waajacu_medical_no_bg.png">
+    <title>Waajacu's Medical | Muscle Activation &amp; Movement Assessment</title>
+    <link rel="canonical" href="https://medical.waajacu.com/en/tools/muscles/">
+    <link rel="alternate" hreflang="en" href="https://medical.waajacu.com/en/tools/muscles/">
+    <link rel="alternate" hreflang="es" href="https://medical.waajacu.com/es/tools/muscles/">
+    <link rel="alternate" hreflang="de" href="https://medical.waajacu.com/de/tools/muscles/">
+    <link rel="alternate" hreflang="el" href="https://medical.waajacu.com/el/tools/muscles/">
+    <link rel="alternate" hreflang="cs" href="https://medical.waajacu.com/cs/tools/muscles/">
+    <link rel="alternate" hreflang="zh-Hans" href="https://medical.waajacu.com/zh/tools/muscles/">
+    <link rel="alternate" hreflang="x-default" href="https://medical.waajacu.com/en/tools/muscles/">
     <link rel="icon" type="image/png" href="./waajacu_medical.png">
     <link rel="stylesheet" href="./styles.css">
 </head>
@@ -16,9 +33,9 @@
             <div class="app-brand">
                 <img class="app-logo" src="./waajacu_medical.png" width="90" height="90" alt="">
                 <div class="app-brand-copy">
-                    <p class="eyebrow" data-i18n="brand.eyebrow"></p>
-                    <h1 data-i18n="brand.name"></h1>
-                    <p class="intro" data-i18n="brand.intro"></p>
+                    <p class="eyebrow" data-i18n="brand.eyebrow">Biomechanics research tool</p>
+                    <h1 data-i18n="brand.name">Waajacu's Medical</h1>
+                    <p class="intro" data-i18n="brand.intro">Explore regional posture and modeled muscle activation.</p>
                 </div>
             </div>
             <div class="header-actions">
@@ -43,9 +60,9 @@
         <div id="error" class="error hidden" role="alert"></div>
 
         <aside class="use-boundary" data-i18n-attrs="aria-label:boundary.aria-label">
-            <strong data-i18n="boundary.title"></strong>
-            <span data-i18n="boundary.description"></span>
-            <a href="#model-information" data-i18n="boundary.link"></a>
+            <strong data-i18n="boundary.title">Muscle activation explorer and guided regional movement assessment</strong>
+            <span data-i18n="boundary.description">Explore model-estimated posture and muscle activation for the arms, hands, legs, feet and ankles, back and trunk, and head and neck. Record guided movement observations and create a report saved only in this browser. Research use only—not a medical device, diagnostic test, or medical advice.</span>
+            <a href="#model-information" data-i18n="boundary.link">Limits, methods and credits</a>
         </aside>
 
         <nav class="app-tabs" role="tablist" data-i18n-attrs="aria-label:nav.tabs.aria-label">
@@ -329,6 +346,19 @@
                         <h2 id="diagnosis-privacy-overview-title" data-i18n="assessment.privacy.title"></h2>
                         <p data-i18n="assessment.privacy.intro"></p>
                 </header>
+                <section class="diagnosis-protocol-picker" aria-labelledby="diagnosis-protocol-title">
+                    <div class="diagnosis-protocol-heading">
+                        <p class="eyebrow" data-i18n="assessment.protocol.eyebrow"></p>
+                        <h3 id="diagnosis-protocol-title" data-i18n="assessment.protocol.title"></h3>
+                        <p data-i18n="assessment.protocol.intro"></p>
+                    </div>
+                    <label class="diagnosis-field diagnosis-protocol-field">
+                        <span data-i18n="assessment.protocol.region-label"></span>
+                        <select id="diagnosis-protocol-select"></select>
+                    </label>
+                    <p id="diagnosis-protocol-summary" class="diagnosis-protocol-summary" role="status"></p>
+                    <p id="diagnosis-protocol-boundary" class="diagnosis-protocol-boundary"></p>
+                </section>
                 <div class="diagnosis-privacy-overview-body">
                         <p data-i18n="assessment.privacy.no-server"></p>
                         <p data-i18n="assessment.privacy.no-cookies"></p>
@@ -382,7 +412,7 @@
                             </select></label>
                             <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.height.label"></span><input name="heightCm" type="number" min="80" max="250" step="0.1" inputmode="decimal" required></label>
                             <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.weight.label"></span><input name="weightKg" type="number" min="20" max="350" step="0.1" inputmode="decimal" required></label>
-                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.arm.label"></span><select name="assessedArm" required><option value="" data-i18n="common.options.select"></option><option value="right" data-i18n="common.sides.right"></option><option value="left" data-i18n="common.sides.left"></option></select></label>
+                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.side.label"></span><select name="assessedSide" required></select></label>
                         </div>
                     </section>
 
@@ -400,9 +430,7 @@
                             </select></label>
                             <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.pain-now.label"></span><input name="painNow" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
                             <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.pain-worst.label"></span><input name="painWorst" type="number" min="0" max="10" step="1" inputmode="numeric" required></label>
-                            <label class="diagnosis-field span-2"><span data-i18n="assessment.intake.fields.location.label"></span><select name="primaryPainLocation" required>
-                                <option value="" data-i18n="common.options.select"></option><option value="front_shoulder" data-i18n="assessment.intake.options.location.front-shoulder"></option><option value="side_shoulder_upper_arm" data-i18n="assessment.intake.options.location.side-shoulder-upper-arm"></option><option value="top_ac_region" data-i18n="assessment.intake.options.location.top-ac-region"></option><option value="back_shoulder" data-i18n="assessment.intake.options.location.back-shoulder"></option><option value="shoulder_blade" data-i18n="assessment.intake.options.location.shoulder-blade"></option><option value="neck_to_arm" data-i18n="assessment.intake.options.location.neck-to-arm"></option><option value="elbow_forearm_hand" data-i18n="assessment.intake.options.location.elbow-forearm-hand"></option><option value="multiple_or_other" data-i18n="assessment.intake.options.location.multiple-or-other"></option>
-                            </select></label>
+                            <label class="diagnosis-field span-2"><span data-i18n="assessment.intake.fields.location.label"></span><select name="primaryPainLocation" required></select></label>
                             <fieldset class="diagnosis-intake-checks span-2">
                                 <legend data-i18n="assessment.intake.other-features"></legend>
                                 <label><input name="painAtRest" type="checkbox"> <span data-i18n="assessment.intake.features.pain-at-rest"></span></label>
@@ -484,6 +512,7 @@
                         <div class="diagnosis-test-heading">
                             <span id="capacity-position-id" class="diagnosis-test-id" data-i18n="assessment.position.initial-progress"></span>
                             <h2 id="capacity-position-title" data-i18n="assessment.position.default-title"></h2>
+                            <span id="capacity-position-tier" class="capacity-position-tier"></span>
                         </div>
                         <p><strong data-i18n="assessment.position.reference-boundary"></strong> <span id="capacity-position-instruction" data-i18n="assessment.position.default-instruction"></span></p>
                         <p class="diagnosis-hint" data-i18n="assessment.position.safety-hint"></p>

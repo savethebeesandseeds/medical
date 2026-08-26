@@ -66,6 +66,19 @@ function finiteOrNull(value) {
     return Number.isFinite(number) ? number : null;
 }
 
+function loadBoundaryMetadata(assessmentContext = {}, model = {}) {
+    const rawValue = assessmentContext.unloadedOpenChain ?? model.unloadedOpenChain ?? null;
+    const supportAssumptions = assessmentContext.supportAssumptions
+        ?? model.supportAssumptions
+        ?? (typeof rawValue === 'string' ? rawValue.trim() || null : null);
+    return {
+        unloadedOpenChain: typeof rawValue === 'boolean'
+            ? rawValue
+            : (typeof rawValue === 'string' && rawValue.trim() ? true : null),
+        supportAssumptions
+    };
+}
+
 function modelIdentityText(model = {}) {
     const source = model.source && typeof model.source === 'object'
         ? Object.values(model.source).join(' ')
@@ -108,6 +121,19 @@ function shoulderMuscleNames(model = {}, availableNames = []) {
     return [...result].filter((name) => !available.size || available.has(name));
 }
 
+function regionalMuscleNames(model = {}, availableNames = []) {
+    const available = availableNames.filter(Boolean);
+    const regionId = String(model.regionId ?? '').toLowerCase();
+    if (!regionId) {
+        return shoulderMuscleNames(model, available);
+    }
+    const modeled = modelMuscleNames(model);
+    if (!available.length) return modeled;
+    const availableSet = new Set(available);
+    const regional = modeled.filter((name) => availableSet.has(name));
+    return regional.length ? regional : available;
+}
+
 function scapularStabilizerNames(model = {}) {
     const modelNames = new Set(modelMuscleNames(model));
     const explicit = (Array.isArray(model.scapularStabilizers) ? model.scapularStabilizers : [])
@@ -132,7 +158,7 @@ function publicIntake(intake = {}) {
         heightCm: finiteOrNull(intake.heightCm),
         weightKg: finiteOrNull(intake.weightKg),
         dominantSide: intake.dominantSide || null,
-        assessedSide: intake.assessedArm || intake.assessedSide || null,
+        assessedSide: intake.assessedSide || intake.assessedArm || null,
         symptomDuration: intake.painDuration || intake.symptomDuration || null,
         symptomOnset: intake.painOnset || intake.symptomOnset || null,
         painNow: finiteOrNull(intake.painNow),
@@ -262,10 +288,11 @@ function compactModelReference(modelEstimate, targetPose, model = {}) {
         };
     }
     const muscles = normalizeMuscles(modelEstimate, model);
-    const shoulderNames = new Set(shoulderMuscleNames(model, muscles.map((muscle) => muscle.name)));
-    const shoulder = muscles.filter((muscle) => shoulderNames.has(muscle.name));
-    const relevant = shoulder.sort((a, b) => b.predictedModelControl - a.predictedModelControl).slice(0, 8);
-    const outlier = [...muscles].filter((muscle) => !shoulderNames.has(muscle.name)).sort((a, b) => b.predictedModelControl - a.predictedModelControl)[0];
+    const relevantNames = new Set(regionalMuscleNames(model, muscles.map((muscle) => muscle.name)));
+    const relevant = muscles
+        .filter((muscle) => relevantNames.has(muscle.name))
+        .sort((a, b) => b.predictedModelControl - a.predictedModelControl)
+        .slice(0, 8);
     return {
         available: muscles.length > 0,
         source: modelEstimate.source || 'trial-specific-static-reference',
@@ -279,7 +306,7 @@ function compactModelReference(modelEstimate, targetPose, model = {}) {
         solverConfigurationId: model.solverConfigurationId ?? null,
         modelVersion: model.id ?? null,
         topRelevantPredictedControls: relevant,
-        unexpectedOutlier: outlier ?? null,
+        unexpectedOutlier: null,
         quality: {
             converged: true,
             maximumReserveTorqueNm: finiteOrNull(modelEstimate.maximumReserveTorqueNm),
@@ -338,6 +365,9 @@ function canonicalTrial(record, model, migratedFromVersion = null) {
         includeInHumanProtocol: true,
         name: record.name,
         instruction: record.instruction,
+        designRole: record.designRole ?? null,
+        accessibilityTier: record.accessibilityTier ?? null,
+        sourceCandidateId: record.sourceCandidateId ?? null,
         targetPose: { coordinatesDegrees: targetPose, source: 'protocol_definition' },
         achievedPose: observation.achievedPose
             ? { coordinatesDegrees: observation.achievedPose, source: 'manual_entry' }
@@ -527,6 +557,7 @@ export function buildReportV5({
     assessmentId = createAssessmentId(), generatedAt = new Date().toISOString(), testedSide = 'right',
     safetyReviewed = false, redFlags = [], intake = {}, positionRecords = [], model = {},
     assessmentProtocol = {},
+    assessmentContext = {},
     migratedFromVersion = null, syntheticData = false,
     legacySymptomAssessment = null,
     migrationReason = null
@@ -567,17 +598,43 @@ export function buildReportV5({
     const legacyNotice = legacyModelRecord
         ? 'This archived report is shown for reference only. Earlier model results are not included.'
         : null;
+    const regionTitle = assessmentContext.title ?? model.regionId ?? 'observed body region';
+    const reportRegionId = assessmentContext.regionId ?? model.regionId ?? null;
+    const sideMode = assessmentContext.sideMode ?? model.sideMode
+        ?? (testedSide === 'left' ? 'visual-mirror' : 'native');
+    const { unloadedOpenChain, supportAssumptions } = loadBoundaryMetadata(assessmentContext, model);
+    const legacyShoulderMuscles = !reportRegionId || reportRegionId === 'right-upper-limb'
+        ? shoulderMuscleNames(model, modeledMuscles)
+        : [];
+    const responseDiversityStatus = assessmentContext.responseDiversityStatus ?? null;
+    const responsiveFraction = finiteOrNull(
+        assessmentContext.responsiveInSampledPosesFraction
+    );
+    const weakResponseDiversity = responseDiversityStatus === 'weak'
+        || (Number.isFinite(responsiveFraction) && responsiveFraction < 0.5);
     const limitations = [
-        'No single shoulder movement, activation estimate, force estimate, or model ratio identifies the painful tissue.',
+        `No single ${regionTitle} movement, activation estimate, force estimate, or model ratio identifies the painful tissue.`,
         'Predicted controls and active forces are generic posture references, not measurements from the observed person.',
         'Actual achieved posture, movement speed, support, assistance, and resistance were not measured.',
         'Static recruitment uses an assumed minimum-control objective and does not reproduce dynamic neuromuscular control.',
-        'The static reference uses model self-weight with no measured contact or external hand load; supported, assisted, or resisted observations cannot be inferred from it.',
-        scapularStabilizers.length
-            ? 'Modeled trapezius, serratus-anterior, and related shoulder-girdle stabilizers participate in equilibrium, but their predicted controls do not measure observed scapular motion or compensation.'
-            : 'Independent scapular-stabilizer coverage was not recorded for this model result; scapular compensation cannot be inferred.',
-        'Left-side display is a visual mirror of a right-side model and does not estimate biological side asymmetry.'
+        unloadedOpenChain === true
+            ? 'The static reference is unloaded and open-chain, with no measured contact or external load; supported, assisted, resisted, or weight-bearing observations cannot be inferred from it.'
+            : 'The static reference uses model self-weight with no measured contact or external load; supported, assisted, resisted, or weight-bearing observations cannot be inferred from it.'
     ];
+    if (String(reportRegionId ?? '').includes('upper-limb')) {
+        limitations.push(scapularStabilizers.length
+            ? 'Modeled trapezius, serratus-anterior, and related shoulder-girdle stabilizers participate in equilibrium, but their predicted controls do not measure observed scapular motion or compensation.'
+            : 'Independent scapular-stabilizer coverage was not recorded for this model result; scapular compensation cannot be inferred.');
+    }
+    if (sideMode === 'visual-mirror') {
+        limitations.push('Left-side display is a visual mirror of a right-side model and does not estimate biological side asymmetry.');
+    }
+    for (const limitation of assessmentContext.limitations ?? []) {
+        if (limitation && !limitations.includes(limitation)) limitations.push(limitation);
+    }
+    if (weakResponseDiversity) {
+        limitations.unshift('Weak response diversity in sampled poses: muscle-specific ranking and inference are intentionally suppressed; retain these responses as movement observations only.');
+    }
     if (!protocolIdentity.identityVerified) {
         limitations.push('This report’s assessment version could not be verified, so comparisons and model-reference summaries are unavailable.');
     }
@@ -597,7 +654,16 @@ export function buildReportV5({
             protocolIdentityVerified: protocolIdentity.identityVerified,
             appCommit: model.appCommit ?? null,
             testedSide,
-            modelSide: testedSide === 'left' ? 'right_model_visually_mirrored' : 'right',
+            modelSide: sideMode === 'visual-mirror' ? 'right_model_visually_mirrored' : testedSide,
+            protocolKey: assessmentContext.protocolKey ?? null,
+            regionId: reportRegionId,
+            regionTitle,
+            profileId: assessmentContext.profileId ?? model.profileId ?? null,
+            sideMode,
+            unloadedOpenChain,
+            supportAssumptions,
+            responseDiversityStatus,
+            responsiveInSampledPosesFraction: responsiveFraction,
             modelScaledToSubject: false,
             legacyModelRecord,
             migrationRequired: Boolean(migrationReason),
@@ -612,12 +678,12 @@ export function buildReportV5({
         matchedComparisons: comparisons,
         analyses: {
             genericProtocolDemand: {
-                available: protocolIdentity.identityVerified && technicalTrials.some((trial) => trial.available),
+                available: !weakResponseDiversity && protocolIdentity.identityVerified && technicalTrials.some((trial) => trial.available),
                 symptomLinked: false,
                 subjectSpecific: false,
                 scope: 'generic_model_demand_across_protocol_postures_only',
                 statement: 'This summary ranks generic-model demand across the protocol postures without using pain, weakness, or other participant observations.',
-                ranking: protocolIdentity.identityVerified ? demandRanking(humanTrials, technicalTrials) : []
+                ranking: !weakResponseDiversity && protocolIdentity.identityVerified ? demandRanking(humanTrials, technicalTrials) : []
             }
         },
         modelCoverage: {
@@ -632,14 +698,22 @@ export function buildReportV5({
             analysisType: analysisType(model),
             controlFloor: modelControlFloor(model),
             functionalMuscleCount: finiteOrNull(model.functionalMuscleCount) ?? modeledMuscles.length,
-            shoulderMusclesIncluded: shoulderMuscleNames(model, modeledMuscles),
+            regionId: reportRegionId,
+            regionDigest: model.regionDigest ?? null,
+            profileId: assessmentContext.profileId ?? model.profileId ?? null,
+            sideMode,
+            unloadedOpenChain,
+            supportAssumptions,
+            regionalMusclesIncluded: regionalMuscleNames(model, modeledMuscles),
+            shoulderMusclesIncluded: legacyShoulderMuscles,
             scapularStabilizersIncluded: scapularStabilizers,
             staticHoldAssumptions: Array.isArray(model.staticHold?.assumptions) ? [...model.staticHold.assumptions] : [],
             subjectScaled: false,
             missingIndependentActuators,
             jointReactionAvailable: false,
             contralateralModelAvailable: false,
-            mirroredSideIsVisualOnly: testedSide === 'left',
+            mirroredSideIsVisualOnly: sideMode === 'visual-mirror',
+            weakResponseDiversity,
             legacyModelRecord,
             legacyNotice
         },
@@ -657,6 +731,16 @@ export function buildReportV5({
         generatedAt,
         assessmentId,
         assessmentProtocol: protocolIdentity,
+        assessmentContext: {
+            protocolKey: assessmentContext.protocolKey ?? null,
+            regionId: reportRegionId,
+            profileId: assessmentContext.profileId ?? model.profileId ?? null,
+            sideMode,
+            unloadedOpenChain,
+            supportAssumptions,
+            responseDiversityStatus,
+            responsiveInSampledPosesFraction: responsiveFraction
+        },
         migrationRequired: Boolean(migrationReason),
         migrationReason,
         privacyStatus: legacySymptomAssessment

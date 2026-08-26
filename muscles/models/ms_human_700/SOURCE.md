@@ -31,15 +31,16 @@ authors.
 - `LICENSE` SHA-256: `1EB85FC97224598DAD1852B5D6483BBCF0AA8608790DCC657A5A2A761AE9C8C6`
 
 The generated files under `public/models/ms_human_700/` are browser-oriented
-derivatives for the articulated right-arm application. `right-arm-runtime.mjb`
-retains the complete compiled kinematics, passive forces, actuator inventory,
-and tendon wrapping needed for posture realization and the static calculation;
+derivatives for the regional biomechanics application. The compatibility-named
+`right-arm-runtime.mjb` retains the complete primary-model kinematics, passive
+forces, actuator inventory, and tendon wrapping used by every primary region;
 `right-arm.meshbin` stores the complete displayed skeleton in body-local
-coordinates. The right arm is tagged as the active subject and every other
-mesh is faint visual context; `right-arm.json` records the exact mapping and
-validation metadata. Their source is the package in this directory, and they
-remain subject to Apache-2.0. The project's own viewer and solver-integration
-code is separately MIT-licensed.
+coordinates. `right-arm.json` retains the original right-arm mapping, while
+`body-regions.json` records the arm, leg, foot-and-ankle, trunk, and
+head-and-neck mappings and validation metadata. The separate `right-hand.*`
+profile is generated from the manipulation model. Their source is the package
+in this directory, and they remain subject to Apache-2.0. The project's own
+viewer and solver-integration code is separately MIT-licensed.
 
 The public package is explicitly released under Apache-2.0. Its associated
 paper says that OpenSim models were used as references during parameterization.

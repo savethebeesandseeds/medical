@@ -13,6 +13,12 @@ const diagnosisMirrorUrl = new URL(`.diagnosis-under-test-${Date.now()}.mjs`, im
 const protocolModuleUrl = new URL('../public/ms-human-assessment-protocol.js', import.meta.url);
 const protocolModuleSource = await readFile(protocolModuleUrl, 'utf8');
 const protocolMirrorUrl = new URL(`.assessment-protocol-under-test-${Date.now()}.mjs`, import.meta.url);
+const generatedProtocolModuleUrl = new URL('../public/generated-regional-assessment-protocols.js', import.meta.url);
+const generatedProtocolModuleSource = await readFile(generatedProtocolModuleUrl, 'utf8');
+const generatedProtocolMirrorUrl = new URL(`.generated-regional-protocols-under-test-${Date.now()}.mjs`, import.meta.url);
+const protocolRegistryModuleUrl = new URL('../public/assessment-protocol-registry.js', import.meta.url);
+const protocolRegistryModuleSource = await readFile(protocolRegistryModuleUrl, 'utf8');
+const protocolRegistryMirrorUrl = new URL(`.assessment-protocol-registry-under-test-${Date.now()}.mjs`, import.meta.url);
 const i18nModuleUrl = new URL('../public/i18n.js', import.meta.url);
 const i18nModuleSource = await readFile(i18nModuleUrl, 'utf8');
 const i18nMirrorUrl = new URL(`.i18n-under-test-${Date.now()}.mjs`, import.meta.url);
@@ -21,12 +27,20 @@ let diagnosisModule;
 try {
     await writeFile(moduleMirrorUrl, reportModuleSource, 'utf8');
     await writeFile(protocolMirrorUrl, protocolModuleSource, 'utf8');
+    await writeFile(generatedProtocolMirrorUrl, generatedProtocolModuleSource, 'utf8');
+    await writeFile(
+        protocolRegistryMirrorUrl,
+        protocolRegistryModuleSource
+            .replace("'./ms-human-assessment-protocol.js'", JSON.stringify(protocolMirrorUrl.href))
+            .replace("'./generated-regional-assessment-protocols.js'", JSON.stringify(generatedProtocolMirrorUrl.href)),
+        'utf8'
+    );
     await writeFile(i18nMirrorUrl, i18nModuleSource, 'utf8');
     await writeFile(
         diagnosisMirrorUrl,
         diagnosisModuleSource
             .replace("'./report-v5.js'", JSON.stringify(moduleMirrorUrl.href))
-            .replace("'./ms-human-assessment-protocol.js'", JSON.stringify(protocolMirrorUrl.href))
+            .replace("'./assessment-protocol-registry.js'", JSON.stringify(protocolRegistryMirrorUrl.href))
             .replace("'./i18n.js'", JSON.stringify(i18nMirrorUrl.href)),
         'utf8'
     );
@@ -36,6 +50,8 @@ try {
     await unlink(moduleMirrorUrl).catch(() => {});
     await unlink(diagnosisMirrorUrl).catch(() => {});
     await unlink(protocolMirrorUrl).catch(() => {});
+    await unlink(generatedProtocolMirrorUrl).catch(() => {});
+    await unlink(protocolRegistryMirrorUrl).catch(() => {});
     await unlink(i18nMirrorUrl).catch(() => {});
 }
 
@@ -553,6 +569,125 @@ test('matched comparisons explain incomplete observations and compute only expli
     assert.equal(computable.observationDelta.painScore, 4);
     assert.equal(computable.observationDelta.weaknessScore, 2);
     assert.equal(computable.modelDelta, undefined);
+});
+
+test('regional reports retain native region inventory without right-arm wording', () => {
+    const regionalModel = {
+        id: 'ms-human-700-primary-regions',
+        regionId: 'right-lower-limb',
+        regionDigest: 'regional-test-digest',
+        profileId: 'primary',
+        sideMode: 'native',
+        name: 'MS-Human-700',
+        muscles: ['iliacus_r', 'vasti_r', 'LD_L3_r'],
+        functionalMuscleCount: 3,
+        source: { modelLicense: 'Apache-2.0' }
+    };
+    const regionalEstimate = {
+        available: true,
+        muscles: [
+            { name: 'iliacus_r', activation: 0.4, activeActuatorForceN: 40 },
+            { name: 'vasti_r', activation: 0.2, activeActuatorForceN: 20 }
+        ]
+    };
+    const regionalProtocol = {
+        id: 'regional-lower-limb-test',
+        version: '1.0.0-test',
+        digest: `sha256:${'c'.repeat(64)}`,
+        trialIds: ['LEG-01'],
+        matchedComparisons: []
+    };
+    const supportAssumptions = 'Unloaded open-chain lower limb with no ground contact.';
+    const { report, technicalAnnex } = buildReportV5({
+        assessmentId: 'regional-test',
+        testedSide: 'right',
+        safetyReviewed: true,
+        assessmentProtocol: regionalProtocol,
+        assessmentContext: {
+            protocolKey: 'right-lower-limb',
+            regionId: 'right-lower-limb',
+            profileId: 'primary',
+            title: 'Right lower limb',
+            sideMode: 'native',
+            unloadedOpenChain: supportAssumptions,
+            responseDiversityStatus: 'activation-diverse',
+            responsiveInSampledPosesFraction: 0.94
+        },
+        model: regionalModel,
+        positionRecords: [{
+            id: 'LEG-01',
+            sequence: 1,
+            name: 'Neutral leg reference',
+            instruction: 'Keep the limb relaxed.',
+            designRole: 'reference',
+            accessibilityTier: 'neutral-reference',
+            coordinatesDegrees: { hip_flexion_r: 0 },
+            rawObservation: explicitObservation(),
+            modelEstimate: regionalEstimate
+        }]
+    });
+    assert.equal(report.assessment.regionId, 'right-lower-limb');
+    assert.equal(report.assessment.sideMode, 'native');
+    assert.deepEqual(report.modelCoverage.regionalMusclesIncluded, ['iliacus_r', 'vasti_r', 'LD_L3_r']);
+    assert.deepEqual(report.modelCoverage.shoulderMusclesIncluded, []);
+    assert.equal(report.assessment.unloadedOpenChain, true);
+    assert.equal(report.assessment.supportAssumptions, supportAssumptions);
+    assert.equal(report.modelCoverage.unloadedOpenChain, true);
+    assert.equal(report.modelCoverage.supportAssumptions, supportAssumptions);
+    assert.equal(technicalAnnex.assessmentContext.unloadedOpenChain, true);
+    assert.equal(technicalAnnex.assessmentContext.supportAssumptions, supportAssumptions);
+    assert.equal(report.modelCoverage.mirroredSideIsVisualOnly, false);
+    assert.equal(report.trials[0].designRole, 'reference');
+    assert.equal(report.trials[0].accessibilityTier, 'neutral-reference');
+    assert.equal(report.limitations.some((value) => /right-arm|scapular|visual mirror/i.test(value)), false);
+    assert.ok(report.analyses.genericProtocolDemand.ranking.some((value) => value.name === 'iliacus_r'));
+});
+
+test('limited response diversity suppresses muscle-specific regional ranking', () => {
+    const { report } = buildReportV5({
+        assessmentId: 'weak-foot-test',
+        testedSide: 'right',
+        safetyReviewed: true,
+        assessmentProtocol: {
+            id: 'regional-foot-test',
+            version: '1.0.0-test',
+            digest: `sha256:${'d'.repeat(64)}`,
+            trialIds: ['FOOT-01'],
+            matchedComparisons: []
+        },
+        assessmentContext: {
+            protocolKey: 'right-foot-ankle',
+            regionId: 'right-foot-ankle',
+            title: 'Right foot and ankle',
+            sideMode: 'native',
+            unloadedOpenChain: true,
+            responseDiversityStatus: 'limited',
+            responsiveInSampledPosesFraction: 1 / 11
+        },
+        model: {
+            id: 'ms-human-700-primary-regions',
+            regionId: 'right-foot-ankle',
+            sideMode: 'native',
+            muscles: ['tibialis_anterior_r'],
+            functionalMuscleCount: 1
+        },
+        positionRecords: [{
+            id: 'FOOT-01',
+            sequence: 1,
+            name: 'Neutral foot reference',
+            instruction: 'Keep the foot relaxed.',
+            coordinatesDegrees: { ankle_angle_r: 0 },
+            rawObservation: explicitObservation(),
+            modelEstimate: {
+                available: true,
+                muscles: [{ name: 'tibialis_anterior_r', activation: 0.2, activeActuatorForceN: 12 }]
+            }
+        }]
+    });
+    assert.equal(report.modelCoverage.weakResponseDiversity, true);
+    assert.equal(report.analyses.genericProtocolDemand.available, false);
+    assert.deepEqual(report.analyses.genericProtocolDemand.ranking, []);
+    assert.match(report.limitations[0], /Weak response diversity in sampled poses/i);
 });
 
 let passed = 0;

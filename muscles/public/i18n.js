@@ -1,6 +1,6 @@
 const CATALOG_SCHEMA_VERSION = 1;
 const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*(?:\.[A-Za-z0-9][A-Za-z0-9_-]*)*$/;
-const TRANSLATABLE_ATTRIBUTES = new Set(['aria-label', 'title', 'placeholder', 'data-tooltip', 'data-label']);
+const TRANSLATABLE_ATTRIBUTES = new Set(['aria-label', 'title', 'placeholder', 'data-tooltip', 'data-label', 'content']);
 const PLACEHOLDER_PATTERN = /\{([a-z][a-zA-Z0-9]*)\}/g;
 const TOOL_ROUTE_PATTERN = /\/(en|es|de|el|cs|zh)(?=\/tools\/muscles(?:\/|$))/i;
 

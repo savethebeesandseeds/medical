@@ -2,7 +2,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ATTRIBUTE_ALLOWLIST = new Set(['aria-label', 'title', 'placeholder', 'data-tooltip', 'data-label']);
+const ATTRIBUTE_ALLOWLIST = new Set(['aria-label', 'title', 'placeholder', 'data-tooltip', 'data-label', 'content']);
+const PUBLIC_TOOL_ORIGIN = 'https://medical.waajacu.com';
 const ROUTES = Object.freeze([
     { route: 'en', catalog: 'en.json' },
     { route: 'es', catalog: 'es.json' },
@@ -27,6 +28,8 @@ function requiredMessage(catalog, key) {
 
 export function renderLocalizedHtml(template, catalog) {
     let html = String(template);
+    const route = catalog.locale === 'zh-Hans' ? 'zh' : catalog.locale;
+    const canonicalUrl = `${PUBLIC_TOOL_ORIGIN}/${route}/tools/muscles/`;
     html = html.replace(/<html\b([^>]*)>/i, (_, attributes) => {
         const withoutLanguage = attributes
             .replace(/\s+lang="[^"]*"/i, '')
@@ -34,6 +37,14 @@ export function renderLocalizedHtml(template, catalog) {
         return `<html${withoutLanguage} lang="${escapeAttribute(catalog.locale)}" dir="${escapeAttribute(catalog.dir)}">`;
     });
     html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeText(requiredMessage(catalog, 'meta.title'))}</title>`);
+    html = html.replace(
+        /<link\b(?=[^>]*\brel="canonical")[^>]*>/i,
+        `<link rel="canonical" href="${escapeAttribute(canonicalUrl)}">`
+    );
+    html = html.replace(
+        /<meta\b(?=[^>]*\bproperty="og:url")[^>]*>/i,
+        `<meta property="og:url" content="${escapeAttribute(canonicalUrl)}">`
+    );
 
     html = html.replace(
         /<([A-Za-z][\w:-]*)\b([^>]*\bdata-i18n="([^"]+)"[^>]*)>[\s\S]*?<\/\1>/gi,

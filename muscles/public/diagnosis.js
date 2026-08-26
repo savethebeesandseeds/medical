@@ -7,26 +7,16 @@ import {
     migrateReportToV5
 } from './report-v5.js';
 import {
-    MS_HUMAN_ASSESSMENT_POSITIONS,
-    MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL
-} from './ms-human-assessment-protocol.js';
+    ASSESSMENT_PROTOCOLS,
+    DEFAULT_ASSESSMENT_PROTOCOL_KEY,
+    assessmentProtocolByIdentity,
+    assessmentProtocolByKey
+} from './assessment-protocol-registry.js';
 import { formatDate, formatNumber, plural, t } from './i18n.js';
 
 const DIAGNOSIS_DRAFT_KEY = 'waajacu-medical.diagnosis-draft.v1';
 const DIAGNOSIS_REPORTS_KEY = 'waajacu-medical.patient-reports.v1';
 const MAX_SAVED_REPORTS = 100;
-
-const POSE_KEYS = [
-    'elv_angle_r',
-    'shoulder_elv_r',
-    'shoulder_rot_r',
-    'elbow_flexion_r',
-    'pro_sup_r',
-    'deviation_r',
-    'flexion_r'
-];
-
-const ASSESSMENT_POSITIONS = MS_HUMAN_ASSESSMENT_POSITIONS;
 
 function emptyPositionResponse() {
     return {
@@ -45,16 +35,6 @@ function emptyPositionResponse() {
         result: 'not_tested'
     };
 }
-
-const CAPACITY_ANGLE_LABELS = Object.freeze({
-    elv_angle_r: 'assessment.angles.plane',
-    shoulder_elv_r: 'assessment.angles.shoulder',
-    shoulder_rot_r: 'assessment.angles.rotation',
-    elbow_flexion_r: 'assessment.angles.elbow',
-    pro_sup_r: 'assessment.angles.forearm',
-    deviation_r: 'assessment.angles.wrist-deviation',
-    flexion_r: 'assessment.angles.wrist-flexion'
-});
 
 const RED_FLAGS = Object.freeze([
     { id: 'cardiopulmonary', urgency: 'emergency' },
@@ -132,7 +112,7 @@ export function reportModelMetadata(model = {}) {
         modelDigest: model.modelDigest ?? model.identity?.modelDigest ?? null,
         name: model.name ?? model.model?.name ?? null,
         variant: model.variant ?? model.scope ?? model.model?.variant ?? null,
-        scope: model.scope ?? model.model?.variant ?? 'generic right-arm static posture',
+        scope: model.scope ?? model.model?.variant ?? 'generic regional static posture',
         runtime: model.runtime ?? model.model?.runtime
             ?? (model.source?.mujocoVersion ? `MuJoCo ${model.source.mujocoVersion}` : null),
         source: model.source ?? null,
@@ -140,6 +120,12 @@ export function reportModelMetadata(model = {}) {
         solverConfigurationId: model.solverConfigurationId ?? model.staticHold?.configurationId ?? null,
         regionId: model.regionId ?? model.region?.id ?? null,
         regionDigest: model.regionDigest ?? model.region?.digest ?? null,
+        profileId: model.profileId ?? model.region?.profileId ?? null,
+        sideMode: model.sideMode ?? model.region?.sideMode ?? null,
+        unloadedOpenChain: model.unloadedOpenChain ?? null,
+        dynamicMotion: model.dynamicMotion ?? false,
+        externalLoads: model.externalLoads ?? false,
+        patientSpecific: model.patientSpecific ?? false,
         analysisType: model.analysisType ?? 'bounded_static_equilibrium',
         controlFloor: 0,
         functionalMuscleCount: model.functionalMuscleCount ?? model.model?.functionalMuscles ?? muscles.length,
@@ -196,13 +182,15 @@ export function completeStaticState(state, model = {}) {
 
 export function createDiagnosisWorkflow(controller) {
     const byId = (id) => document.getElementById(id);
+    const initialProtocol = assessmentProtocolByKey(DEFAULT_ASSESSMENT_PROTOCOL_KEY) ?? ASSESSMENT_PROTOCOLS[0];
     const state = {
         schemaVersion: REPORT_SCHEMA_VERSION,
         assessmentId: createAssessmentId(),
+        assessmentProtocolKey: initialProtocol.key,
         activeCapacityIndex: 0,
-        capacityResponses: Object.fromEntries(ASSESSMENT_POSITIONS.map((position) => [position.id, emptyPositionResponse()])),
+        capacityResponses: Object.fromEntries(initialProtocol.positions.map((position) => [position.id, emptyPositionResponse()])),
         capacityModelStates: {},
-        testedSide: 'right',
+        testedSide: initialProtocol.side,
         redFlags: Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null])),
         safetyReviewed: false,
         intakeCompleted: false,
@@ -225,6 +213,88 @@ export function createDiagnosisWorkflow(controller) {
         dialogAction: null,
         dialogReturnFocus: null
     };
+
+    function protocolEntry(key = state.assessmentProtocolKey) {
+        return assessmentProtocolByKey(key)
+            ?? assessmentProtocolByKey(DEFAULT_ASSESSMENT_PROTOCOL_KEY)
+            ?? ASSESSMENT_PROTOCOLS[0];
+    }
+
+    function protocolPositions(entry = protocolEntry()) {
+        return Array.isArray(entry?.positions) ? entry.positions : [];
+    }
+
+    function protocolReport(entry = protocolEntry()) {
+        return entry?.reportProtocol ?? entry?.protocol ?? {};
+    }
+
+    function emptyProtocolResponses(entry = protocolEntry()) {
+        return Object.fromEntries(protocolPositions(entry).map((position) => [position.id, emptyPositionResponse()]));
+    }
+
+    function reportProtocolEntry(report = {}) {
+        const identity = report.assessment?.assessmentProtocol ?? {
+            id: report.assessment?.assessmentProtocolId,
+            version: report.assessment?.protocolVersion,
+            digest: report.assessment?.assessmentProtocolDigest
+        };
+        return assessmentProtocolByIdentity(identity);
+    }
+
+    function localizedFallback(key, fallback) {
+        try {
+            const value = t(key);
+            return value && value !== key ? value : String(fallback ?? key);
+        } catch {
+            return String(fallback ?? key);
+        }
+    }
+
+    function protocolTitle(entry = protocolEntry(), short = false) {
+        return localizedFallback(short ? entry.shortTitleKey : entry.titleKey, short ? entry.shortTitle : entry.title);
+    }
+
+    function protocolDescription(entry = protocolEntry()) {
+        return localizedFallback(entry.descriptionKey, entry.description);
+    }
+
+    function localizedPosition(position, entry = protocolEntry()) {
+        const prefix = entry.positionI18nPrefix || 'assessment.positions';
+        return {
+            name: localizedFallback(`${prefix}.${position.id}.name`, position.name),
+            instruction: localizedFallback(`${prefix}.${position.id}.instruction`, position.instruction)
+        };
+    }
+
+    function angleLabel(key, entry = protocolEntry()) {
+        const fallback = entry.angleLabels?.[key] ?? key.replaceAll('_', ' ');
+        const legacyKeys = {
+            elv_angle_r: 'assessment.angles.plane',
+            shoulder_elv_r: 'assessment.angles.shoulder',
+            shoulder_rot_r: 'assessment.angles.rotation',
+            elbow_flexion_r: 'assessment.angles.elbow',
+            pro_sup_r: 'assessment.angles.forearm',
+            deviation_r: 'assessment.angles.wrist-deviation',
+            flexion_r: 'assessment.angles.wrist-flexion'
+        };
+        return legacyKeys[key] ? localizedFallback(legacyKeys[key], fallback) : fallback;
+    }
+
+    function requiredProtocolPositions(entry = protocolEntry()) {
+        // Every posture must receive an explicit response in sequence. Broad
+        // postures remain optional to attempt because "Skipped" is a complete
+        // response; silently omitting them would make archived reports appear
+        // complete without recording that clinical choice.
+        return protocolPositions(entry);
+    }
+
+    function protocolUsesOrderedProgression(entry = protocolEntry()) {
+        return Boolean(entry);
+    }
+
+    function protocolSideOptions(entry = protocolEntry()) {
+        return Array.isArray(entry.sideOptions) && entry.sideOptions.length ? entry.sideOptions : [entry.side ?? 'right'];
+    }
 
     function recordCode(assessmentId = state.assessmentId) {
         const source = String(assessmentId ?? '');
@@ -264,20 +334,38 @@ export function createDiagnosisWorkflow(controller) {
         if (!Array.isArray(reports)) return [];
         return reports.map((entry) => {
             const patient = entry?.patient ?? entry?.report?.intake ?? {};
+            const storedProtocol = reportProtocolEntry(entry?.report ?? {});
             const migrated = migrateReportToV5(entry?.report, entry?.technicalAnnex ?? null, {
-                assessmentProtocol: MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL
+                assessmentProtocol: storedProtocol?.reportProtocol ?? {}
             });
-            return { ...entry, patient, report: migrated.report, technicalAnnex: migrated.technicalAnnex };
+            return {
+                ...entry,
+                patient,
+                report: migrated.report,
+                technicalAnnex: migrated.technicalAnnex,
+                protocolEntry: storedProtocol ?? reportProtocolEntry(migrated.report)
+            };
         }).filter((entry) => entry?.report?.generatedAt && entry.patient);
     }
 
     function restoreDraft() {
         const draft = readStoredJson(DIAGNOSIS_DRAFT_KEY, null);
         if (!draft || ![4, state.schemaVersion].includes(Number(draft.schemaVersion))) return false;
-        const emptyResponses = Object.fromEntries(ASSESSMENT_POSITIONS.map((position) => [position.id, emptyPositionResponse()]));
-        const protocolMatches = draft.assessmentProtocolId === MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.id
-            && draft.assessmentProtocolVersion === MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.version
-            && draft.assessmentProtocolDigest === MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.digest;
+        const hasStoredIdentity = Boolean(
+            draft.assessmentProtocolId || draft.assessmentProtocolVersion || draft.assessmentProtocolDigest
+        );
+        const draftProtocol = hasStoredIdentity
+            ? assessmentProtocolByIdentity({
+                id: draft.assessmentProtocolId,
+                version: draft.assessmentProtocolVersion,
+                digest: draft.assessmentProtocolDigest
+            })
+            : assessmentProtocolByKey(draft.assessmentProtocolKey);
+        const protocolMatches = Boolean(draftProtocol);
+        if (draftProtocol) state.assessmentProtocolKey = draftProtocol.key;
+        const activeProtocol = protocolEntry();
+        const positions = protocolPositions(activeProtocol);
+        const emptyResponses = emptyProtocolResponses(activeProtocol);
         const storedProtocolObservations = !protocolMatches && draft.capacityResponses
             ? {
                 sourceSchemaVersion: Number(draft.schemaVersion),
@@ -315,9 +403,9 @@ export function createDiagnosisWorkflow(controller) {
             };
         };
         state.activeCapacityIndex = protocolMatches
-            ? Math.max(0, Math.min(ASSESSMENT_POSITIONS.length - 1, Number(draft.activeCapacityIndex) || 0))
+            ? Math.max(0, Math.min(positions.length - 1, Number(draft.activeCapacityIndex) || 0))
             : 0;
-        state.capacityResponses = Object.fromEntries(ASSESSMENT_POSITIONS.map((position) => [
+        state.capacityResponses = Object.fromEntries(positions.map((position) => [
             position.id,
             { ...emptyResponses[position.id], ...(protocolMatches ? migrateLegacyResponse(draft.capacityResponses?.[position.id] ?? {}) : {}) }
         ]));
@@ -325,9 +413,13 @@ export function createDiagnosisWorkflow(controller) {
             response.answered = capacityResponseComplete(response);
             response.result = derivePositionResult(response);
         }
-        const firstUnansweredIndex = ASSESSMENT_POSITIONS.findIndex((position) => !state.capacityResponses[position.id].answered);
-        if (firstUnansweredIndex !== -1) state.activeCapacityIndex = Math.min(state.activeCapacityIndex, firstUnansweredIndex);
-        state.testedSide = draft.testedSide === 'left' ? 'left' : 'right';
+        const firstUnansweredIndex = positions.findIndex((position) => !state.capacityResponses[position.id].answered);
+        if (protocolUsesOrderedProgression(activeProtocol) && firstUnansweredIndex !== -1) {
+            state.activeCapacityIndex = Math.min(state.activeCapacityIndex, firstUnansweredIndex);
+        }
+        state.testedSide = protocolSideOptions(activeProtocol).includes(draft.testedSide)
+            ? draft.testedSide
+            : activeProtocol.side;
         state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [
             flag.id,
             protocolMatches && typeof draft.redFlags?.[flag.id] === 'boolean' ? draft.redFlags[flag.id] : null
@@ -386,9 +478,10 @@ export function createDiagnosisWorkflow(controller) {
         }
         const draft = {
             schemaVersion: state.schemaVersion,
-            assessmentProtocolId: MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.id,
-            assessmentProtocolVersion: MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.version,
-            assessmentProtocolDigest: MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.digest,
+            assessmentProtocolKey: protocolEntry().key,
+            assessmentProtocolId: protocolReport().id,
+            assessmentProtocolVersion: protocolReport().version,
+            assessmentProtocolDigest: protocolReport().digest,
             assessmentId: state.assessmentId,
             updatedAt: new Date().toISOString(),
             phase: state.phase,
@@ -426,12 +519,78 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function fillIntakeForm(intake = {}) {
+        renderIntakeProtocolOptions();
         const form = byId('diagnosis-intake-form');
         for (const element of form.elements) {
-            if (!element.name || !(element.name in intake)) continue;
+            if (!element.name) continue;
+            const legacyValue = element.name === 'assessedSide' ? intake.assessedArm : undefined;
+            if (!(element.name in intake) && legacyValue === undefined) continue;
             if (element.type === 'checkbox') element.checked = Boolean(intake[element.name]);
-            else element.value = intake[element.name] ?? '';
+            else element.value = intake[element.name] ?? legacyValue ?? '';
         }
+    }
+
+    function optionValue(label) {
+        return String(label ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    }
+
+    function renderIntakeProtocolOptions() {
+        const entry = protocolEntry();
+        const sideSelect = byId('diagnosis-intake-form')?.elements?.assessedSide;
+        if (sideSelect) {
+            const current = state.intake?.assessedSide ?? state.intake?.assessedArm ?? state.testedSide;
+            sideSelect.replaceChildren();
+            for (const side of protocolSideOptions(entry)) {
+                const option = document.createElement('option');
+                option.value = side;
+                option.textContent = sideLabel(side);
+                option.selected = side === current;
+                sideSelect.append(option);
+            }
+            if (!sideSelect.value) sideSelect.value = entry.side;
+        }
+        const locationSelect = byId('diagnosis-intake-form')?.elements?.primaryPainLocation;
+        if (locationSelect) {
+            const current = state.intake?.primaryPainLocation ?? '';
+            locationSelect.replaceChildren();
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = t('common.options.select');
+            locationSelect.append(placeholder);
+            for (const label of entry.intakeLocationOptions ?? []) {
+                const option = document.createElement('option');
+                option.value = optionValue(label);
+                option.textContent = localizedFallback(`assessment.protocol.options.location.${option.value}`, label);
+                option.selected = option.value === current;
+                locationSelect.append(option);
+            }
+        }
+    }
+
+    function renderProtocolPicker() {
+        const select = byId('diagnosis-protocol-select');
+        if (!select) return;
+        select.replaceChildren();
+        for (const entry of ASSESSMENT_PROTOCOLS) {
+            const option = document.createElement('option');
+            option.value = entry.key;
+            option.textContent = protocolTitle(entry);
+            option.selected = entry.key === state.assessmentProtocolKey;
+            select.append(option);
+        }
+        const entry = protocolEntry();
+        const required = requiredProtocolPositions(entry).length;
+        const total = protocolPositions(entry).length;
+        byId('diagnosis-protocol-summary').textContent = `${protocolDescription(entry)} · ${t('assessment.protocol.position-count', { required, total })}`;
+        const responseDiversityStatus = entry.evidence?.responseDiversityStatus;
+        const responsiveFraction = entry.evidence?.responsiveInSampledPosesFraction;
+        const weak = responseDiversityStatus === 'weak'
+            || Number(responsiveFraction) < 0.5;
+        const boundary = byId('diagnosis-protocol-boundary');
+        boundary.textContent = weak
+            ? t('assessment.protocol.weak-response-diversity')
+            : t('assessment.protocol.unloaded-static');
+        boundary.classList.toggle('warning', weak);
     }
 
     function reportPatientKey(intake = {}) {
@@ -487,17 +646,23 @@ export function createDiagnosisWorkflow(controller) {
 
     function beginAssessmentWithPatientDetails(entry) {
         const prior = entry.patient ?? entry.report.intake ?? {};
-        const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'assessedArm'];
+        const savedProtocol = entry.protocolEntry ?? reportProtocolEntry(entry.report);
+        if (savedProtocol) state.assessmentProtocolKey = savedProtocol.key;
+        const activeProtocol = protocolEntry();
+        const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'assessedSide', 'assessedArm'];
         cancelPreview();
         state.assessmentId = createAssessmentId();
         state.activeCapacityIndex = 0;
-        state.capacityResponses = Object.fromEntries(ASSESSMENT_POSITIONS.map((position) => [position.id, emptyPositionResponse()]));
+        state.capacityResponses = emptyProtocolResponses(activeProtocol);
         state.capacityModelStates = {};
         state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null]));
         state.safetyReviewed = false;
         state.intake = {};
         for (const field of demographics) state.intake[field] = prior[field] ?? '';
-        state.testedSide = state.intake.assessedArm === 'left' ? 'left' : 'right';
+        state.testedSide = protocolSideOptions(activeProtocol).includes(state.intake.assessedSide ?? state.intake.assessedArm)
+            ? (state.intake.assessedSide ?? state.intake.assessedArm)
+            : activeProtocol.side;
+        state.intake.assessedSide = state.testedSide;
         state.intakeCompleted = false;
         state.report = null;
         state.reportAnnex = null;
@@ -507,6 +672,7 @@ export function createDiagnosisWorkflow(controller) {
         state.viewingSavedReport = false;
         byId('diagnosis-intake-form').reset();
         fillIntakeForm(state.intake);
+        renderProtocolPicker();
         clearDraft();
         setSide(state.testedSide);
         renderCapacityList();
@@ -515,6 +681,16 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function importPatientDetails(entry) {
+        if (!entry.protocolEntry) {
+            showAppDialog({
+                title: t('assessment.protocol.unavailable-title'),
+                message: t('assessment.protocol.unavailable-message'),
+                confirmLabel: t('common.actions.confirm'),
+                danger: false,
+                onConfirm: () => {}
+            });
+            return;
+        }
         const prior = entry.patient ?? entry.report.intake ?? {};
         const participant = prior.name || t('assessment.participant.this-participant');
         showAppDialog({
@@ -542,7 +718,8 @@ export function createDiagnosisWorkflow(controller) {
 
     function updateSavedRecordsUi() {
         const reports = savedReports();
-        const answered = ASSESSMENT_POSITIONS.filter((position) => state.capacityResponses[position.id]?.answered).length;
+        const positions = protocolPositions();
+        const answered = positions.filter((position) => state.capacityResponses[position.id]?.answered).length;
         const patient = state.intake?.name ? t('assessment.storage.participant-prefix', { participant: state.intake.name }) : '';
         const draftState = byId('diagnosis-draft-state');
         const privacy = byId('diagnosis-records-privacy');
@@ -560,13 +737,13 @@ export function createDiagnosisWorkflow(controller) {
             privacy.textContent = t('assessment.storage.none-loaded');
         } else if (state.storageMode === 'session') {
             draftState.textContent = state.protocolMigrationNotice ? t('assessment.storage.protocol-migration') : (state.draftUpdatedAt
-                ? t('assessment.storage.session-progress', { patient, answered, total: ASSESSMENT_POSITIONS.length })
+                ? t('assessment.storage.session-progress', { patient, answered, total: positions.length })
                 : t('assessment.storage.session-empty'));
             privacy.textContent = t('assessment.storage.session-privacy');
             if (activeStorageNotice) activeStorageNotice.textContent = t('assessment.storage.session-notice');
         } else {
             draftState.textContent = state.protocolMigrationNotice ? t('assessment.storage.protocol-migration') : (state.draftUpdatedAt
-                ? t('assessment.storage.device-progress', { patient, answered, total: ASSESSMENT_POSITIONS.length })
+                ? t('assessment.storage.device-progress', { patient, answered, total: positions.length })
                 : t('assessment.storage.device-empty'));
             privacy.textContent = state.deviceStorageError
                 ? t('assessment.storage.save-failed')
@@ -658,9 +835,12 @@ export function createDiagnosisWorkflow(controller) {
             assessmentCell.dataset.label = t('assessment.records.columns.assessment');
             const assessmentDetails = document.createElement('div');
             assessmentDetails.className = 'saved-report-assessment';
-            const arm = entry.patient?.assessedArm || entry.report.assessment?.testedSide;
+            const storedProtocol = entry.protocolEntry;
+            const side = entry.patient?.assessedSide || entry.patient?.assessedArm || entry.report.assessment?.testedSide;
             const armValue = document.createElement('strong');
-            armValue.textContent = arm ? t('assessment.records.arm', { side: sideLabel(arm) }) : t('assessment.records.arm-not-recorded');
+            armValue.textContent = storedProtocol
+                ? t('assessment.records.region', { region: protocolTitle(storedProtocol, true), side: sideLabel(side) })
+                : t('assessment.records.protocol-unavailable');
             const progress = document.createElement('span');
             const recorded = Number.isFinite(quality.recordedTrialCount) ? quality.recordedTrialCount : null;
             const required = Number.isFinite(quality.requiredTrialCount) ? quality.requiredTrialCount : null;
@@ -681,6 +861,8 @@ export function createDiagnosisWorkflow(controller) {
             use.className = 'saved-report-action reuse';
             use.textContent = t('assessment.records.actions.assess-again');
             use.setAttribute('aria-label', t('assessment.records.actions.assess-again-label', { recordCode: reportCode }));
+            use.disabled = !storedProtocol;
+            if (!storedProtocol) use.title = t('assessment.records.protocol-unavailable');
             use.addEventListener('click', () => importPatientDetails(entry));
             const view = document.createElement('button');
             view.type = 'button';
@@ -744,7 +926,30 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.add('hidden');
+        renderProtocolPicker();
         window.requestAnimationFrame(controller.resizeViewer);
+    }
+
+    function selectAssessmentProtocol(key) {
+        if (state.phase !== 'privacy') return;
+        const entry = assessmentProtocolByKey(key);
+        if (!entry || entry.key === state.assessmentProtocolKey) return;
+        cancelPreview();
+        state.assessmentProtocolKey = entry.key;
+        state.activeCapacityIndex = 0;
+        state.capacityResponses = emptyProtocolResponses(entry);
+        state.capacityModelStates = {};
+        state.testedSide = entry.side;
+        state.intake = { assessedSide: entry.side };
+        state.intakeCompleted = false;
+        state.report = null;
+        state.reportAnnex = null;
+        state.reportStored = false;
+        controller.setMirroredView(false);
+        renderProtocolPicker();
+        renderIntakeProtocolOptions();
+        renderCapacityList();
+        updateSavedRecordsUi();
     }
 
     function showSafetyLanding() {
@@ -773,7 +978,7 @@ export function createDiagnosisWorkflow(controller) {
             gender: String(data.get('gender') ?? ''),
             heightCm: finiteOrNull(data.get('heightCm')),
             weightKg: finiteOrNull(data.get('weightKg')),
-            assessedArm: String(data.get('assessedArm') ?? ''),
+            assessedSide: String(data.get('assessedSide') ?? protocolEntry().side),
             painDuration: String(data.get('painDuration') ?? ''),
             painOnset: String(data.get('painOnset') ?? ''),
             painNow: finiteOrNull(data.get('painNow')),
@@ -821,7 +1026,10 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function sideLabel(side) {
-        return ['left', 'right'].includes(side) ? t(`common.sides.${side}`) : t('common.status.not-recorded');
+        if (['left', 'right'].includes(side)) return t(`common.sides.${side}`);
+        if (side === 'both') return localizedFallback('assessment.protocol.side.both', 'Both sides');
+        if (side === 'midline') return localizedFallback('assessment.protocol.side.midline', 'Midline');
+        return t('common.status.not-recorded');
     }
 
     function renderAssessmentPatientHeader() {
@@ -837,14 +1045,14 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-current-record-code').textContent = recordCode();
         byId('diagnosis-patient-age').textContent = age;
         byId('diagnosis-patient-gender').textContent = intakeOptionLabel('gender', intake.gender);
-        byId('diagnosis-patient-arm').textContent = intakeOptionLabel('assessedArm', intake.assessedArm);
+        byId('diagnosis-patient-arm').textContent = `${protocolTitle(protocolEntry(), true)} · ${sideLabel(intake.assessedSide ?? state.testedSide)}`;
         byId('diagnosis-patient-size').textContent = size;
         byId('diagnosis-patient-pain').textContent = t('assessment.participant.pain-values', { current: painNow, worst: painWorst });
         byId('diagnosis-patient-duration').textContent = intakeOptionLabel('painDuration', intake.painDuration);
         byId('diagnosis-patient-location').textContent = intakeOptionLabel('primaryPainLocation', intake.primaryPainLocation);
     }
 
-    function showAssessment() {
+    async function showAssessment() {
         if (!state.safetyReviewed || selectedRedFlags().length) {
             showSafetyLanding();
             return;
@@ -856,6 +1064,11 @@ export function createDiagnosisWorkflow(controller) {
         state.assessmentOpen = true;
         state.phase = 'assessment';
         state.viewingSavedReport = false;
+        const entry = protocolEntry();
+        if (typeof controller.activateAssessmentRegion === 'function') {
+            await controller.activateAssessmentRegion(entry.regionId);
+            if (state.phase !== 'assessment') return;
+        }
         byId('diagnosis-privacy-overview').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.add('hidden');
@@ -902,11 +1115,12 @@ export function createDiagnosisWorkflow(controller) {
 
     function resetAssessmentData() {
         cancelPreview();
+        const entry = protocolEntry();
         state.assessmentId = createAssessmentId();
         state.activeCapacityIndex = 0;
-        state.capacityResponses = Object.fromEntries(ASSESSMENT_POSITIONS.map((position) => [position.id, emptyPositionResponse()]));
+        state.capacityResponses = emptyProtocolResponses(entry);
         state.capacityModelStates = {};
-        state.testedSide = 'right';
+        state.testedSide = entry.side;
         state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null]));
         state.safetyReviewed = false;
         state.intakeCompleted = false;
@@ -917,8 +1131,10 @@ export function createDiagnosisWorkflow(controller) {
         state.legacySymptomAssessment = null;
         state.protocolMigrationNotice = null;
         byId('diagnosis-intake-form').reset();
+        renderIntakeProtocolOptions();
         clearDraft();
-        setSide('right');
+        setSide(entry.side);
+        renderProtocolPicker();
         renderCapacityList();
         showPrivacyLanding();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -963,10 +1179,15 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function renderCapacityList() {
+        const entry = protocolEntry();
+        const positions = protocolPositions(entry);
+        const requiredPositions = requiredProtocolPositions(entry);
         const tableBody = byId('capacity-position-list');
         tableBody.replaceChildren();
-        const firstUnansweredIndex = ASSESSMENT_POSITIONS.findIndex((position) => !state.capacityResponses[position.id]?.answered);
-        const unlockedThrough = firstUnansweredIndex === -1 ? ASSESSMENT_POSITIONS.length - 1 : firstUnansweredIndex;
+        const firstUnansweredIndex = positions.findIndex((position) => !state.capacityResponses[position.id]?.answered);
+        const unlockedThrough = protocolUsesOrderedProgression(entry)
+            ? (firstUnansweredIndex === -1 ? positions.length - 1 : firstUnansweredIndex)
+            : positions.length - 1;
         const fieldOptions = {
             completion: [
                 ['not_recorded', t('assessment.responses.completion.select')],
@@ -997,7 +1218,7 @@ export function createDiagnosisWorkflow(controller) {
             const group = document.createElement('div');
             group.className = `capacity-choice-group ${field === 'completion' ? 'completion' : ''}`;
             group.setAttribute('role', 'group');
-            const positionName = t(`assessment.positions.${position.id}.name`);
+            const positionName = localizedPosition(position, entry).name;
             group.setAttribute('aria-label', t('assessment.responses.aria.field-for-position', { field: fieldLabels[field], position: positionName }));
             for (const [value, label] of fieldOptions[field].filter(([optionValue]) => optionValue !== 'not_recorded')) {
                 const button = document.createElement('button');
@@ -1034,7 +1255,7 @@ export function createDiagnosisWorkflow(controller) {
             wrapper.append(caption, select);
             host.append(wrapper);
         };
-        ASSESSMENT_POSITIONS.forEach((position, index) => {
+        positions.forEach((position, index) => {
             const response = { ...emptyPositionResponse(), ...state.capacityResponses[position.id] };
             state.capacityResponses[position.id] = response;
             const active = index === state.activeCapacityIndex;
@@ -1049,7 +1270,7 @@ export function createDiagnosisWorkflow(controller) {
             positionButton.className = 'capacity-position-open';
             positionButton.disabled = locked;
             positionButton.setAttribute('aria-current', active ? 'step' : 'false');
-            const positionName = t(`assessment.positions.${position.id}.name`);
+            const positionName = localizedPosition(position, entry).name;
             if (locked) positionButton.setAttribute('aria-label', t('assessment.responses.aria.locked-position', { position: positionName }));
             const progressLabel = response.answered
                 ? t(response.completion === 'skipped' ? 'assessment.responses.row-status.skipped' : 'assessment.responses.row-status.recorded')
@@ -1133,14 +1354,10 @@ export function createDiagnosisWorkflow(controller) {
                         label: t('assessment.responses.fields.pain-location'),
                         field: 'painLocation',
                         value: response.painLocation,
-                        options: [
-                            ['front_shoulder', t('assessment.responses.pain-location.front-shoulder')],
-                            ['top_shoulder', t('assessment.responses.pain-location.top-shoulder')],
-                            ['back_shoulder', t('assessment.responses.pain-location.back-shoulder')],
-                            ['lateral_upper_arm', t('assessment.responses.pain-location.lateral-upper-arm')],
-                            ['neck_arm', t('assessment.responses.pain-location.neck-arm')],
-                            ['other', t('assessment.responses.pain-location.other')]
-                        ],
+                        options: (entry.intakeLocationOptions ?? []).map((label) => {
+                            const value = optionValue(label);
+                            return [value, localizedFallback(`assessment.protocol.options.location.${value}`, label)];
+                        }),
                         required: true
                     });
                 }
@@ -1158,12 +1375,10 @@ export function createDiagnosisWorkflow(controller) {
                         label: t('assessment.responses.fields.movement-difference'),
                         field: 'compensationDetail',
                         value: response.compensationDetail,
-                        options: [
-                            ['shoulder_hike', t('assessment.responses.movement-difference.shoulder-hike')],
-                            ['trunk_lean', t('assessment.responses.movement-difference.trunk-lean')],
-                            ['scapular_difference', t('assessment.responses.movement-difference.scapular-difference')],
-                            ['other', t('assessment.responses.movement-difference.other')]
-                        ],
+                        options: (entry.movementDifferenceOptions ?? []).map((label) => {
+                            const value = optionValue(label);
+                            return [value, localizedFallback(`assessment.protocol.options.movement.${value}`, label)];
+                        }),
                         required: true
                     });
                 }
@@ -1176,7 +1391,7 @@ export function createDiagnosisWorkflow(controller) {
                 tableBody.append(detailRow);
             }
         });
-        const answeredCount = ASSESSMENT_POSITIONS.filter((position) => state.capacityResponses[position.id]?.answered).length;
+        const answeredCount = requiredPositions.filter((position) => state.capacityResponses[position.id]?.answered).length;
         const reportRow = document.createElement('tr');
         reportRow.className = 'capacity-report-list-item';
         const reportCell = document.createElement('td');
@@ -1184,8 +1399,8 @@ export function createDiagnosisWorkflow(controller) {
         const reportButton = document.createElement('button');
             reportButton.type = 'button';
             reportButton.className = 'capacity-report-list-button';
-            reportButton.disabled = answeredCount !== ASSESSMENT_POSITIONS.length;
-            reportButton.innerHTML = `<span class="diagnosis-test-number" aria-hidden="true">✓</span><span class="diagnosis-test-copy"><strong>${escapeHtml(t('assessment.responses.review-results'))}</strong><span>${escapeHtml(t('assessment.responses.positions-complete', { answered: answeredCount, total: ASSESSMENT_POSITIONS.length }))}</span></span>`;
+            reportButton.disabled = answeredCount !== requiredPositions.length;
+            reportButton.innerHTML = `<span class="diagnosis-test-number" aria-hidden="true">✓</span><span class="diagnosis-test-copy"><strong>${escapeHtml(t('assessment.responses.review-results'))}</strong><span>${escapeHtml(t('assessment.responses.positions-complete', { answered: answeredCount, total: requiredPositions.length }))}</span></span>`;
         reportButton.addEventListener('click', showReportScreen);
         reportCell.append(reportButton);
         reportRow.append(reportCell);
@@ -1194,7 +1409,8 @@ export function createDiagnosisWorkflow(controller) {
 
     async function previewCapacityPose() {
         if (!state.ready || state.phase !== 'assessment') return;
-        const position = ASSESSMENT_POSITIONS[state.activeCapacityIndex];
+        const entry = protocolEntry();
+        const position = protocolPositions(entry)[state.activeCapacityIndex];
         if (!position) return;
         const preview = ++state.previewGeneration;
         const loading = byId('capacity-view-loading');
@@ -1202,7 +1418,7 @@ export function createDiagnosisWorkflow(controller) {
         loading.classList.remove('hidden');
         controller.neutralizeActivation();
         try {
-            const geometry = await controller.pose(position.coordinates, selectedMuscle(controller));
+            const geometry = await controller.pose(position.coordinates, selectedMuscle(controller), entry.regionId);
             if (preview !== state.previewGeneration || state.phase !== 'assessment') return;
             geometry.mode = 'pose';
             for (const muscle of geometry.muscles ?? []) delete muscle.activation;
@@ -1211,7 +1427,7 @@ export function createDiagnosisWorkflow(controller) {
             else controller.resetView();
             loading.querySelector('strong').textContent = t('assessment.responses.calculating-activation');
 
-            const result = await controller.staticHold(position.coordinates, selectedMuscle(controller));
+            const result = await controller.staticHold(position.coordinates, selectedMuscle(controller), entry.regionId);
             if (preview !== state.previewGeneration || state.phase !== 'assessment') return;
             state.capacityModelStates[position.id] = result;
             controller.applyState(result);
@@ -1224,14 +1440,24 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function renderCapacityPosition() {
-        const positions = ASSESSMENT_POSITIONS;
+        const entry = protocolEntry();
+        const positions = protocolPositions(entry);
+        if (!positions.length) return;
         state.activeCapacityIndex = Math.max(0, Math.min(positions.length - 1, state.activeCapacityIndex));
         const position = positions[state.activeCapacityIndex];
         const response = state.capacityResponses[position.id];
         byId('capacity-position-id').textContent = t('assessment.position.progress', { current: state.activeCapacityIndex + 1, total: positions.length });
-        byId('capacity-position-title').textContent = t(`assessment.positions.${position.id}.name`);
-        byId('capacity-position-instruction').textContent = t(`assessment.positions.${position.id}.instruction`);
-        byId('capacity-angle-grid').innerHTML = POSE_KEYS.map((key) => `<div><dt>${escapeHtml(t(CAPACITY_ANGLE_LABELS[key]))}</dt><dd>${Number(position.coordinates[key]).toFixed(1)}°</dd></div>`).join('');
+        const localized = localizedPosition(position, entry);
+        byId('capacity-position-title').textContent = localized.name;
+        byId('capacity-position-instruction').textContent = localized.instruction;
+        byId('capacity-angle-grid').innerHTML = Object.entries(position.coordinates ?? {}).map(([key, value]) => `<div><dt>${escapeHtml(angleLabel(key, entry))}</dt><dd>${Number(value).toFixed(1)}°</dd></div>`).join('');
+        const tier = byId('capacity-position-tier');
+        if (tier) {
+            tier.textContent = position.tier
+                ? localizedFallback(`assessment.protocol.tier.${position.tier}`, position.tier.replaceAll('-', ' '))
+                : '';
+            tier.classList.toggle('broad', position.tier === 'broad');
+        }
         byId('capacity-save-state').textContent = capacityResponseStatus(response);
         byId('capacity-previous').disabled = state.activeCapacityIndex === 0;
         state.capacityPreviewPromise = previewCapacityPose();
@@ -1275,7 +1501,8 @@ export function createDiagnosisWorkflow(controller) {
         const completedIndex = state.activeCapacityIndex;
         window.setTimeout(() => {
             if (state.activeCapacityIndex !== completedIndex || !state.capacityResponses[position.id]?.answered) return;
-            if (state.activeCapacityIndex < ASSESSMENT_POSITIONS.length - 1) {
+            const positions = protocolPositions();
+            if (state.activeCapacityIndex < positions.length - 1) {
                 state.activeCapacityIndex += 1;
                 renderCapacityList();
                 renderCapacityPosition();
@@ -1287,7 +1514,7 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function applyQuickCapacityResponse(mode) {
-        const position = ASSESSMENT_POSITIONS[state.activeCapacityIndex];
+        const position = protocolPositions()[state.activeCapacityIndex];
         if (!position) return;
         const previous = { ...emptyPositionResponse(), ...state.capacityResponses[position.id] };
         const skipped = mode === 'skip';
@@ -1315,7 +1542,7 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function updateCapacityResponse(field, value) {
-        const position = ASSESSMENT_POSITIONS[state.activeCapacityIndex];
+        const position = protocolPositions()[state.activeCapacityIndex];
         if (!position) return;
         const previous = { ...emptyPositionResponse(), ...state.capacityResponses[position.id] };
         const wasAnswered = previous.answered;
@@ -1449,20 +1676,36 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function movementPositionRecords() {
-        return ASSESSMENT_POSITIONS.map((position, index) => ({
+        const entry = protocolEntry();
+        return protocolPositions(entry).map((position, index) => ({
             sequence: index + 1,
             id: position.id,
             executionMode: 'person_attempted',
-            name: position.name,
-            instruction: position.instruction,
+            name: localizedPosition(position, entry).name,
+            instruction: localizedPosition(position, entry).instruction,
             coordinatesDegrees: position.coordinates,
+            designRole: position.designRole ?? null,
+            accessibilityTier: position.tier ?? null,
+            sourceCandidateId: position.sourceCandidateId ?? null,
             rawObservation: { ...state.capacityResponses[position.id] },
             modelEstimate: summarizeCapacityModel(position)
         }));
     }
 
     function buildReport() {
-        const model = controller.getModel() ?? {};
+        const entry = protocolEntry();
+        const runtimeModel = controller.getModel() ?? {};
+        const model = {
+            ...reportModelMetadata(runtimeModel),
+            regionId: entry.regionId,
+            profileId: entry.profileId,
+            regionDigest: entry.model?.regionDigest ?? runtimeModel.regionDigest ?? null,
+            sideMode: entry.model?.sideMode ?? 'native',
+            unloadedOpenChain: entry.model?.unloadedOpenChain ?? null,
+            dynamicMotion: entry.model?.dynamicMotion ?? false,
+            externalLoads: entry.model?.externalLoads ?? false,
+            patientSpecific: entry.model?.patientSpecific ?? false
+        };
         const result = buildReportV5({
             assessmentId: state.assessmentId,
             testedSide: state.testedSide,
@@ -1470,8 +1713,19 @@ export function createDiagnosisWorkflow(controller) {
             redFlags: selectedRedFlags(),
             intake: state.intake,
             positionRecords: movementPositionRecords(),
-            assessmentProtocol: MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL,
-            model: reportModelMetadata(model),
+            assessmentProtocol: protocolReport(entry),
+            assessmentContext: {
+                protocolKey: entry.key,
+                regionId: entry.regionId,
+                profileId: entry.profileId,
+                title: entry.title,
+                sideMode: entry.model?.sideMode ?? 'native',
+                unloadedOpenChain: entry.model?.unloadedOpenChain ?? null,
+                limitations: entry.limitations ?? [],
+                responseDiversityStatus: entry.evidence?.responseDiversityStatus ?? null,
+                responsiveInSampledPosesFraction: entry.evidence?.responsiveInSampledPosesFraction ?? null
+            },
+            model,
             syntheticData: false,
             legacySymptomAssessment: state.legacySymptomAssessment
         });
@@ -1481,19 +1735,23 @@ export function createDiagnosisWorkflow(controller) {
 
     function renderMovementReport(report) {
         const host = byId('diagnosis-report-content');
+        const reportEntry = reportProtocolEntry(report);
+        const reportPositions = reportEntry ? protocolPositions(reportEntry) : [];
+        const reportProtocol = reportEntry?.reportProtocol ?? report.assessment?.assessmentProtocol ?? {};
         const trials = (report.trials ?? []).filter((trial) => trial.includeInHumanProtocol);
         const attempted = trials.filter((trial) => trial.observation?.attempted);
         const quality = report.dataQuality ?? {};
-        const hasMatchedComparisonProtocol = (MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.matchedComparisons ?? []).length > 0;
+        const hasMatchedComparisonProtocol = (reportProtocol.matchedComparisons ?? []).length > 0;
         const comparisonRows = (report.matchedComparisons ?? []).filter((comparison) => comparison.observationsComplete);
         const protocolDemand = report.analyses?.genericProtocolDemand ?? {};
         const e = escapeHtml;
         const dash = e(t('common.punctuation.em-dash'));
-        const positionIds = new Set(ASSESSMENT_POSITIONS.map((position) => position.id));
-        const comparisonIds = new Set((MS_HUMAN_ASSESSMENT_REPORT_PROTOCOL.matchedComparisons ?? []).map((comparison) => comparison.id));
-        const positionName = (id) => positionIds.has(id)
-            ? t(`assessment.positions.${id}.name`)
-            : t('assessment.report.observations.unknown-position', { id: String(id ?? '') });
+        const positionById = new Map(reportPositions.map((position) => [position.id, position]));
+        const comparisonIds = new Set((reportProtocol.matchedComparisons ?? []).map((comparison) => comparison.id));
+        const positionName = (id) => positionById.has(id)
+            ? localizedPosition(positionById.get(id), reportEntry).name
+            : trials.find((trial) => trial.id === id)?.name
+                ?? t('assessment.report.observations.unknown-position', { id: String(id ?? '') });
         const comparisonName = (id) => comparisonIds.has(id)
             ? t(`assessment.comparisons.${id}.name`)
             : t('assessment.report.comparisons.unknown', { id: String(id ?? '') });
@@ -1530,14 +1788,10 @@ export function createDiagnosisWorkflow(controller) {
         const safetyLabel = report.safety?.positiveFlags?.length
             ? plural('assessment.report.safety.warning-selected', report.safety.positiveFlags.length)
             : t(report.safety?.reviewed ? 'assessment.report.safety.reviewed-clear' : 'assessment.report.safety.not-reviewed');
-        const limitationKeys = [
-            'no-single-test-diagnosis', 'generic-not-personal', 'achieved-pose-not-measured',
-            'static-recruitment', 'no-measured-load',
-            report.modelCoverage?.scapularStabilizersIncluded?.length ? 'scapular-included' : 'scapular-absent',
-            'mirrored-visual-only'
-        ];
-        if (report.assessment?.protocolIdentityVerified === false) limitationKeys.push('protocol-unverified');
-        if (report.assessment?.legacyModelRecord) limitationKeys.push('legacy-record');
+        const reportRegion = report.assessment?.regionTitle
+            ?? (reportEntry ? protocolTitle(reportEntry) : report.assessment?.regionId)
+            ?? t('common.status.not-recorded');
+        const reportLimitations = Array.isArray(report.limitations) ? report.limitations : [];
         host.innerHTML = `
             <div class="diagnosis-report-summary">
                 <div><span>${e(t('assessment.report.metrics.data-status'))}</span><strong>${e(t(`assessment.report.status.${reportStatusKey}`))}</strong></div>
@@ -1556,6 +1810,7 @@ export function createDiagnosisWorkflow(controller) {
             <div class="diagnosis-report-table-wrap"><table><tbody>
                 <tr><th>${e(t('assessment.report.context.age'))}</th><td>${Number.isFinite(report.intake?.ageYears) ? e(formatNumber(report.intake.ageYears)) : dash}</td><th>${e(t('assessment.report.context.gender'))}</th><td>${e(intakeOptionLabel('gender', report.intake?.gender))}</td></tr>
                 <tr><th>${e(t('assessment.report.context.assessed-side'))}</th><td>${report.intake?.assessedSide ? e(sideLabel(report.intake.assessedSide)) : dash}</td><th>${e(t('assessment.report.context.height-weight'))}</th><td>${Number.isFinite(report.intake?.heightCm) ? `${e(formatNumber(report.intake.heightCm))} cm` : dash} / ${Number.isFinite(report.intake?.weightKg) ? `${e(formatNumber(report.intake.weightKg))} kg` : dash}</td></tr>
+                <tr><th>${e(t('assessment.report.context.region'))}</th><td>${e(reportRegion)}</td><th>${e(t('assessment.report.context.protocol'))}</th><td>${e(report.assessment?.assessmentProtocolId ?? t('common.status.not-recorded'))}</td></tr>
                 <tr><th>${e(t('assessment.report.context.symptom-duration'))}</th><td>${e(intakeOptionLabel('painDuration', report.intake?.symptomDuration))}</td><th>${e(t('assessment.report.context.onset'))}</th><td>${e(intakeOptionLabel('painOnset', report.intake?.symptomOnset))}</td></tr>
                 <tr><th>${e(t('assessment.report.context.safety-screen'))}</th><td colspan="3">${e(safetyLabel)}</td></tr>
             </tbody></table></div>
@@ -1578,7 +1833,7 @@ export function createDiagnosisWorkflow(controller) {
             ${hasMatchedComparisonProtocol ? `<h3>${e(t('assessment.report.comparisons.title'))}</h3>
             <p>${e(t('assessment.report.comparisons.intro'))}</p>
             ${comparisonRows.length ? `<div class="diagnosis-report-table-wrap"><table><thead><tr>${['comparison', 'trials', 'changed-variable', 'pain-delta', 'weakness-delta', 'status'].map((key) => `<th>${e(t(`assessment.report.comparisons.columns.${key}`))}</th>`).join('')}</tr></thead><tbody>${comparisonRows.map((comparison) => `<tr>
-                <td>${e(comparisonName(comparison.id))}</td><td>${comparison.trialIds.map((trialId) => e(trialNames.get(trialId) ?? positionName(trialId))).join(' → ')}</td><td>${e(CAPACITY_ANGLE_LABELS[comparison.changedVariable] ? t(CAPACITY_ANGLE_LABELS[comparison.changedVariable]) : t('assessment.report.values.unknown', { value: String(comparison.changedVariable ?? '') }))}</td>
+                <td>${e(comparisonName(comparison.id))}</td><td>${comparison.trialIds.map((trialId) => e(trialNames.get(trialId) ?? positionName(trialId))).join(' → ')}</td><td>${e(reportEntry?.angleLabels?.[comparison.changedVariable] ?? t('assessment.report.values.unknown', { value: String(comparison.changedVariable ?? '') }))}</td>
                 <td>${Number.isFinite(comparison.observationDelta.painScore) ? `${comparison.observationDelta.painScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.painScore, 1)}` : '—'}</td>
                 <td>${Number.isFinite(comparison.observationDelta.weaknessScore) ? `${comparison.observationDelta.weaknessScore >= 0 ? '+' : ''}${formatMetric(comparison.observationDelta.weaknessScore, 1)}` : '—'}</td>
                 <td>${e(t(comparison.observationDelta.notComputableReason ? 'assessment.report.comparisons.status-scores-required' : 'assessment.report.comparisons.status-complete'))}</td>
@@ -1588,8 +1843,8 @@ export function createDiagnosisWorkflow(controller) {
             ${protocolDemand.ranking?.length ? `<ol>${protocolDemand.ranking.slice(0, 8).map((row) => `<li>${e(t('assessment.report.model-reference.ranking-item', { name: displayMuscle(row.name), mean: formatMetric(row.meanPredictedModelControl), peak: formatMetric(row.peakPredictedModelControl) }))}</li>`).join('')}</ol>` : `<p>${e(t('assessment.report.model-reference.none'))}</p>`}
             <h3>${e(t('assessment.report.limitations.title'))}</h3>
             ${report.assessment?.legacyModelRecord ? `<p><strong>${e(t('assessment.report.limitations.archived-heading'))}</strong> ${e(t('assessment.report.limitations.archived-notice'))}</p>` : ''}
-            <p><strong>${e(t('assessment.report.limitations.scapular-heading'))}</strong> ${e(t(report.modelCoverage?.scapularStabilizersIncluded?.length ? 'assessment.report.limitations.scapular-included' : 'assessment.report.limitations.scapular-absent', report.modelCoverage?.scapularStabilizersIncluded?.length ? { count: report.modelCoverage.scapularStabilizersIncluded.length } : {}))}</p>
-            <ul>${limitationKeys.map((key) => `<li>${e(t(`assessment.report.limitations.items.${key}`))}</li>`).join('')}</ul>`;
+            ${report.modelCoverage?.weakResponseDiversity ? `<p class="diagnosis-report-warning"><strong>${e(t('assessment.protocol.weak-response-diversity'))}</strong></p>` : ''}
+            <ul>${reportLimitations.map((limitation) => `<li>${e(limitation)}</li>`).join('')}</ul>`;
         byId('diagnosis-report-title').textContent = t('assessment.report.title');
         byId('diagnosis-report-time').textContent = localizedDate(report.generatedAt);
         byId('diagnosis-report').classList.remove('hidden');
@@ -1629,8 +1884,9 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function setSide(side) {
-        state.testedSide = side === 'left' ? 'left' : 'right';
-        controller.setMirroredView(state.testedSide === 'left');
+        const entry = protocolEntry();
+        state.testedSide = protocolSideOptions(entry).includes(side) ? side : entry.side;
+        controller.setMirroredView((entry.model?.sideMode ?? 'native') === 'visual-mirror' && state.testedSide === 'left');
         state.report = null;
     }
 
@@ -1645,8 +1901,8 @@ export function createDiagnosisWorkflow(controller) {
         byId('explorer-workspace').classList.add('hidden');
         byId('diagnosis-workspace').classList.remove('hidden');
         document.body.classList.add('diagnosis-active');
-        byId('mirror-view').hidden = true;
-        controller.setMirroredView(state.testedSide === 'left');
+        if (byId('mirror-view')) byId('mirror-view').hidden = true;
+        controller.setMirroredView((protocolEntry().model?.sideMode ?? 'native') === 'visual-mirror' && state.testedSide === 'left');
         window.requestAnimationFrame(controller.resizeViewer);
         if (state.phase === 'report' && state.intakeCompleted) showReportScreen();
         else if (state.phase === 'assessment' && state.intakeCompleted) showAssessment();
@@ -1668,7 +1924,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-workspace').classList.add('hidden');
         byId('explorer-workspace').classList.remove('hidden');
         document.body.classList.remove('diagnosis-active');
-        byId('mirror-view').hidden = false;
+        if (byId('mirror-view')) byId('mirror-view').hidden = false;
         window.requestAnimationFrame(controller.resizeViewer);
     }
 
@@ -1699,6 +1955,7 @@ export function createDiagnosisWorkflow(controller) {
         tabs[next].focus();
     });
     byId('diagnosis-delete-all-data').addEventListener('click', requestDeleteAllLocalAssessmentData);
+    byId('diagnosis-protocol-select')?.addEventListener('change', (event) => selectAssessmentProtocol(event.target.value));
     byId('diagnosis-start').addEventListener('click', showSafetyLanding);
     byId('diagnosis-continue').addEventListener('click', () => {
         if (!safetyAnswersComplete()) return;
@@ -1735,7 +1992,7 @@ export function createDiagnosisWorkflow(controller) {
         }
         readIntake();
         state.intakeCompleted = true;
-        setSide(state.intake.assessedArm);
+        setSide(state.intake.assessedSide);
         persistDraft();
         showAssessment();
     });
@@ -1796,6 +2053,7 @@ export function createDiagnosisWorkflow(controller) {
         });
     });
     restoreDraft();
+    renderProtocolPicker();
     fillIntakeForm(state.intake);
     updateSavedRecordsUi();
     renderSafetyForm();

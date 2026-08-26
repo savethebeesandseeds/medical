@@ -14,6 +14,7 @@ const htmlUrl = new URL('index.html', publicRoot);
 const appUrl = new URL('app-ms-human.js', publicRoot);
 const diagnosisUrl = new URL('diagnosis.js', publicRoot);
 const protocolUrl = new URL('ms-human-assessment-protocol.js', publicRoot);
+const protocolRegistryUrl = new URL('assessment-protocol-registry.js', publicRoot);
 const workerUrl = new URL('ms-human-worker.js', publicRoot);
 const reportUrl = new URL('report-v5.js', publicRoot);
 const i18nUrl = new URL('i18n.js', publicRoot);
@@ -38,6 +39,7 @@ const [
 ]);
 
 const catalog = JSON.parse(catalogSource);
+const { ASSESSMENT_PROTOCOLS } = await import(`${protocolRegistryUrl.href}?verify-i18n=${Date.now()}`);
 const translatedCatalogs = await Promise.all(translatedCatalogDefinitions.map(async ({ file, locale }) => ({
     file,
     locale,
@@ -46,7 +48,7 @@ const translatedCatalogs = await Promise.all(translatedCatalogDefinitions.map(as
 const manifests = manifestSources.map((source) => JSON.parse(source));
 const keyPattern = /^[A-Za-z0-9][A-Za-z0-9_-]*(?:\.[A-Za-z0-9][A-Za-z0-9_-]*)*$/;
 const placeholderPattern = /\{([a-z][a-zA-Z0-9]*)\}/g;
-const allowedAttributes = new Set(['aria-label', 'title', 'placeholder', 'data-tooltip', 'data-label']);
+const allowedAttributes = new Set(['aria-label', 'title', 'placeholder', 'data-tooltip', 'data-label', 'content']);
 const failures = [];
 
 function check(condition, message) {
@@ -64,6 +66,14 @@ function kebab(value) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '');
+}
+
+function escapeHtmlText(value) {
+    return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+function escapeHtmlAttribute(value) {
+    return escapeHtmlText(value).replaceAll('"', '&quot;');
 }
 
 function collectLiteralCalls(source, functionName) {
@@ -135,6 +145,27 @@ function validateCatalogShape(candidate, label, expectedLocale) {
 
 validateCatalogShape(catalog, 'en.json', 'en');
 
+const regionNeutralAssessmentMessages = {
+    'assessment.dialogs.reassess.message': 'First, confirm the safety check. The saved participant profile—age, gender, height, weight, and selected body region or side—will then appear prefilled in Assessment context. Pain history and movement responses start blank.',
+    'assessment.intake.features.radiating-pain': 'Spreads beyond the tested area',
+    'assessment.intake.fields.arm.label': 'Body area being assessed *',
+    'assessment.intake.fields.relevant-history.placeholder': 'Previous injury, surgery, diagnosis, or treatment in the tested area',
+    'assessment.safety.flags.circulation': 'Major sudden swelling, complete loss of sensation, or an unusually cold or discoloured tested area',
+    'assessment.safety.flags.infection': 'A hot, red, swollen tested area with fever or feeling systemically unwell',
+    'assessment.safety.flags.neurological': 'Persistent numbness, pins and needles, or new marked weakness in or beyond the tested area',
+    'assessment.safety.flags.trauma': 'Recent fall or trauma with substantial pain, weakness, or inability to move the tested area',
+    'assessment.safety.title': 'Movement safety check',
+    'assessment.workspace.title': 'Regional movement observation',
+    'nav.tabs.assessment.description': 'Guided regional observation'
+};
+for (const [key, expected] of Object.entries(regionNeutralAssessmentMessages)) {
+    check(catalog.messages?.[key] === expected, `Region-neutral assessment wording changed for ${key}.`);
+}
+check(
+    !/right upper-limb workflow/i.test(catalog.messages?.['model-info.limitations.assessment-copy'] ?? ''),
+    'Model disclosure must not describe Assessment as a right-upper-limb-only workflow.'
+);
+
 for (const [key, value] of Object.entries(catalog.messages ?? {})) {
     check(keyPattern.test(key), `Invalid catalog key: ${key}`);
     check(typeof value === 'string' && Boolean(value.trim()), `Catalog value must be a nonblank string: ${key}`);
@@ -179,14 +210,18 @@ requireKeys([
     ...collectLiteralCalls(diagnosisSource, 'plural')
 ].map((key) => `${key}.other`), 'Literal app/diagnosis plural() calls');
 
-// A catalog-backed element must not duplicate English fallback content. The
+// Catalog-backed elements may contain their exact English catalog value as a
+// source-visible fallback for no-JavaScript discovery. Any non-empty fallback
+// must match the catalog so static and runtime copy cannot drift apart. The
 // expression is deliberately scoped to elements carrying data-i18n; it does
 // not scan canonical model/legal identifiers elsewhere in the document.
 const catalogElementPattern = /<(?!area\b|base\b|br\b|col\b|embed\b|hr\b|img\b|input\b|link\b|meta\b|param\b|source\b|track\b|wbr\b)([A-Za-z][\w:-]*)\b(?=[^>]*\bdata-i18n=)[^>]*\bdata-i18n="([^"]+)"[^>]*>([\s\S]*?)<\/\1>/gi;
 let catalogElementCount = 0;
 for (const match of html.matchAll(catalogElementPattern)) {
     catalogElementCount += 1;
-    check(match[3].trim() === '', `Catalog-backed HTML element must start empty: ${match[2]}`);
+    const fallback = match[3].trim();
+    check(fallback === '' || fallback === catalog.messages[match[2]],
+        `Catalog-backed HTML fallback must be empty or match English catalog: ${match[2]}`);
 }
 check(catalogElementCount === [...html.matchAll(/\bdata-i18n="/g)].length,
     'Every data-i18n reference must be on a paired, non-void HTML element.');
@@ -248,6 +283,18 @@ check(positionIds.length > 0, 'No protocol positions were discovered.');
 // Archived protocols may still declare comparisons, so validate them when
 // present without requiring every protocol design to manufacture one.
 requireKeys(protocolKeys, 'Protocol messages');
+const regionalProtocolKeys = ASSESSMENT_PROTOCOLS.flatMap((entry) => [
+    entry.titleKey,
+    entry.shortTitleKey,
+    entry.descriptionKey
+]);
+requireKeys([
+    ...regionalProtocolKeys,
+    'assessment.protocol.tier.neutral-reference',
+    'assessment.protocol.tier.accessible',
+    'assessment.protocol.tier.moderate',
+    'assessment.protocol.tier.broad'
+], 'Regional protocol messages');
 
 const qualityFunction = workerSource.match(/function staticQualityStatus\([^)]*\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
 const qualityStatuses = [...qualityFunction.matchAll(/return\s*\[\s*['"]([^'"]+)['"]/g)].map((match) => match[1]);
@@ -291,6 +338,31 @@ requireKeys([
 const i18n = await import(`${i18nUrl.href}?verify-i18n=${Date.now()}`);
 const localizedPageBuilder = await import(`${localizedPageBuilderUrl.href}?verify-i18n=${Date.now()}`);
 i18n.installCatalogForTest(catalog);
+const translatedMeta = new Map();
+const testDocument = {
+    documentElement: { lang: '', dir: '' },
+    title: '',
+    querySelectorAll(selector) {
+        if (selector === '[data-i18n]') return [];
+        if (selector === '[data-i18n-attrs]') {
+            return [{
+                dataset: { i18nAttrs: 'content:meta.description' },
+                setAttribute(name, value) { translatedMeta.set(name, value); }
+            }];
+        }
+        return [];
+    }
+};
+const previousDocument = globalThis.document;
+globalThis.document = testDocument;
+try {
+    i18n.applyDocumentTranslations(testDocument);
+} finally {
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+}
+assert.equal(translatedMeta.get('content'), catalog.messages['meta.description']);
+assert.equal(testDocument.title, catalog.messages['meta.title']);
 assert.equal(i18n.t('assessment.position.progress', { current: '<1>', total: '&15' }), 'Position <1> of &15');
 assert.equal(i18n.t('assessment.report.summary.incomplete-record', { recorded: 2, required: 15 }).includes('2'), true);
 assert.throws(() => i18n.t('assessment.position.progress', { current: 1 }), /Missing localization parameter/);
@@ -329,13 +401,25 @@ i18n.installCatalogForTest(catalog);
 
 const renderedEnglish = localizedPageBuilder.renderLocalizedHtml(html, catalog);
 check(renderedEnglish.includes('<html class="i18n-loading" lang="en" dir="ltr">'), 'English build must materialize html language metadata.');
-check(renderedEnglish.includes(`<title>${catalog.messages['meta.title']}</title>`), 'English build must materialize the document title.');
+check(renderedEnglish.includes(`<title>${escapeHtmlText(catalog.messages['meta.title'])}</title>`), 'English build must materialize the document title.');
+check(renderedEnglish.includes(`content="${escapeHtmlAttribute(catalog.messages['meta.description'])}" data-i18n-attrs="content:meta.description"`), 'English build must materialize the meta description.');
+check(renderedEnglish.includes(`property="og:title" content="${escapeHtmlAttribute(catalog.messages['meta.title'])}"`), 'English build must materialize the Open Graph title.');
+check(renderedEnglish.includes(`property="og:description" content="${escapeHtmlAttribute(catalog.messages['meta.description'])}"`), 'English build must materialize the Open Graph description.');
+check(renderedEnglish.includes('<link rel="canonical" href="https://medical.waajacu.com/en/tools/muscles/">'), 'English build must materialize its canonical URL.');
+check(renderedEnglish.includes('<meta property="og:url" content="https://medical.waajacu.com/en/tools/muscles/">'), 'English build must materialize its Open Graph URL.');
 check(renderedEnglish.includes(`data-i18n="brand.eyebrow">${catalog.messages['brand.eyebrow']}</p>`), 'English build must materialize catalog-backed text.');
 check(renderedEnglish.includes(`aria-label="${catalog.messages['language.selector.aria-label']}"`), 'English build must materialize translated attributes.');
 for (const { catalog: translated } of translatedCatalogs) {
     const rendered = localizedPageBuilder.renderLocalizedHtml(html, translated);
+    const route = translated.locale === 'zh-Hans' ? 'zh' : translated.locale;
+    const canonicalUrl = `https://medical.waajacu.com/${route}/tools/muscles/`;
     check(rendered.includes(`lang="${translated.locale}"`), `${translated.locale} build must materialize html language metadata.`);
-    check(rendered.includes(`<title>${translated.messages['meta.title']}</title>`), `${translated.locale} build must materialize the document title.`);
+    check(rendered.includes(`<title>${escapeHtmlText(translated.messages['meta.title'])}</title>`), `${translated.locale} build must materialize the document title.`);
+    check(rendered.includes(`content="${escapeHtmlAttribute(translated.messages['meta.description'])}" data-i18n-attrs="content:meta.description"`), `${translated.locale} build must materialize the meta description.`);
+    check(rendered.includes(`property="og:title" content="${escapeHtmlAttribute(translated.messages['meta.title'])}"`), `${translated.locale} build must materialize the Open Graph title.`);
+    check(rendered.includes(`property="og:description" content="${escapeHtmlAttribute(translated.messages['meta.description'])}"`), `${translated.locale} build must materialize the Open Graph description.`);
+    check(rendered.includes(`<link rel="canonical" href="${canonicalUrl}">`), `${translated.locale} build must materialize its canonical URL.`);
+    check(rendered.includes(`<meta property="og:url" content="${canonicalUrl}">`), `${translated.locale} build must materialize its Open Graph URL.`);
     check(rendered.includes(`data-i18n="brand.eyebrow">${translated.messages['brand.eyebrow']}</p>`), `${translated.locale} build must materialize catalog-backed text.`);
 }
 

@@ -115,6 +115,6 @@ printf '%s  %s\n' \
     "40b75b5583aeb5f20cbda668c4b7e035109dab97175ce30b368551a204e98e1d" \
     "${WEB_ROOT}/models/ms_human_700/right-hand-runtime.mjb" | sha256sum --check --strict
 
-stage "3/3 READY - MS-Human-700 browser application at http://0.0.0.0:${PORT}"
+stage "3/3 READY - Biomechanics research tool at http://0.0.0.0:${PORT}"
 exec python3 "${PROJECT_ROOT}/tools/serve_static.py" \
     --root "${WEB_ROOT}" --host 0.0.0.0 --port "${PORT}"

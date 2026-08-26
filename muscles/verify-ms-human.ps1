@@ -203,12 +203,12 @@ foreach ($UpperRegionId in @('right-upper-limb', 'left-upper-limb')) {
     Assert-Equal $HandBehindHead.coordinates.$RotationName -35 "$UpperRegionId hand-behind-head must use external shoulder rotation"
 }
 
-$AssessmentRegions = @($Regions.regions | Where-Object { $_.assessment.supported -eq $true })
-Assert-Equal $AssessmentRegions.Count 1 'Assessment must remain isolated to exactly one Explorer region'
-Assert-Equal $AssessmentRegions[0].id 'right-upper-limb' 'Assessment is no longer isolated to the right upper limb'
-Assert-Equal $AssessmentRegions[0].assessment.protocolId 'MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2' 'Assessment region protocol changed'
+$EmbeddedAssessmentRegions = @($Regions.regions | Where-Object { $_.assessment.supported -eq $true })
+Assert-Equal $EmbeddedAssessmentRegions.Count 1 'The regional model manifest embedded-protocol inventory changed'
+Assert-Equal $EmbeddedAssessmentRegions[0].id 'right-upper-limb' 'The established embedded right-arm protocol moved unexpectedly'
+Assert-Equal $EmbeddedAssessmentRegions[0].assessment.protocolId 'MSH700-RIGHT-ARM-GLOBAL-ACTIVATION-V2' 'The embedded right-arm protocol identity changed'
 foreach ($Region in @($Regions.regions | Where-Object id -ne 'right-upper-limb')) {
-    Assert-True ($Region.assessment.supported -eq $false -and $null -eq $Region.assessment.protocolId) "Unsupported region unexpectedly declares an assessment protocol: $($Region.id)"
+    Assert-True ($Region.assessment.supported -eq $false -and $null -eq $Region.assessment.protocolId) "Generated registry protocols must not be misrepresented as embedded model-manifest protocols: $($Region.id)"
 }
 foreach ($Region in @($Regions.regions | Where-Object { $_.id -in @('right-lower-limb', 'left-lower-limb') })) {
     Assert-Equal $Region.semantics.contact 'none' "Lower-limb contact semantics changed for $($Region.id)"
@@ -312,7 +312,8 @@ Assert-Equal ($HandIndexCount / 3) $HandMetadata.geometry.triangles 'Articulated
 Assert-Equal $HandMetadata.geometry.geoms.Count 132 'Unexpected articulated-hand geometry descriptor count'
 
 $RequiredFiles = @(
-    'index.html', 'styles.css', 'bootstrap.js', 'i18n.js', 'locales\en.json', 'locales\es.json',
+    'index.html', 'styles.css', 'bootstrap.js', 'i18n.js', 'assessment-protocol-registry.js',
+    'generated-regional-assessment-protocols.js', 'locales\en.json', 'locales\es.json',
     'locales\de.json', 'locales\el.json', 'locales\cs.json', 'locales\zh-Hans.json', 'app-ms-human.js', 'ms-human-engine.js',
     'ms-human-worker.js', 'ms-human-assessment-protocol.js', 'diagnosis.js', 'report-v5.js', 'LICENSE',
     'THIRD_PARTY_NOTICES.md', 'waajacu_medical.png', 'vendor\MUJOCO_LICENSE.txt',
@@ -335,6 +336,7 @@ Assert-Hash (Join-Path $AssetRoot 'SOURCE.md') (Get-FileHash -Algorithm SHA256 -
 $Index = Get-Content -LiteralPath (Join-Path $PublicRoot 'index.html') -Raw
 $App = Get-Content -LiteralPath (Join-Path $PublicRoot 'app-ms-human.js') -Raw
 $Diagnosis = Get-Content -LiteralPath (Join-Path $PublicRoot 'diagnosis.js') -Raw
+$ProtocolRegistry = Get-Content -LiteralPath (Join-Path $PublicRoot 'assessment-protocol-registry.js') -Raw
 $EnglishMessages = (Get-Content -LiteralPath (Join-Path $PublicRoot 'locales\en.json') -Raw | ConvertFrom-Json).messages
 $Worker = Get-Content -LiteralPath (Join-Path $PublicRoot 'ms-human-worker.js') -Raw
 $Protocol = Get-Content -LiteralPath $ProtocolPath -Raw
@@ -346,15 +348,23 @@ Assert-True (-not $Index.Contains('Reach8')) 'Legacy Reach8 content remains in t
 Assert-True (-not $Index.Contains('MoBL-ARMS')) 'Legacy model disclosure remains in the root interface'
 Assert-True $EnglishMessages.'model-info.limitations.quality-copy'.Contains('colors appear only when paths and values are valid') 'English static quality disclosure is missing'
 Assert-Equal $EnglishMessages.'brand.intro' 'Explore regional posture and modeled muscle activation.' 'Regional Explorer description is missing'
+Assert-True $EnglishMessages.'meta.title'.Contains('Muscle Activation') 'Search title does not identify muscle activation'
+Assert-True $EnglishMessages.'meta.title'.Contains('Movement Assessment') 'Search title does not identify the movement assessment'
+Assert-True $EnglishMessages.'meta.description'.Contains('arms, hands, legs, feet, back, trunk, head and neck') 'Search description does not identify the supported body regions'
+Assert-True $EnglishMessages.'boundary.title'.Contains('Muscle activation explorer') 'Use-boundary heading does not identify the tool'
+Assert-True $EnglishMessages.'boundary.description'.Contains('guided movement observations') 'Use-boundary copy does not describe the assessment workflow'
+Assert-True $EnglishMessages.'boundary.description'.Contains('saved only in this browser') 'Use-boundary copy does not describe local report storage'
+Assert-True $Index.Contains('<meta name="description"') 'Source-visible search description is missing'
+Assert-True $Index.Contains('rel="canonical" href="https://medical.waajacu.com/en/tools/muscles/"') 'Canonical tool URL is missing'
 Assert-True $EnglishMessages.'model-info.shows.posture-copy'.Contains('choose one body region at a time') 'Regional control-boundary disclosure is missing'
-Assert-True $EnglishMessages.'model-info.limitations.assessment-copy'.Contains('guided sequence remains a separate right upper-limb workflow') 'Assessment isolation disclosure is missing'
+Assert-True $EnglishMessages.'model-info.limitations.assessment-copy'.Contains('guided sequence uses the selected regional posture protocol') 'Regional assessment disclosure is missing'
 Assert-True $Index.Contains('id="focus-region"') 'Explorer region selector is missing'
 Assert-True (-not $Index.Contains('id="region-side-control"')) 'Redundant side selector remains beside the explicit region list'
 Assert-True $Index.Contains('id="render-anatomical-bodies"') 'Procedural anatomical muscle-body rendering control is missing'
 Assert-True (-not $Index.Contains('id="render-muscle-bodies"')) 'Removed simple muscle-body rendering control remains in the interface'
 Assert-True $Index.Contains('id="render-path-lines"') 'Technical path-line rendering control is missing'
 Assert-True $EnglishMessages.'model-info.shows.rendering-copy'.Contains('Body shape and thickness are illustrative') 'Illustrative muscle-body shape and thickness disclosure is missing'
-Assert-True $EnglishMessages.'assessment.workspace.guided-positions'.Contains('20 guided positions') 'Current assessment position count is missing from the interface'
+Assert-True $EnglishMessages.'assessment.workspace.guided-positions'.Contains('guided positions') 'Assessment position-count copy is missing from the interface'
 Assert-Equal $EnglishMessages.'assessment.privacy.intro' 'Everything you enter—including assessment answers and reports—is saved only in this browser on your device.' 'Device-storage behavior is not disclosed in the interface'
 Assert-True (-not $Index.Contains('name="email"')) 'Unused email collection remains in the assessment'
 Assert-True (-not $Index.Contains('name="city"')) 'Unused city collection remains in the assessment'
@@ -365,9 +375,9 @@ Assert-True $Worker.Contains("'./models/ms_human_700/hand-region.json'") 'Worker
 Assert-True $Worker.Contains('678594aec430f77342058673cd93c4ec6bf0f294e567efacb9351894f9be7e7a') 'Worker regional-manifest integrity pin changed'
 Assert-True $Worker.Contains('f6406c25bbb82593c96a639efa020bea758abae77d385f00ab6d16e7c6ce8005') 'Worker hand-manifest integrity pin changed'
 Assert-True $App.Contains("const DEFAULT_REGION_ID = 'right-upper-limb';") 'Application default region changed'
-Assert-True $App.Contains("activateEngineProfile('primary', DEFAULT_REGION_ID)") 'Assessment no longer returns the viewer to the reviewed primary right-arm profile'
-Assert-True $App.Contains("app.profiles.get('primary').engine.pose(coordinates, selected, DEFAULT_REGION_ID)") 'Assessment pose requests are not isolated to the primary default region'
-Assert-True $App.Contains("app.profiles.get('primary').engine.staticHold(coordinates, selected, DEFAULT_REGION_ID)") 'Assessment static requests are not isolated to the primary default region'
+Assert-True $App.Contains('async function activateAssessmentRegion(regionId = DEFAULT_REGION_ID)') 'Regional assessment viewer activation is missing'
+Assert-True $App.Contains("requestAssessmentState('pose', coordinates, selected, regionId)") 'Assessment pose requests do not carry their selected region'
+Assert-True $App.Contains("requestAssessmentState('staticHold', coordinates, selected, regionId)") 'Assessment static requests do not carry their selected region'
 foreach ($RegionLabel in @('Right arm', 'Left arm', 'Right hand', 'Right leg', 'Left leg', 'Right foot and ankle', 'Left foot and ankle', 'Back & trunk', 'Head & neck')) {
     Assert-True ($EnglishMessages.PSObject.Properties.Value -contains $RegionLabel) "Explicit Explorer region is missing: $RegionLabel"
 }
@@ -375,7 +385,9 @@ Assert-True $App.Contains('function pickMuscleAt') 'Direct 3D muscle picking is 
 Assert-True $App.Contains("selectMuscle(muscleName, 'one')") 'A directly picked muscle is not isolated in Inspect one'
 Assert-True $App.Contains('mesh.userData.muscleName = muscle.name') 'Rendered muscle meshes are not tagged for direct picking'
 Assert-True $App.Contains('function muscleDisplayName') 'Readable muscle-name presentation layer is missing'
-Assert-True $Diagnosis.Contains("from './ms-human-assessment-protocol.js'") 'Diagnosis does not import the current relative MS-Human assessment protocol'
+Assert-True $Diagnosis.Contains("from './assessment-protocol-registry.js'") 'Diagnosis does not import the regional assessment registry'
+Assert-True $ProtocolRegistry.Contains("from './ms-human-assessment-protocol.js'") 'The registry no longer preserves the established right-arm protocol'
+Assert-True $ProtocolRegistry.Contains("from './generated-regional-assessment-protocols.js'") 'The registry does not import the generated regional protocols'
 Assert-True $Diagnosis.Contains("storageMode: 'device'") 'Assessment device storage is no longer the reviewed default'
 Assert-True (-not $Diagnosis.Contains('MODERATE_CAPACITY_POSITIONS')) 'Retired assessment posture panel remains in active diagnosis code'
 Assert-True (-not $Diagnosis.Contains('DIAGNOSIS_TESTS')) 'Dormant standard-test workflow remains in active diagnosis code'
@@ -402,6 +414,8 @@ $Routes = @(
     @{ Path = '/locales/cs.json'; Type = 'application/json' },
     @{ Path = '/locales/zh-Hans.json'; Type = 'application/json' },
     @{ Path = '/app-ms-human.js'; Type = 'text/javascript' },
+    @{ Path = '/assessment-protocol-registry.js'; Type = 'text/javascript' },
+    @{ Path = '/generated-regional-assessment-protocols.js'; Type = 'text/javascript' },
     @{ Path = '/ms-human-engine.js'; Type = 'text/javascript' },
     @{ Path = '/ms-human-worker.js'; Type = 'text/javascript' },
     @{ Path = '/ms-human-assessment-protocol.js'; Type = 'text/javascript' },
@@ -426,7 +440,7 @@ foreach ($Route in $Routes) {
 }
 
 $RootResponse = Invoke-WebRequest -UseBasicParsing -Uri "$BaseUrl/" -TimeoutSec 30
-$Csp = $RootResponse.Headers['Content-Security-Policy']
+$Csp = (@($RootResponse.Headers['Content-Security-Policy']) -join '; ')
 Assert-True $Csp.Contains("'unsafe-eval'") 'Root CSP does not permit the pinned Emscripten runtime'
 Assert-True $Csp.Contains("'wasm-unsafe-eval'") 'Root CSP does not permit WebAssembly compilation'
 Assert-True $Csp.Contains("worker-src 'self'") 'Root CSP does not permit the local model worker'

@@ -6,11 +6,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = $PSScriptRoot
 $ContainerName = 'ms-human-muscles'
+$ApplicationName = 'Biomechanics research tool'
 
 function Test-Web {
     param([int]$WebPort)
     try {
-        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:$WebPort/" -TimeoutSec 5
+        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$WebPort/" -TimeoutSec 5
         return $response.StatusCode -eq 200 -and $response.Content -match 'bootstrap.js'
     }
     catch { return $false }
@@ -31,6 +32,18 @@ function Get-PublishedPort {
     return $ports[0]
 }
 
+function Show-ContainerStatus {
+    param(
+        [string]$Status,
+        [int]$WebPort
+    )
+    Write-Host ''
+    Write-Host $ApplicationName
+    Write-Host ('  Status  {0}' -f $Status)
+    Write-Host ('  Web     http://127.0.0.1:{0}' -f $WebPort)
+    Write-Host ('  Logs    docker logs -f {0}' -f $ContainerName)
+}
+
 if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'setup.sh'))) {
     throw "setup.sh was not found in $ProjectRoot"
 }
@@ -46,13 +59,18 @@ if ($existing -eq $ContainerName) {
         throw "The existing '$ContainerName' container is published on port $publishedPort, not $Port. Run with -Port $publishedPort, or remove the container before choosing a different port."
     }
     $running = docker ps --filter "name=^/$ContainerName$" --format '{{.Names}}'
-    if ($running -ne $ContainerName) { docker start $ContainerName | Out-Null }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker could not inspect the running state of '$ContainerName'."
+    }
+    if ($running -ne $ContainerName) {
+        docker start $ContainerName | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Docker could not start '$ContainerName'."
+        }
+    }
     $ready = Test-Web -WebPort $Port
-    Write-Host ''
-    Write-Host 'MS-Human-700 Upper-Limb Explorer'
-    Write-Host ('  Status  {0}' -f $(if ($ready) { 'ready' } else { 'starting' }))
-    Write-Host ('  Web     http://localhost:{0}' -f $Port)
-    Write-Host ('  Logs    docker logs -f {0}' -f $ContainerName)
+    $status = if ($ready) { 'ready' } else { 'starting' }
+    Show-ContainerStatus -Status $status -WebPort $Port
     exit 0
 }
 
@@ -69,8 +87,4 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($containerId)) {
     throw "Docker could not create the '$ContainerName' container."
 }
 
-Write-Host ''
-Write-Host 'MS-Human-700 Upper-Limb Explorer'
-Write-Host '  Status  starting'
-Write-Host ('  Web     http://localhost:{0}' -f $Port)
-Write-Host ('  Logs    docker logs -f {0}' -f $ContainerName)
+Show-ContainerStatus -Status 'starting' -WebPort $Port
