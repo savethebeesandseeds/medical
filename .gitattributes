@@ -3,6 +3,8 @@
 muscles/public/models/ms_human_700/body-regions.json text eol=lf
 muscles/public/models/ms_human_700/hand-region.json text eol=lf
 muscles/tools/ms-human-region-evidence.json text eol=lf
+muscles/tools/regional-assessment-evidence/*.json text eol=lf
+muscles/public/generated-regional-assessment-protocols.js text eol=lf
 muscles/public/vendor/mujoco.js text eol=lf
 muscles/public/vendor/MUJOCO_LICENSE.txt text eol=lf
 muscles/public/vendor/THREE_LICENSE.txt text eol=lf
