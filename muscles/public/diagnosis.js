@@ -10,13 +10,15 @@ import {
     ASSESSMENT_REGIONS,
     ASSESSMENT_PROTOCOLS,
     DEFAULT_ASSESSMENT_PROTOCOL_KEY,
+    assessmentProtocolOptionKey,
+    assessmentProtocolOptionValue,
     assessmentProtocolForRegionSide,
     assessmentProtocolByIdentity,
     assessmentProtocolByKey,
     assessmentRegionByKey,
     assessmentRegionForProtocol
 } from './assessment-protocol-registry.js';
-import { formatDate, formatNumber, plural, t } from './i18n.js';
+import { formatDate, formatNumber, locale, plural, t } from './i18n.js';
 
 const DIAGNOSIS_DRAFT_KEY = 'waajacu-medical.diagnosis-draft.v1';
 const DIAGNOSIS_REPORTS_KEY = 'waajacu-medical.patient-reports.v1';
@@ -359,6 +361,15 @@ export function createDiagnosisWorkflow(controller) {
         }
     }
 
+    function localizedValue(key) {
+        try {
+            const value = t(key);
+            return value && value !== key ? value : null;
+        } catch {
+            return null;
+        }
+    }
+
     function protocolTitle(entry = protocolEntry(), short = false) {
         return localizedFallback(short ? entry.shortTitleKey : entry.titleKey, short ? entry.shortTitle : entry.title);
     }
@@ -379,11 +390,51 @@ export function createDiagnosisWorkflow(controller) {
         return `${selectionRegionTitle(selectionRegion(entry))} · ${sideLabel(entry.side)}`;
     }
 
+    function generatedLocalizedPosition(position, entry) {
+        const ranges = entry.protocol?.coordinateRanges;
+        if (!ranges || !position?.coordinates) return null;
+        if (position.tier === 'neutral-reference') {
+            return {
+                name: t('assessment.protocol.generated-position.neutral-name'),
+                instruction: t('assessment.protocol.generated-position.neutral-instruction')
+            };
+        }
+        const changes = Object.entries(position.coordinates).map(([key, value]) => {
+            const range = ranges[key];
+            if (!range) return null;
+            const delta = Number(value) - Number(range.default);
+            const denominator = delta < 0
+                ? Number(range.default) - Number(range.minimum)
+                : Number(range.maximum) - Number(range.default);
+            return {
+                key,
+                delta,
+                normalized: denominator > 0 ? Math.abs(delta) / denominator : 0
+            };
+        }).filter((change) => change && change.normalized >= 0.05)
+            .sort((left, right) => right.normalized - left.normalized || left.key.localeCompare(right.key))
+            .slice(0, 2)
+            .map(({ key, delta }) => `${angleLabel(key, entry)} ${formatNumber(delta, {
+                maximumFractionDigits: 1,
+                signDisplay: 'always'
+            })}°`);
+        if (!changes.length) return null;
+        const tier = t(`assessment.protocol.generated-position.tier.${position.tier}`);
+        const changeList = new Intl.ListFormat(locale(), { style: 'long', type: 'conjunction' }).format(changes);
+        return {
+            name: t('assessment.protocol.generated-position.name', { tier, changes: changeList }),
+            instruction: t('assessment.protocol.generated-position.instruction', { changes: changeList })
+        };
+    }
+
     function localizedPosition(position, entry = protocolEntry()) {
         const prefix = entry.positionI18nPrefix || 'assessment.positions';
+        const translatedName = localizedValue(`${prefix}.${position.id}.name`);
+        const translatedInstruction = localizedValue(`${prefix}.${position.id}.instruction`);
+        const generated = generatedLocalizedPosition(position, entry);
         return {
-            name: localizedFallback(`${prefix}.${position.id}.name`, position.name),
-            instruction: localizedFallback(`${prefix}.${position.id}.instruction`, position.instruction)
+            name: translatedName ?? generated?.name ?? position.name,
+            instruction: translatedInstruction ?? generated?.instruction ?? position.instruction
         };
     }
 
@@ -398,7 +449,9 @@ export function createDiagnosisWorkflow(controller) {
             deviation_r: 'assessment.angles.wrist-deviation',
             flexion_r: 'assessment.angles.wrist-flexion'
         };
-        return legacyKeys[key] ? localizedFallback(legacyKeys[key], fallback) : fallback;
+        return legacyKeys[key]
+            ? localizedFallback(legacyKeys[key], fallback)
+            : localizedFallback(`explorer.coordinates.${key}`, fallback);
     }
 
     function requiredProtocolPositions(entry = protocolEntry()) {
@@ -671,10 +724,6 @@ export function createDiagnosisWorkflow(controller) {
         }
     }
 
-    function optionValue(label) {
-        return String(label ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    }
-
     function renderIntakeLocationOptions() {
         const entry = protocolEntry();
         const locationSelect = byId('diagnosis-intake-form')?.elements?.primaryPainLocation;
@@ -687,8 +736,8 @@ export function createDiagnosisWorkflow(controller) {
             locationSelect.append(placeholder);
             for (const label of entry.intakeLocationOptions ?? []) {
                 const option = document.createElement('option');
-                option.value = optionValue(label);
-                option.textContent = localizedFallback(`assessment.protocol.options.location.${option.value}`, label);
+                option.value = assessmentProtocolOptionValue(label);
+                option.textContent = localizedFallback(assessmentProtocolOptionKey('location', label), label);
                 option.selected = option.value === current;
                 locationSelect.append(option);
             }
@@ -1744,8 +1793,8 @@ export function createDiagnosisWorkflow(controller) {
                         field: 'painLocation',
                         value: response.painLocation,
                         options: (entry.intakeLocationOptions ?? []).map((label) => {
-                            const value = optionValue(label);
-                            return [value, localizedFallback(`assessment.protocol.options.location.${value}`, label)];
+                            const value = assessmentProtocolOptionValue(label);
+                            return [value, localizedFallback(assessmentProtocolOptionKey('location', label), label)];
                         }),
                         required: true
                     });
@@ -1765,8 +1814,8 @@ export function createDiagnosisWorkflow(controller) {
                         field: 'compensationDetail',
                         value: response.compensationDetail,
                         options: (entry.movementDifferenceOptions ?? []).map((label) => {
-                            const value = optionValue(label);
-                            return [value, localizedFallback(`assessment.protocol.options.movement.${value}`, label)];
+                            const value = assessmentProtocolOptionValue(label);
+                            return [value, localizedFallback(assessmentProtocolOptionKey('movement', label), label)];
                         }),
                         required: true
                     });

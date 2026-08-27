@@ -39,7 +39,11 @@ const [
 ]);
 
 const catalog = JSON.parse(catalogSource);
-const { ASSESSMENT_REGIONS, ASSESSMENT_PROTOCOLS } = await import(`${protocolRegistryUrl.href}?verify-i18n=${Date.now()}`);
+const {
+    ASSESSMENT_REGIONS,
+    ASSESSMENT_PROTOCOLS,
+    assessmentProtocolOptionKey
+} = await import(`${protocolRegistryUrl.href}?verify-i18n=${Date.now()}`);
 const translatedCatalogs = await Promise.all(translatedCatalogDefinitions.map(async ({ file, locale }) => ({
     file,
     locale,
@@ -293,6 +297,22 @@ const regionalProtocolKeys = ASSESSMENT_PROTOCOLS.flatMap((entry) => [
     entry.shortTitleKey,
     entry.descriptionKey
 ]);
+const protocolOptionDefinitions = ASSESSMENT_PROTOCOLS.flatMap((entry) => [
+    ...(entry.intakeLocationOptions ?? []).map((label) => ({ family: 'location', label })),
+    ...(entry.movementDifferenceOptions ?? []).map((label) => ({ family: 'movement', label }))
+]);
+const protocolOptionKeys = protocolOptionDefinitions.map(({ family, label }) => (
+    assessmentProtocolOptionKey(family, label)
+));
+const optionLabelsByKey = new Map();
+for (const [index, key] of protocolOptionKeys.entries()) {
+    const labels = optionLabelsByKey.get(key) ?? new Set();
+    labels.add(protocolOptionDefinitions[index].label);
+    optionLabelsByKey.set(key, labels);
+}
+for (const [key, labels] of optionLabelsByKey) {
+    check(labels.size === 1, `Assessment protocol option key collision for ${key}: ${[...labels].join(', ')}`);
+}
 requireKeys([
     ...regionalProtocolKeys,
     ...ASSESSMENT_REGIONS.map((region) => region.titleKey),
@@ -300,8 +320,12 @@ requireKeys([
     'assessment.protocol.tier.neutral-reference',
     'assessment.protocol.tier.accessible',
     'assessment.protocol.tier.moderate',
-    'assessment.protocol.tier.broad'
+    'assessment.protocol.tier.broad',
+    'assessment.protocol.generated-position.tier.accessible',
+    'assessment.protocol.generated-position.tier.moderate',
+    'assessment.protocol.generated-position.tier.broad'
 ], 'Regional protocol messages');
+requireKeys(protocolOptionKeys, 'Assessment protocol option messages');
 
 const qualityFunction = workerSource.match(/function staticQualityStatus\([^)]*\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
 const qualityStatuses = [...qualityFunction.matchAll(/return\s*\[\s*['"]([^'"]+)['"]/g)].map((match) => match[1]);
@@ -434,4 +458,4 @@ if (failures.length) {
     throw new Error(`Localization verification failed:\n- ${failures.join('\n- ')}`);
 }
 
-console.log(`Verified ${translatedCatalogs.length + 1} localization catalogs: ${Object.keys(catalog.messages).length} messages each, ${htmlReferences.length} HTML references, ${regionKeys.length + coordinateKeys.length + presetKeys.length} manifest-derived references, ${protocolKeys.length} protocol references.`);
+console.log(`Verified ${translatedCatalogs.length + 1} localization catalogs: ${Object.keys(catalog.messages).length} messages each, ${htmlReferences.length} HTML references, ${regionKeys.length + coordinateKeys.length + presetKeys.length} manifest-derived references, ${protocolKeys.length} protocol references, ${optionLabelsByKey.size} protocol option references.`);

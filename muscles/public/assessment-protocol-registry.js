@@ -23,6 +23,25 @@ function normalizeDigest(value) {
     return String(value ?? '').replace(/^sha256:/i, '').toLowerCase();
 }
 
+const ASSESSMENT_PROTOCOL_OPTION_FAMILIES = new Set(['location', 'movement']);
+
+export function assessmentProtocolOptionValue(label) {
+    const value = String(label ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+    if (!value) throw new Error('Assessment protocol option labels must produce a stable value.');
+    return value;
+}
+
+export function assessmentProtocolOptionKey(family, label) {
+    if (!ASSESSMENT_PROTOCOL_OPTION_FAMILIES.has(family)) {
+        throw new Error(`Unknown assessment protocol option family: ${family}`);
+    }
+    return `assessment.protocol.options.${family}.${assessmentProtocolOptionValue(label)}`;
+}
+
 const RIGHT_ARM_LIMITATIONS = Object.freeze([
     'Right-arm static postures only. The rest of the body is prescribed and acts as external support.',
     'No held object, contact force, measured support, speed, acceleration, fatigue, or person-specific co-contraction is modeled.',
