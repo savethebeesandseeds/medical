@@ -23,6 +23,7 @@ import { formatDate, formatNumber, locale, plural, t } from './i18n.js';
 const DIAGNOSIS_DRAFT_KEY = 'waajacu-medical.diagnosis-draft.v1';
 const DIAGNOSIS_REPORTS_KEY = 'waajacu-medical.patient-reports.v1';
 const MAX_SAVED_REPORTS = 100;
+const GENERATED_POSITION_TIERS = new Set(['accessible', 'moderate', 'broad']);
 
 function emptyPositionResponse() {
     return {
@@ -399,6 +400,7 @@ export function createDiagnosisWorkflow(controller) {
                 instruction: t('assessment.protocol.generated-position.neutral-instruction')
             };
         }
+        if (!GENERATED_POSITION_TIERS.has(position.tier)) return null;
         const changes = Object.entries(position.coordinates).map(([key, value]) => {
             const range = ranges[key];
             if (!range) return null;
@@ -431,6 +433,9 @@ export function createDiagnosisWorkflow(controller) {
         const prefix = entry.positionI18nPrefix || 'assessment.positions';
         const translatedName = localizedValue(`${prefix}.${position.id}.name`);
         const translatedInstruction = localizedValue(`${prefix}.${position.id}.instruction`);
+        if (translatedName !== null && translatedInstruction !== null) {
+            return { name: translatedName, instruction: translatedInstruction };
+        }
         const generated = generatedLocalizedPosition(position, entry);
         return {
             name: translatedName ?? generated?.name ?? position.name,

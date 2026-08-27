@@ -60,7 +60,7 @@ const RIGHT_ARM_ENTRY = deepFreeze({
     title: 'Right upper limb',
     shortTitle: 'Right arm',
     description: 'Right shoulder, elbow, forearm, and wrist observation',
-    positionI18nPrefix: 'assessment.protocol.right-upper-limb.position',
+    positionI18nPrefix: 'assessment.positions',
     angleLabels: Object.fromEntries(Object.entries(MS_HUMAN_AUTHORED_COORDINATES)
         .map(([key, range]) => [key, range.label])),
     responseProfile: 'movement-observation-v1',

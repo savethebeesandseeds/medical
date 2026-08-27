@@ -297,6 +297,21 @@ const regionalProtocolKeys = ASSESSMENT_PROTOCOLS.flatMap((entry) => [
     entry.shortTitleKey,
     entry.descriptionKey
 ]);
+const generatedPositionTiers = new Set(['accessible', 'moderate', 'broad']);
+for (const entry of ASSESSMENT_PROTOCOLS) {
+    const prefix = entry.positionI18nPrefix || 'assessment.positions';
+    for (const position of entry.positions ?? []) {
+        const nameKey = `${prefix}.${position.id}.name`;
+        const instructionKey = `${prefix}.${position.id}.instruction`;
+        const missingDedicatedKeys = [nameKey, instructionKey]
+            .filter((key) => !Object.hasOwn(catalog.messages, key));
+        if (!missingDedicatedKeys.length) continue;
+        check(
+            position.tier === 'neutral-reference' || generatedPositionTiers.has(position.tier),
+            `Assessment protocol ${entry.key} position ${position.id} is missing dedicated message(s) ${missingDedicatedKeys.join(', ')} and has unsupported generated tier ${String(position.tier)}.`
+        );
+    }
+}
 const protocolOptionDefinitions = ASSESSMENT_PROTOCOLS.flatMap((entry) => [
     ...(entry.intakeLocationOptions ?? []).map((label) => ({ family: 'location', label })),
     ...(entry.movementDifferenceOptions ?? []).map((label) => ({ family: 'movement', label }))

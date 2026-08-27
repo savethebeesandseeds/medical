@@ -2561,6 +2561,7 @@ async function initialize() {
     attachViewerInteraction();
     bindInterface();
     resizeRenderer();
+    let diagnosisWorkflowStarting = false;
     try {
         setLoading(t('explorer.status.loading-model'));
         const [metadata, geometryResponse] = await Promise.all([
@@ -2584,6 +2585,7 @@ async function initialize() {
         updateInventory();
         $('#server-status').className = 'server-status online';
         $('#server-status span:last-child').textContent = t('common.status.model-ready-local');
+        diagnosisWorkflowStarting = true;
         app.diagnosis = createDiagnosisWorkflow({
             pose: (coordinates, selected, regionId) => requestAssessmentState('pose', coordinates, selected, regionId),
             staticHold: (coordinates, selected, regionId) => requestAssessmentState('staticHold', coordinates, selected, regionId),
@@ -2600,6 +2602,7 @@ async function initialize() {
             leaveDiagnosis: leaveDiagnosisWorkspace,
             resizeViewer: resizeRenderer
         });
+        diagnosisWorkflowStarting = false;
         const pose = await requestPose();
         if (!pose) {
             if (app.regionGeneration > 0) return;
@@ -2623,7 +2626,9 @@ async function initialize() {
         $('#server-status span:last-child').textContent = t('common.status.unavailable');
         setLoading('', false);
         app.diagnosis?.setReady(false);
-        showError(t('explorer.errors.model-load'));
+        showError(diagnosisWorkflowStarting
+            ? t('bootstrap.app-failure')
+            : t('explorer.errors.model-load'));
         console.error(error);
     }
 }
