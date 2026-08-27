@@ -656,6 +656,7 @@ export function buildReportV5({
             testedSide,
             modelSide: sideMode === 'visual-mirror' ? 'right_model_visually_mirrored' : testedSide,
             protocolKey: assessmentContext.protocolKey ?? null,
+            bodyRegionKey: assessmentContext.bodyRegionKey ?? null,
             regionId: reportRegionId,
             regionTitle,
             profileId: assessmentContext.profileId ?? model.profileId ?? null,
@@ -733,6 +734,7 @@ export function buildReportV5({
         assessmentProtocol: protocolIdentity,
         assessmentContext: {
             protocolKey: assessmentContext.protocolKey ?? null,
+            bodyRegionKey: assessmentContext.bodyRegionKey ?? null,
             regionId: reportRegionId,
             profileId: assessmentContext.profileId ?? model.profileId ?? null,
             sideMode,
@@ -808,18 +810,87 @@ function archivedProtocolObservations(source = {}) {
             observation: sanitizedHumanFields(position.observation ?? position.response ?? {})
         }))
         : [];
-    const alreadyArchived = Array.isArray(source.archivedProtocolObservations)
-        ? source.archivedProtocolObservations.map((entry) => ({
+    const archivedSource = source.archivedProtocolObservations;
+    const alreadyArchived = Array.isArray(archivedSource)
+        ? archivedSource.map((entry) => ({
             sourceTrialId: entry.sourceTrialId ?? null,
             sourceTrialName: entry.sourceTrialName ?? null,
             observation: sanitizedHumanFields(entry.observation ?? {})
         }))
-        : [];
+        : archivedSource && typeof archivedSource === 'object'
+            ? Object.entries(archivedSource).map(([id, response]) => ({
+                sourceTrialId: id,
+                sourceTrialName: null,
+                observation: sanitizedHumanFields(response ?? {})
+            }))
+            : [];
     return [...canonical, ...positions, ...alreadyArchived];
+}
+
+function archivedMetadataToken(value) {
+    const token = (typeof value === 'string' || typeof value === 'number')
+        ? String(value).trim()
+        : '';
+    return token && /^[A-Za-z0-9][A-Za-z0-9._:+\/-]{0,159}$/.test(token)
+        ? token
+        : null;
+}
+
+function sanitizedArchivedProtocolIdentity(protocol) {
+    if (!protocol || typeof protocol !== 'object') return null;
+    const id = archivedMetadataToken(protocol.id ?? protocol.assessmentProtocolId);
+    const version = archivedMetadataToken(protocol.version ?? protocol.protocolVersion);
+    const rawDigest = String(protocol.digest ?? protocol.assessmentProtocolDigest ?? '').trim().toLowerCase();
+    const digest = PROTOCOL_DIGEST_PATTERN.test(rawDigest) ? rawDigest : null;
+    if (!id && !version && !digest) return null;
+    return {
+        id,
+        version,
+        digest,
+        identityVerified: Boolean(id && version && digest)
+    };
+}
+
+function sanitizedArchivedAssessmentContext(context) {
+    if (!context || typeof context !== 'object') return null;
+    const retained = {};
+    for (const field of [
+        'protocolKey', 'bodyRegionKey', 'regionId', 'profileId', 'testedSide', 'sideMode'
+    ]) {
+        const value = archivedMetadataToken(context[field]);
+        if (value) retained[field] = value;
+    }
+    return Object.keys(retained).length ? retained : null;
+}
+
+function preservedArchiveMetadata(source, fallbackCollection) {
+    const sourceAssessmentProtocol = sanitizedArchivedProtocolIdentity(source.sourceAssessmentProtocol);
+    const expectedAssessmentProtocol = sanitizedArchivedProtocolIdentity(source.expectedAssessmentProtocol);
+    const sourceAssessmentContext = sanitizedArchivedAssessmentContext(source.sourceAssessmentContext);
+    const migrationReason = archivedMetadataToken(source.migrationReason);
+    return {
+        sourceCollection: archivedMetadataToken(source.sourceCollection) ?? fallbackCollection,
+        ...(sourceAssessmentProtocol ? { sourceAssessmentProtocol } : {}),
+        ...(expectedAssessmentProtocol ? { expectedAssessmentProtocol } : {}),
+        ...(sourceAssessmentContext ? { sourceAssessmentContext } : {}),
+        ...(migrationReason ? { migrationReason } : {})
+    };
 }
 
 function preservedLegacyAssessment(source, sourceSchemaVersion = null) {
     if (!source || typeof source !== 'object') return null;
+    const nestedCollections = Array.isArray(source.archivedAssessmentCollections)
+        ? source.archivedAssessmentCollections
+            .map((collection) => preservedLegacyAssessment(collection, collection?.sourceSchemaVersion ?? sourceSchemaVersion))
+            .filter(Boolean)
+        : [];
+    if (nestedCollections.length) {
+        const merged = mergePreservedAssessments(...nestedCollections);
+        return {
+            ...merged,
+            ...preservedArchiveMetadata(source, merged.sourceCollection)
+        };
+    }
     const tests = Array.isArray(source.tests) ? source.tests.map((test) => ({
         id: test.id ?? null,
         name: test.name ?? null,
@@ -830,9 +901,14 @@ function preservedLegacyAssessment(source, sourceSchemaVersion = null) {
         : {};
     const observations = archivedProtocolObservations(source);
     if (!tests.length && !Object.keys(responses).length && !observations.length) return null;
+    const fallbackCollection = tests.length
+        ? 'tests'
+        : Object.keys(responses).length
+            ? 'responses'
+            : 'archived_protocol_observations';
     return {
-        sourceSchemaVersion: Number(sourceSchemaVersion ?? source.sourceSchemaVersion) || null,
-        sourceCollection: tests.length ? 'tests' : 'responses',
+        sourceSchemaVersion: Number(source.sourceSchemaVersion ?? sourceSchemaVersion) || null,
+        ...preservedArchiveMetadata(source, fallbackCollection),
         readOnly: true,
         interpretationExcluded: true,
         modelEvidenceRemoved: true,
@@ -847,6 +923,7 @@ function preservedLegacyAssessment(source, sourceSchemaVersion = null) {
 function mergePreservedAssessments(...collections) {
     const retained = collections.filter(Boolean);
     if (!retained.length) return null;
+    if (retained.length === 1) return structuredClone(retained[0]);
     const tests = retained.flatMap((collection) => collection.tests ?? []);
     const responses = Object.assign({}, ...retained.map((collection) => collection.responses ?? {}));
     const observations = retained.flatMap((collection) => collection.archivedProtocolObservations ?? []);
@@ -860,7 +937,10 @@ function mergePreservedAssessments(...collections) {
         mayContainFreeTextIdentifiers: true,
         ...(tests.length ? { tests } : {}),
         ...(Object.keys(responses).length ? { responses } : {}),
-        ...(observations.length ? { archivedProtocolObservations: observations } : {})
+        ...(observations.length ? { archivedProtocolObservations: observations } : {}),
+        ...(retained.length > 1
+            ? { archivedAssessmentCollections: retained.map((collection) => structuredClone(collection)) }
+            : {})
     };
 }
 

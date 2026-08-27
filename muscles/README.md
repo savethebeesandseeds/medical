@@ -123,9 +123,11 @@ verification.
 
 Long latissimus origins participate in upper-limb solves but are hidden in the
 default path layer for readability. Explorer uses true right- and left-side
-model calculations. The separate guided Assessment remains pinned to its
-versioned right upper-limb protocol; its optional left display is still an
-explicit visual mirror of that right-side calculation.
+model calculations. Guided Assessment first selects a logical body region and,
+where distinct left and right protocols exist, an explicit side. That choice
+loads the matching versioned native protocol, posture inventory, model region,
+solver evidence, and report identity; Assessment never substitutes a visual
+mirror for a native side-specific protocol.
 
 ## Static calculation boundary
 

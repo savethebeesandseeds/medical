@@ -39,7 +39,7 @@ const [
 ]);
 
 const catalog = JSON.parse(catalogSource);
-const { ASSESSMENT_PROTOCOLS } = await import(`${protocolRegistryUrl.href}?verify-i18n=${Date.now()}`);
+const { ASSESSMENT_REGIONS, ASSESSMENT_PROTOCOLS } = await import(`${protocolRegistryUrl.href}?verify-i18n=${Date.now()}`);
 const translatedCatalogs = await Promise.all(translatedCatalogDefinitions.map(async ({ file, locale }) => ({
     file,
     locale,
@@ -185,6 +185,11 @@ for (const { file, locale: expectedLocale, catalog: translated } of translatedCa
         );
     }
 }
+const translatedCatalogByLocale = new Map(translatedCatalogs.map(({ locale, catalog: translated }) => [locale, translated]));
+check(translatedCatalogByLocale.get('el')?.messages?.['common.sides.right'] === 'Δεξιά',
+    'Greek anatomical right-side label must be "Δεξιά".');
+check(translatedCatalogByLocale.get('cs')?.messages?.['common.sides.right'] === 'Vpravo',
+    'Czech anatomical right-side label must be "Vpravo".');
 
 const htmlReferences = [];
 for (const match of html.matchAll(/\bdata-i18n="([^"]+)"/g)) htmlReferences.push(match[1]);
@@ -290,6 +295,8 @@ const regionalProtocolKeys = ASSESSMENT_PROTOCOLS.flatMap((entry) => [
 ]);
 requireKeys([
     ...regionalProtocolKeys,
+    ...ASSESSMENT_REGIONS.map((region) => region.titleKey),
+    ...ASSESSMENT_REGIONS.map((region) => region.availabilityKey).filter(Boolean),
     'assessment.protocol.tier.neutral-reference',
     'assessment.protocol.tier.accessible',
     'assessment.protocol.tier.moderate',

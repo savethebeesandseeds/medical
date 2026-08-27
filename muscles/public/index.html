@@ -352,10 +352,21 @@
                         <h3 id="diagnosis-protocol-title" data-i18n="assessment.protocol.title"></h3>
                         <p data-i18n="assessment.protocol.intro"></p>
                     </div>
-                    <label class="diagnosis-field diagnosis-protocol-field">
-                        <span data-i18n="assessment.protocol.region-label"></span>
-                        <select id="diagnosis-protocol-select"></select>
-                    </label>
+                    <div class="diagnosis-protocol-fields">
+                        <label class="diagnosis-field diagnosis-protocol-field">
+                            <span data-i18n="assessment.protocol.region-label"></span>
+                            <select id="diagnosis-protocol-select" required></select>
+                        </label>
+                        <label id="diagnosis-protocol-side-field" class="diagnosis-field diagnosis-protocol-field hidden">
+                            <span data-i18n="assessment.protocol.side-label"></span>
+                            <select id="diagnosis-protocol-side-select" required></select>
+                        </label>
+                        <div id="diagnosis-protocol-fixed-side" class="diagnosis-protocol-fixed-side hidden" role="status">
+                            <span data-i18n="assessment.protocol.side-label"></span>
+                            <strong id="diagnosis-protocol-fixed-side-value"></strong>
+                            <small id="diagnosis-protocol-side-note"></small>
+                        </div>
+                    </div>
                     <p id="diagnosis-protocol-summary" class="diagnosis-protocol-summary" role="status"></p>
                     <p id="diagnosis-protocol-boundary" class="diagnosis-protocol-boundary"></p>
                 </section>
@@ -365,7 +376,7 @@
                         <p data-i18n="assessment.privacy.deletion"></p>
                 </div>
                 <div class="diagnosis-privacy-start">
-                    <button id="diagnosis-start" class="primary-button" type="button" data-i18n="common.actions.start"></button>
+                    <button id="diagnosis-start" class="primary-button" type="button" disabled data-i18n="common.actions.start"></button>
                 </div>
             </section>
 
@@ -374,7 +385,8 @@
                         <p class="eyebrow" data-i18n="assessment.safety.eyebrow"></p>
                         <h2 id="diagnosis-safety-title" data-i18n="assessment.safety.title"></h2>
                         <p data-i18n="assessment.safety.intro"></p>
-                </header>
+                        <p id="diagnosis-safety-scope" class="diagnosis-step-scope"></p>
+                    </header>
                 <div class="diagnosis-safety-body">
                     <div class="diagnosis-safety-intro">
                             <h3 data-i18n="assessment.safety.before-title"></h3>
@@ -385,8 +397,9 @@
                         <div id="diagnosis-safety-form"></div>
                         <div id="diagnosis-safety-warning" class="diagnosis-stop-warning hidden" role="alert"></div>
                         <div class="diagnosis-safety-footer">
-                        <span id="diagnosis-safety-state" data-i18n="assessment.safety.review-required"></span>
-                        <button id="diagnosis-continue" class="primary-button" type="button" disabled data-i18n="common.actions.continue"></button>
+                            <button id="diagnosis-safety-change-protocol" class="quiet-button" type="button" data-i18n="assessment.protocol.change"></button>
+                            <span id="diagnosis-safety-state" data-i18n="assessment.safety.review-required"></span>
+                            <button id="diagnosis-continue" class="primary-button" type="button" disabled data-i18n="common.actions.continue"></button>
                         </div>
                     </div>
                 </div>
@@ -397,7 +410,8 @@
                         <p class="eyebrow" data-i18n="assessment.intake.eyebrow"></p>
                         <h2 id="diagnosis-intake-title" data-i18n="assessment.intake.title"></h2>
                         <p data-i18n="assessment.intake.intro"></p>
-                </header>
+                        <p id="diagnosis-intake-scope" class="diagnosis-step-scope"></p>
+                    </header>
                 <form id="diagnosis-intake-form">
                     <section class="diagnosis-intake-section" aria-labelledby="intake-person-title">
                         <div class="diagnosis-intake-heading">
@@ -412,7 +426,6 @@
                             </select></label>
                             <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.height.label"></span><input name="heightCm" type="number" min="80" max="250" step="0.1" inputmode="decimal" required></label>
                             <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.weight.label"></span><input name="weightKg" type="number" min="20" max="350" step="0.1" inputmode="decimal" required></label>
-                            <label class="diagnosis-field"><span data-i18n="assessment.intake.fields.side.label"></span><select name="assessedSide" required></select></label>
                         </div>
                     </section>
 
@@ -461,6 +474,7 @@
                     </section>
                     <div class="diagnosis-intake-actions">
                         <button id="diagnosis-intake-back" class="quiet-button" type="button" data-i18n="assessment.intake.back"></button>
+                        <button id="diagnosis-intake-change-protocol" class="quiet-button" type="button" data-i18n="assessment.protocol.change"></button>
                         <span id="diagnosis-intake-state" role="status" data-i18n="assessment.intake.complete-required"></span>
                         <button class="primary-button" type="submit" data-i18n="assessment.intake.start"></button>
                     </div>
@@ -504,7 +518,10 @@
                             </section>
                         </div>
                     </section>
-                    <button id="diagnosis-restart" class="quiet-button" type="button" data-i18n="assessment.actions.restart"></button>
+                    <div class="diagnosis-assessment-actions">
+                        <button id="diagnosis-change-protocol" class="quiet-button" type="button" data-i18n="assessment.protocol.change"></button>
+                        <button id="diagnosis-restart" class="quiet-button" type="button" data-i18n="assessment.actions.restart"></button>
+                    </div>
                 </header>
 
                 <div class="diagnosis-center">

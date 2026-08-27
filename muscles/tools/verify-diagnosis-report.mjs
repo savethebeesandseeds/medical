@@ -63,7 +63,17 @@ const {
     fullReportExport
 } = reportModule;
 
-const { completeStaticState, reportModelMetadata } = diagnosisModule;
+const {
+    assessmentReportPayloadForDisplay,
+    assessmentHasProtocolDependentData,
+    canonicalAssessmentIntake,
+    completeStaticState,
+    mergeArchivedAssessmentCollections,
+    pendingCapacityAdvanceForManualSelection,
+    preservedLegacyAssessmentForProtocolSelection,
+    reportModelMetadata,
+    reusableAssessmentIntake
+} = diagnosisModule;
 
 const SCAPULAR_STABILIZERS = Object.freeze([
     'cleid_mast', 'cleid_occ', 'trap_cl', 'trap_acr_scap', 'trap_acr_T1',
@@ -167,6 +177,217 @@ const tests = [];
 function test(name, callback) {
     tests.push({ name, callback });
 }
+
+test('protocol changes preserve only participant-level intake and invalidate region-specific work', () => {
+    const intake = {
+        name: 'Participant',
+        ageYears: 42,
+        gender: 'female',
+        heightCm: 168,
+        weightKg: 64,
+        privacyAccepted: true,
+        assessedSide: 'left',
+        painDuration: 'weeks',
+        painNow: 5,
+        relevantHistory: 'Region-specific history'
+    };
+    assert.deepEqual(reusableAssessmentIntake(intake), {
+        name: 'Participant',
+        ageYears: 42,
+        gender: 'female',
+        heightCm: 168,
+        weightKg: 64,
+        privacyAccepted: true
+    });
+    assert.equal(assessmentHasProtocolDependentData({ intake: reusableAssessmentIntake(intake) }), false);
+    assert.equal(assessmentHasProtocolDependentData({ safetyReviewed: true }), true);
+    assert.equal(assessmentHasProtocolDependentData({ redFlags: { trauma: false } }), true);
+    assert.equal(assessmentHasProtocolDependentData({ intake: { painNow: 0 } }), true);
+    assert.equal(assessmentHasProtocolDependentData({ capacityResponses: { P1: { answered: true } } }), true);
+    assert.equal(assessmentHasProtocolDependentData({ capacityModelStates: { P1: {} } }), true);
+    assert.equal(assessmentHasProtocolDependentData({ legacySymptomAssessment: { readOnly: true } }), true);
+    assert.equal(assessmentHasProtocolDependentData({ protocolMigrationNotice: true }), true);
+
+    const unmatched = canonicalAssessmentIntake({ assessedArm: 'left', painNow: 3 }, null, false);
+    assert.deepEqual(unmatched, { assessedArm: 'left', painNow: 3 });
+    const canonical = canonicalAssessmentIntake(
+        { assessedArm: 'left', assessedSide: 'left', painNow: 3 },
+        { side: 'right' },
+        true
+    );
+    assert.deepEqual(canonical, { assessedSide: 'right', painNow: 3 });
+});
+
+test('multiple generations of unmatched draft observations remain independently archived', () => {
+    const older = {
+        sourceSchemaVersion: 4,
+        sourceCollection: 'draft.responses',
+        sourceAssessmentProtocol: {
+            id: 'legacy-left-arm',
+            version: '4.0.0',
+            digest: `sha256:${'a'.repeat(64)}`,
+            name: 'untrusted free-text protocol name'
+        },
+        sourceAssessmentContext: { testedSide: 'left', patientName: 'must not survive' },
+        migrationReason: 'legacy_protocol_removed',
+        responses: { legacy: { notes: 'older human observation' } }
+    };
+    const newer = {
+        sourceSchemaVersion: 5,
+        sourceCollection: 'draft.capacityResponses',
+        sourceAssessmentProtocol: {
+            id: 'regional-right-leg',
+            version: '5.0.0',
+            digest: `sha256:${'b'.repeat(64)}`
+        },
+        sourceAssessmentContext: { testedSide: 'right', regionId: 'right-lower-limb' },
+        migrationReason: 'stored_assessment_protocol_does_not_match_current_protocol',
+        archivedProtocolObservations: { P1: { notes: 'newer human observation' } }
+    };
+    const merged = mergeArchivedAssessmentCollections(older, newer);
+    assert.equal(merged.sourceCollection, 'draft.archived-assessment-collections');
+    assert.equal(merged.readOnly, true);
+    assert.equal(merged.interpretationExcluded, true);
+    assert.equal(merged.archivedAssessmentCollections.length, 2);
+    assert.deepEqual(merged.archivedAssessmentCollections[0], older);
+    assert.deepEqual(merged.archivedAssessmentCollections[1], newer);
+
+    const newest = { sourceSchemaVersion: 5, sourceCollection: 'draft.capacityResponses.2' };
+    const remerged = mergeArchivedAssessmentCollections(merged, newest);
+    assert.equal(remerged.archivedAssessmentCollections.length, 3);
+    assert.deepEqual(remerged.archivedAssessmentCollections[2], newest);
+    assert.equal(mergeArchivedAssessmentCollections(null, older), older);
+
+    const baseline = build([record('M4', explicitObservation())]);
+    const replacementProtocol = {
+        ...ASSESSMENT_PROTOCOL,
+        id: 'replacement-protocol',
+        digest: `sha256:${'f'.repeat(64)}`
+    };
+    const remigrated = migrateReportToV5(
+        baseline.report,
+        { ...baseline.technicalAnnex, legacySymptomAssessment: merged },
+        { assessmentProtocol: replacementProtocol }
+    );
+    const retained = remigrated.technicalAnnex.legacySymptomAssessment;
+    assert.equal(retained.responses.legacy.notes, 'older human observation');
+    assert.equal(
+        retained.archivedProtocolObservations.find((entry) => entry.sourceTrialId === 'P1')?.observation.notes,
+        'newer human observation'
+    );
+    const retainedCollectionsJson = JSON.stringify(retained.archivedAssessmentCollections);
+    assert.match(retainedCollectionsJson, /older human observation/);
+    assert.match(retainedCollectionsJson, /newer human observation/);
+    const provenance = [];
+    const collectProvenance = (collection) => {
+        if (collection?.sourceAssessmentProtocol) provenance.push({
+            id: collection.sourceAssessmentProtocol.id,
+            side: collection.sourceAssessmentContext?.testedSide,
+            sourceCollection: collection.sourceCollection,
+            migrationReason: collection.migrationReason
+        });
+        for (const nested of collection?.archivedAssessmentCollections ?? []) collectProvenance(nested);
+    };
+    collectProvenance(retained);
+    assert.ok(provenance.some((entry) => (
+        entry.id === 'legacy-left-arm'
+        && entry.side === 'left'
+        && entry.sourceCollection === 'draft.responses'
+        && entry.migrationReason === 'legacy_protocol_removed'
+    )));
+    assert.ok(provenance.some((entry) => (
+        entry.id === 'regional-right-leg'
+        && entry.side === 'right'
+        && entry.sourceCollection === 'draft.capacityResponses'
+        && entry.migrationReason === 'stored_assessment_protocol_does_not_match_current_protocol'
+    )));
+    assert.equal(retainedCollectionsJson.includes('untrusted free-text protocol name'), false);
+    assert.equal(retainedCollectionsJson.includes('must not survive'), false);
+
+    const leafRemigrated = migrateReportToV5(
+        baseline.report,
+        { ...baseline.technicalAnnex, legacySymptomAssessment: older },
+        { assessmentProtocol: replacementProtocol }
+    );
+    const leafCollections = [];
+    const collectCollections = (collection) => {
+        if (collection) leafCollections.push(collection);
+        for (const nested of collection?.archivedAssessmentCollections ?? []) collectCollections(nested);
+    };
+    collectCollections(leafRemigrated.technicalAnnex.legacySymptomAssessment);
+    const retainedLegacyLeaf = leafCollections.find((collection) => (
+        collection.sourceCollection === 'draft.responses'
+    ));
+    assert.equal(retainedLegacyLeaf?.sourceSchemaVersion, 4);
+    assert.equal(retainedLegacyLeaf?.sourceAssessmentProtocol?.id, 'legacy-left-arm');
+    assert.equal(retainedLegacyLeaf?.sourceAssessmentContext?.testedSide, 'left');
+});
+
+test('selecting the first supported replacement preserves quarantined history', () => {
+    const archive = {
+        sourceCollection: 'draft.archived-assessment-collections',
+        readOnly: true,
+        interpretationExcluded: true,
+        archivedAssessmentCollections: [
+            { sourceCollection: 'draft.responses', responses: { old: { notes: 'preserve me' } } }
+        ]
+    };
+    assert.equal(preservedLegacyAssessmentForProtocolSelection({
+        protocolSelectionConfirmed: false,
+        legacySymptomAssessment: archive
+    }), archive);
+    assert.equal(preservedLegacyAssessmentForProtocolSelection({
+        protocolSelectionConfirmed: true,
+        legacySymptomAssessment: archive
+    }), null);
+    assert.equal(preservedLegacyAssessmentForProtocolSelection({
+        protocolSelectionConfirmed: false,
+        legacySymptomAssessment: null
+    }), null);
+});
+
+test('saved-report viewing is isolated from the active assessment payload', () => {
+    const activeReport = { assessment: { assessmentId: 'active-assessment' } };
+    const activeAnnex = { assessmentId: 'active-assessment' };
+    const savedReport = { assessment: { assessmentId: 'saved-assessment' } };
+    const savedAnnex = { assessmentId: 'saved-assessment' };
+    const snapshot = {
+        report: activeReport,
+        reportAnnex: activeAnnex,
+        savedReportView: { report: savedReport, technicalAnnex: savedAnnex }
+    };
+    assert.deepEqual(assessmentReportPayloadForDisplay(snapshot), {
+        report: savedReport,
+        technicalAnnex: savedAnnex
+    });
+    assert.equal(snapshot.report, activeReport);
+    assert.equal(snapshot.reportAnnex, activeAnnex);
+    assert.deepEqual(assessmentReportPayloadForDisplay({
+        ...snapshot,
+        savedReportView: null
+    }), {
+        report: activeReport,
+        technicalAnnex: activeAnnex
+    });
+});
+
+test('manual posture navigation cannot strand a pending auto-advance', () => {
+    assert.equal(pendingCapacityAdvanceForManualSelection({
+        pendingPositionId: 'P1',
+        selectedPositionId: 'P1',
+        selectedAnswered: true
+    }), 'P1', 'Reopening the pending answered posture must reschedule it');
+    assert.equal(pendingCapacityAdvanceForManualSelection({
+        pendingPositionId: 'P1',
+        selectedPositionId: 'P2',
+        selectedAnswered: true
+    }), null, 'Navigating elsewhere must cancel the old pending transition');
+    assert.equal(pendingCapacityAdvanceForManualSelection({
+        pendingPositionId: 'P1',
+        selectedPositionId: 'P1',
+        selectedAnswered: false
+    }), null, 'An incomplete posture must never retain auto-advance');
+});
 
 test('null symptom values remain unknown and never become explicit zero controls', () => {
     const unknown = { answered: true, result: 'able', painScore: null, weaknessScore: null, compensation: 'no' };
@@ -605,6 +826,7 @@ test('regional reports retain native region inventory without right-arm wording'
         assessmentProtocol: regionalProtocol,
         assessmentContext: {
             protocolKey: 'right-lower-limb',
+            bodyRegionKey: 'leg',
             regionId: 'right-lower-limb',
             profileId: 'primary',
             title: 'Right lower limb',
@@ -626,6 +848,7 @@ test('regional reports retain native region inventory without right-arm wording'
             modelEstimate: regionalEstimate
         }]
     });
+    assert.equal(report.assessment.bodyRegionKey, 'leg');
     assert.equal(report.assessment.regionId, 'right-lower-limb');
     assert.equal(report.assessment.sideMode, 'native');
     assert.deepEqual(report.modelCoverage.regionalMusclesIncluded, ['iliacus_r', 'vasti_r', 'LD_L3_r']);
@@ -636,6 +859,7 @@ test('regional reports retain native region inventory without right-arm wording'
     assert.equal(report.modelCoverage.supportAssumptions, supportAssumptions);
     assert.equal(technicalAnnex.assessmentContext.unloadedOpenChain, true);
     assert.equal(technicalAnnex.assessmentContext.supportAssumptions, supportAssumptions);
+    assert.equal(technicalAnnex.assessmentContext.bodyRegionKey, 'leg');
     assert.equal(report.modelCoverage.mirroredSideIsVisualOnly, false);
     assert.equal(report.trials[0].designRole, 'reference');
     assert.equal(report.trials[0].accessibilityTier, 'neutral-reference');

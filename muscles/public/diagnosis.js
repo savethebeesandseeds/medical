@@ -7,10 +7,14 @@ import {
     migrateReportToV5
 } from './report-v5.js';
 import {
+    ASSESSMENT_REGIONS,
     ASSESSMENT_PROTOCOLS,
     DEFAULT_ASSESSMENT_PROTOCOL_KEY,
+    assessmentProtocolForRegionSide,
     assessmentProtocolByIdentity,
-    assessmentProtocolByKey
+    assessmentProtocolByKey,
+    assessmentRegionByKey,
+    assessmentRegionForProtocol
 } from './assessment-protocol-registry.js';
 import { formatDate, formatNumber, plural, t } from './i18n.js';
 
@@ -46,6 +50,106 @@ const RED_FLAGS = Object.freeze([
     { id: 'restPain', urgency: 'review' },
     { id: 'systemicHistory', urgency: 'review' }
 ]);
+
+const REUSABLE_PARTICIPANT_FIELDS = Object.freeze([
+    'name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'privacyAccepted'
+]);
+const PROTOCOL_DEPENDENT_INTAKE_FIELDS = Object.freeze([
+    'painDuration', 'painOnset', 'painNow', 'painWorst', 'primaryPainLocation',
+    'painAtRest', 'nightPain', 'radiatingPain', 'clickingInstability',
+    'onsetDetails', 'aggravatingRelieving', 'relevantHistory'
+]);
+
+export function reusableAssessmentIntake(intake = {}) {
+    const source = intake && typeof intake === 'object' ? intake : {};
+    const reusable = {};
+    for (const field of REUSABLE_PARTICIPANT_FIELDS) {
+        if (Object.hasOwn(source, field)) reusable[field] = source[field];
+    }
+    return reusable;
+}
+
+export function canonicalAssessmentIntake(intake = {}, entry = null, selectionConfirmed = false) {
+    const source = intake && typeof intake === 'object' ? intake : {};
+    const restored = { ...source };
+    if (selectionConfirmed && entry?.side) {
+        restored.assessedSide = entry.side;
+        delete restored.assessedArm;
+    }
+    return restored;
+}
+
+export function mergeArchivedAssessmentCollections(...collections) {
+    const flattened = collections.filter(Boolean).flatMap((collection) => (
+        collection.sourceCollection === 'draft.archived-assessment-collections'
+            && Array.isArray(collection.archivedAssessmentCollections)
+            ? collection.archivedAssessmentCollections
+            : [collection]
+    ));
+    if (!flattened.length) return null;
+    if (flattened.length === 1) return flattened[0];
+    const schemaVersions = flattened
+        .map((collection) => Number(collection.sourceSchemaVersion))
+        .filter(Number.isFinite);
+    return {
+        sourceSchemaVersion: schemaVersions.length ? Math.max(...schemaVersions) : null,
+        sourceCollection: 'draft.archived-assessment-collections',
+        readOnly: true,
+        interpretationExcluded: true,
+        protocolDefinitionRemoved: true,
+        modelEvidenceRemoved: true,
+        mayContainFreeTextIdentifiers: true,
+        archivedAssessmentCollections: flattened.map((collection) => structuredClone(collection))
+    };
+}
+
+export function preservedLegacyAssessmentForProtocolSelection(snapshot = {}) {
+    return snapshot.protocolSelectionConfirmed
+        ? null
+        : snapshot.legacySymptomAssessment ?? null;
+}
+
+export function assessmentReportPayloadForDisplay(snapshot = {}) {
+    if (snapshot.savedReportView?.report) {
+        return {
+            report: snapshot.savedReportView.report,
+            technicalAnnex: snapshot.savedReportView.technicalAnnex ?? null
+        };
+    }
+    return {
+        report: snapshot.report ?? null,
+        technicalAnnex: snapshot.reportAnnex ?? null
+    };
+}
+
+export function pendingCapacityAdvanceForManualSelection({
+    pendingPositionId = null,
+    selectedPositionId = null,
+    selectedAnswered = false
+} = {}) {
+    return pendingPositionId && pendingPositionId === selectedPositionId && selectedAnswered
+        ? pendingPositionId
+        : null;
+}
+
+export function assessmentHasProtocolDependentData(snapshot = {}) {
+    const redFlags = snapshot.redFlags ?? {};
+    const intake = snapshot.intake ?? {};
+    const responses = snapshot.capacityResponses ?? {};
+    const modelStates = snapshot.capacityModelStates ?? {};
+    return Boolean(snapshot.safetyReviewed)
+        || Boolean(snapshot.intakeCompleted)
+        || snapshot.report != null
+        || snapshot.legacySymptomAssessment != null
+        || Boolean(snapshot.protocolMigrationNotice)
+        || Object.values(redFlags).some((value) => typeof value === 'boolean')
+        || PROTOCOL_DEPENDENT_INTAKE_FIELDS.some((field) => {
+            const value = intake[field];
+            return value !== '' && value !== null && value !== undefined && value !== false;
+        })
+        || Object.values(responses).some((response) => response?.answered || response?.notes)
+        || Object.keys(modelStates).length > 0;
+}
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -187,10 +291,13 @@ export function createDiagnosisWorkflow(controller) {
         schemaVersion: REPORT_SCHEMA_VERSION,
         assessmentId: createAssessmentId(),
         assessmentProtocolKey: initialProtocol.key,
+        protocolSelectionConfirmed: false,
+        pendingAssessmentRegionKey: null,
+        protocolPickerReturnPhase: null,
         activeCapacityIndex: 0,
         capacityResponses: Object.fromEntries(initialProtocol.positions.map((position) => [position.id, emptyPositionResponse()])),
         capacityModelStates: {},
-        testedSide: initialProtocol.side,
+        testedSide: null,
         redFlags: Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null])),
         safetyReviewed: false,
         intakeCompleted: false,
@@ -206,11 +313,13 @@ export function createDiagnosisWorkflow(controller) {
         protocolMigrationNotice: null,
         previewGeneration: 0,
         capacityPreviewPromise: null,
+        pendingCapacityAdvancePositionId: null,
         assessmentOpen: false,
         phase: 'privacy',
         draftUpdatedAt: null,
-        viewingSavedReport: false,
+        savedReportView: null,
         dialogAction: null,
+        dialogCancelAction: null,
         dialogReturnFocus: null
     };
 
@@ -258,6 +367,18 @@ export function createDiagnosisWorkflow(controller) {
         return localizedFallback(entry.descriptionKey, entry.description);
     }
 
+    function selectionRegion(entry = protocolEntry()) {
+        return assessmentRegionForProtocol(entry);
+    }
+
+    function selectionRegionTitle(region = selectionRegion()) {
+        return region ? localizedFallback(region.titleKey, region.title) : t('common.status.not-recorded');
+    }
+
+    function assessmentScopeTitle(entry = protocolEntry()) {
+        return `${selectionRegionTitle(selectionRegion(entry))} · ${sideLabel(entry.side)}`;
+    }
+
     function localizedPosition(position, entry = protocolEntry()) {
         const prefix = entry.positionI18nPrefix || 'assessment.positions';
         return {
@@ -290,10 +411,6 @@ export function createDiagnosisWorkflow(controller) {
 
     function protocolUsesOrderedProgression(entry = protocolEntry()) {
         return Boolean(entry);
-    }
-
-    function protocolSideOptions(entry = protocolEntry()) {
-        return Array.isArray(entry.sideOptions) && entry.sideOptions.length ? entry.sideOptions : [entry.side ?? 'right'];
     }
 
     function recordCode(assessmentId = state.assessmentId) {
@@ -363,6 +480,9 @@ export function createDiagnosisWorkflow(controller) {
             : assessmentProtocolByKey(draft.assessmentProtocolKey);
         const protocolMatches = Boolean(draftProtocol);
         if (draftProtocol) state.assessmentProtocolKey = draftProtocol.key;
+        state.protocolSelectionConfirmed = protocolMatches && draft.protocolSelectionConfirmed !== false;
+        state.pendingAssessmentRegionKey = null;
+        state.protocolPickerReturnPhase = null;
         const activeProtocol = protocolEntry();
         const positions = protocolPositions(activeProtocol);
         const emptyResponses = emptyProtocolResponses(activeProtocol);
@@ -374,6 +494,12 @@ export function createDiagnosisWorkflow(controller) {
                     id: draft.assessmentProtocolId ?? null,
                     version: draft.assessmentProtocolVersion ?? null,
                     digest: draft.assessmentProtocolDigest ?? null
+                },
+                sourceAssessmentContext: {
+                    testedSide: draft.testedSide
+                        ?? draft.intake?.assessedSide
+                        ?? draft.intake?.assessedArm
+                        ?? null
                 },
                 readOnly: true,
                 interpretationExcluded: true,
@@ -402,32 +528,35 @@ export function createDiagnosisWorkflow(controller) {
                 migratedFromDraftVersion: 4
             };
         };
-        state.activeCapacityIndex = protocolMatches
+        state.activeCapacityIndex = state.protocolSelectionConfirmed
             ? Math.max(0, Math.min(positions.length - 1, Number(draft.activeCapacityIndex) || 0))
             : 0;
         state.capacityResponses = Object.fromEntries(positions.map((position) => [
             position.id,
-            { ...emptyResponses[position.id], ...(protocolMatches ? migrateLegacyResponse(draft.capacityResponses?.[position.id] ?? {}) : {}) }
+            { ...emptyResponses[position.id], ...(state.protocolSelectionConfirmed ? migrateLegacyResponse(draft.capacityResponses?.[position.id] ?? {}) : {}) }
         ]));
         for (const response of Object.values(state.capacityResponses)) {
             response.answered = capacityResponseComplete(response);
             response.result = derivePositionResult(response);
         }
+        const restoredPendingPositionId = String(draft.pendingCapacityAdvancePositionId ?? '');
+        state.pendingCapacityAdvancePositionId = state.protocolSelectionConfirmed
+                && state.capacityResponses[restoredPendingPositionId]?.answered
+            ? restoredPendingPositionId
+            : null;
         const firstUnansweredIndex = positions.findIndex((position) => !state.capacityResponses[position.id].answered);
         if (protocolUsesOrderedProgression(activeProtocol) && firstUnansweredIndex !== -1) {
             state.activeCapacityIndex = Math.min(state.activeCapacityIndex, firstUnansweredIndex);
         }
-        state.testedSide = protocolSideOptions(activeProtocol).includes(draft.testedSide)
-            ? draft.testedSide
-            : activeProtocol.side;
+        state.testedSide = state.protocolSelectionConfirmed ? activeProtocol.side : null;
         state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [
             flag.id,
-            protocolMatches && typeof draft.redFlags?.[flag.id] === 'boolean' ? draft.redFlags[flag.id] : null
+            state.protocolSelectionConfirmed && typeof draft.redFlags?.[flag.id] === 'boolean' ? draft.redFlags[flag.id] : null
         ]));
-        state.safetyReviewed = protocolMatches && Boolean(draft.safetyReviewed);
-        state.intakeCompleted = protocolMatches && Boolean(draft.intakeCompleted);
-        state.intake = draft.intake && typeof draft.intake === 'object' ? { ...draft.intake } : {};
-        state.legacySymptomAssessment = storedProtocolObservations ?? (Number(draft.schemaVersion) === 4 && draft.responses
+        state.safetyReviewed = state.protocolSelectionConfirmed && Boolean(draft.safetyReviewed);
+        state.intakeCompleted = state.protocolSelectionConfirmed && Boolean(draft.intakeCompleted);
+        state.intake = canonicalAssessmentIntake(draft.intake, activeProtocol, state.protocolSelectionConfirmed);
+        const legacyDraftResponses = Number(draft.schemaVersion) === 4 && draft.responses
             ? {
                 sourceSchemaVersion: 4,
                 sourceCollection: 'draft.responses',
@@ -435,22 +564,33 @@ export function createDiagnosisWorkflow(controller) {
                 interpretationExcluded: true,
                 modelEvidenceRemoved: true,
                 mayContainFreeTextIdentifiers: true,
+                sourceAssessmentContext: {
+                    testedSide: draft.testedSide
+                        ?? draft.intake?.assessedSide
+                        ?? draft.intake?.assessedArm
+                        ?? null
+                },
                 responses: structuredClone(draft.responses ?? {})
             }
-            : (draft.legacySymptomAssessment ?? null));
-        state.protocolMigrationNotice = Boolean(storedProtocolObservations || draft.protocolMigrationNotice);
-        state.assessmentId = protocolMatches ? (draft.assessmentId || createAssessmentId()) : createAssessmentId();
-        state.assessmentOpen = protocolMatches && Boolean(draft.assessmentOpen);
+            : null;
+        state.legacySymptomAssessment = mergeArchivedAssessmentCollections(
+            draft.legacySymptomAssessment ?? null,
+            legacyDraftResponses,
+            storedProtocolObservations
+        );
+        state.protocolMigrationNotice = Boolean(state.legacySymptomAssessment || draft.protocolMigrationNotice);
+        state.assessmentId = state.protocolSelectionConfirmed ? (draft.assessmentId || createAssessmentId()) : createAssessmentId();
+        state.assessmentOpen = state.protocolSelectionConfirmed && Boolean(draft.assessmentOpen);
         const restoredPhase = ['privacy', 'safety', 'intake', 'assessment', 'report'].includes(draft.phase) ? draft.phase : 'privacy';
-        state.phase = protocolMatches ? restoredPhase : 'safety';
+        state.phase = protocolMatches && state.protocolSelectionConfirmed ? restoredPhase : 'privacy';
         state.draftUpdatedAt = draft.updatedAt ?? null;
         return true;
     }
 
     function persistDraft() {
-        const hasData = Object.values(state.redFlags).some((value) => typeof value === 'boolean')
-            || Object.values(state.intake).some((value) => value !== '' && value !== null && value !== false)
-            || Object.values(state.capacityResponses).some((response) => response.answered || response.notes);
+        const hasData = state.protocolSelectionConfirmed
+            || assessmentHasProtocolDependentData(state)
+            || Object.values(state.intake).some((value) => value !== '' && value !== null && value !== false);
         if (state.storageMode !== 'device') {
             state.draftUpdatedAt = state.storageMode === 'session' && hasData && !(state.phase === 'report' && state.reportStored)
                 ? new Date().toISOString()
@@ -458,7 +598,7 @@ export function createDiagnosisWorkflow(controller) {
             updateSavedRecordsUi();
             return true;
         }
-        if (state.phase === 'report' && !state.viewingSavedReport && state.reportStored) {
+        if (state.phase === 'report' && !state.savedReportView && state.reportStored) {
             try {
                 window.localStorage.removeItem(DIAGNOSIS_DRAFT_KEY);
                 state.deviceStorageError = false;
@@ -478,6 +618,7 @@ export function createDiagnosisWorkflow(controller) {
         }
         const draft = {
             schemaVersion: state.schemaVersion,
+            protocolSelectionConfirmed: state.protocolSelectionConfirmed,
             assessmentProtocolKey: protocolEntry().key,
             assessmentProtocolId: protocolReport().id,
             assessmentProtocolVersion: protocolReport().version,
@@ -486,6 +627,7 @@ export function createDiagnosisWorkflow(controller) {
             updatedAt: new Date().toISOString(),
             phase: state.phase,
             activeCapacityIndex: state.activeCapacityIndex,
+            pendingCapacityAdvancePositionId: state.pendingCapacityAdvancePositionId,
             capacityResponses: state.capacityResponses,
             testedSide: state.testedSide,
             redFlags: state.redFlags,
@@ -519,14 +661,13 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function fillIntakeForm(intake = {}) {
-        renderIntakeProtocolOptions();
+        renderIntakeLocationOptions();
         const form = byId('diagnosis-intake-form');
         for (const element of form.elements) {
             if (!element.name) continue;
-            const legacyValue = element.name === 'assessedSide' ? intake.assessedArm : undefined;
-            if (!(element.name in intake) && legacyValue === undefined) continue;
+            if (!(element.name in intake)) continue;
             if (element.type === 'checkbox') element.checked = Boolean(intake[element.name]);
-            else element.value = intake[element.name] ?? legacyValue ?? '';
+            else element.value = intake[element.name] ?? '';
         }
     }
 
@@ -534,21 +675,8 @@ export function createDiagnosisWorkflow(controller) {
         return String(label ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     }
 
-    function renderIntakeProtocolOptions() {
+    function renderIntakeLocationOptions() {
         const entry = protocolEntry();
-        const sideSelect = byId('diagnosis-intake-form')?.elements?.assessedSide;
-        if (sideSelect) {
-            const current = state.intake?.assessedSide ?? state.intake?.assessedArm ?? state.testedSide;
-            sideSelect.replaceChildren();
-            for (const side of protocolSideOptions(entry)) {
-                const option = document.createElement('option');
-                option.value = side;
-                option.textContent = sideLabel(side);
-                option.selected = side === current;
-                sideSelect.append(option);
-            }
-            if (!sideSelect.value) sideSelect.value = entry.side;
-        }
         const locationSelect = byId('diagnosis-intake-form')?.elements?.primaryPainLocation;
         if (locationSelect) {
             const current = state.intake?.primaryPainLocation ?? '';
@@ -567,23 +695,92 @@ export function createDiagnosisWorkflow(controller) {
         }
     }
 
-    function renderProtocolPicker() {
-        const select = byId('diagnosis-protocol-select');
-        if (!select) return;
-        select.replaceChildren();
-        for (const entry of ASSESSMENT_PROTOCOLS) {
+    function renderProtocolPicker({ side = null } = {}) {
+        const regionSelect = byId('diagnosis-protocol-select');
+        const sideField = byId('diagnosis-protocol-side-field');
+        const sideSelect = byId('diagnosis-protocol-side-select');
+        const fixedSide = byId('diagnosis-protocol-fixed-side');
+        if (!regionSelect || !sideField || !sideSelect || !fixedSide) return;
+
+        const activeEntry = protocolEntry();
+        const activeRegion = selectionRegion(activeEntry);
+        const selectedRegionKey = state.pendingAssessmentRegionKey
+            ?? (state.protocolSelectionConfirmed ? activeRegion?.key : '');
+        const selectedRegion = assessmentRegionByKey(selectedRegionKey);
+
+        regionSelect.replaceChildren();
+        const regionPlaceholder = document.createElement('option');
+        regionPlaceholder.value = '';
+        regionPlaceholder.textContent = t('assessment.protocol.select-region');
+        regionPlaceholder.selected = !selectedRegion;
+        regionPlaceholder.disabled = true;
+        regionSelect.append(regionPlaceholder);
+        for (const region of ASSESSMENT_REGIONS) {
             const option = document.createElement('option');
-            option.value = entry.key;
-            option.textContent = protocolTitle(entry);
-            option.selected = entry.key === state.assessmentProtocolKey;
-            select.append(option);
+            option.value = region.key;
+            option.textContent = selectionRegionTitle(region);
+            option.selected = region.key === selectedRegion?.key;
+            regionSelect.append(option);
         }
-        const entry = protocolEntry();
-        const required = requiredProtocolPositions(entry).length;
-        const total = protocolPositions(entry).length;
-        byId('diagnosis-protocol-summary').textContent = `${protocolDescription(entry)} · ${t('assessment.protocol.position-count', { required, total })}`;
-        const responseDiversityStatus = entry.evidence?.responseDiversityStatus;
-        const responsiveFraction = entry.evidence?.responsiveInSampledPosesFraction;
+
+        let displayedEntry = null;
+        sideField.classList.add('hidden');
+        sideSelect.disabled = true;
+        sideSelect.replaceChildren();
+        fixedSide.classList.add('hidden');
+        byId('diagnosis-protocol-side-note').textContent = '';
+
+        if (selectedRegion?.requiresSideSelection) {
+            sideField.classList.remove('hidden');
+            sideSelect.disabled = false;
+            const selectedSide = side
+                ?? (state.pendingAssessmentRegionKey
+                    ? ''
+                    : activeRegion?.key === selectedRegion.key && state.protocolSelectionConfirmed
+                        ? activeEntry.side
+                        : '');
+            const sidePlaceholder = document.createElement('option');
+            sidePlaceholder.value = '';
+            sidePlaceholder.textContent = t('assessment.protocol.select-side');
+            sidePlaceholder.selected = !selectedSide;
+            sidePlaceholder.disabled = true;
+            sideSelect.append(sidePlaceholder);
+            for (const availableSide of selectedRegion.sideOptions) {
+                const option = document.createElement('option');
+                option.value = availableSide;
+                option.textContent = sideLabel(availableSide);
+                option.selected = availableSide === selectedSide;
+                sideSelect.append(option);
+            }
+            displayedEntry = assessmentProtocolForRegionSide(selectedRegion.key, selectedSide);
+        } else if (selectedRegion) {
+            displayedEntry = selectedRegion.protocols[0] ?? null;
+            fixedSide.classList.remove('hidden');
+            byId('diagnosis-protocol-fixed-side-value').textContent = sideLabel(selectedRegion.fixedSide);
+            byId('diagnosis-protocol-side-note').textContent = selectedRegion.availabilityKey
+                ? t(selectedRegion.availabilityKey)
+                : t('assessment.protocol.fixed-side');
+        }
+
+        const selectionComplete = Boolean(
+            state.protocolSelectionConfirmed
+            && !state.pendingAssessmentRegionKey
+            && displayedEntry?.key === state.assessmentProtocolKey
+        );
+        byId('diagnosis-start').disabled = !selectionComplete;
+        if (!displayedEntry) {
+            byId('diagnosis-protocol-summary').textContent = t('assessment.protocol.selection-required');
+            const boundary = byId('diagnosis-protocol-boundary');
+            boundary.textContent = t('assessment.protocol.unloaded-static');
+            boundary.classList.remove('warning');
+            return;
+        }
+
+        const required = requiredProtocolPositions(displayedEntry).length;
+        const total = protocolPositions(displayedEntry).length;
+        byId('diagnosis-protocol-summary').textContent = `${protocolDescription(displayedEntry)} · ${t('assessment.protocol.position-count', { required, total })}`;
+        const responseDiversityStatus = displayedEntry.evidence?.responseDiversityStatus;
+        const responsiveFraction = displayedEntry.evidence?.responsiveInSampledPosesFraction;
         const weak = responseDiversityStatus === 'weak'
             || Number(responsiveFraction) < 0.5;
         const boundary = byId('diagnosis-protocol-boundary');
@@ -591,6 +788,14 @@ export function createDiagnosisWorkflow(controller) {
             ? t('assessment.protocol.weak-response-diversity')
             : t('assessment.protocol.unloaded-static');
         boundary.classList.toggle('warning', weak);
+    }
+
+    function renderAssessmentScopeSummaries() {
+        const value = state.protocolSelectionConfirmed ? assessmentScopeTitle() : t('common.status.not-recorded');
+        for (const id of ['diagnosis-safety-scope', 'diagnosis-intake-scope']) {
+            const target = byId(id);
+            if (target) target.textContent = t('assessment.protocol.current', { scope: value });
+        }
     }
 
     function reportPatientKey(intake = {}) {
@@ -622,19 +827,25 @@ export function createDiagnosisWorkflow(controller) {
         return true;
     }
 
-    function closeAppDialog() {
+    function closeAppDialog(cancelled = true) {
         const returnFocus = state.dialogReturnFocus;
+        const cancelAction = cancelled ? state.dialogCancelAction : null;
         state.dialogAction = null;
+        state.dialogCancelAction = null;
         state.dialogReturnFocus = null;
         byId('app-dialog').classList.add('hidden');
         byId('app-dialog').querySelector('.app-dialog-card').classList.remove('danger');
         for (const element of document.querySelectorAll('main > :not(#app-dialog)')) element.inert = false;
+        cancelAction?.();
+        resumePendingCapacityAdvance();
         if (returnFocus?.isConnected) returnFocus.focus();
     }
 
-    function showAppDialog({ title, message, confirmLabel = null, danger = false, onConfirm }) {
+    function showAppDialog({ title, message, confirmLabel = null, danger = false, onConfirm, onCancel = null }) {
+        if (state.phase === 'assessment' && state.pendingCapacityAdvancePositionId) cancelPreview();
         state.dialogReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         state.dialogAction = onConfirm;
+        state.dialogCancelAction = onCancel;
         byId('app-dialog-title').textContent = title;
         byId('app-dialog-message').textContent = message;
         byId('app-dialog-confirm').textContent = confirmLabel ?? t('common.actions.confirm');
@@ -649,19 +860,21 @@ export function createDiagnosisWorkflow(controller) {
         const savedProtocol = entry.protocolEntry ?? reportProtocolEntry(entry.report);
         if (savedProtocol) state.assessmentProtocolKey = savedProtocol.key;
         const activeProtocol = protocolEntry();
-        const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg', 'assessedSide', 'assessedArm'];
+        const demographics = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg'];
         cancelPreview();
         state.assessmentId = createAssessmentId();
+        state.protocolSelectionConfirmed = Boolean(savedProtocol);
+        state.pendingAssessmentRegionKey = null;
+        state.protocolPickerReturnPhase = null;
         state.activeCapacityIndex = 0;
         state.capacityResponses = emptyProtocolResponses(activeProtocol);
         state.capacityModelStates = {};
+        state.pendingCapacityAdvancePositionId = null;
         state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null]));
         state.safetyReviewed = false;
         state.intake = {};
         for (const field of demographics) state.intake[field] = prior[field] ?? '';
-        state.testedSide = protocolSideOptions(activeProtocol).includes(state.intake.assessedSide ?? state.intake.assessedArm)
-            ? (state.intake.assessedSide ?? state.intake.assessedArm)
-            : activeProtocol.side;
+        state.testedSide = activeProtocol.side;
         state.intake.assessedSide = state.testedSide;
         state.intakeCompleted = false;
         state.report = null;
@@ -669,12 +882,12 @@ export function createDiagnosisWorkflow(controller) {
         state.reportStored = false;
         state.legacySymptomAssessment = null;
         state.protocolMigrationNotice = null;
-        state.viewingSavedReport = false;
+        state.savedReportView = null;
         byId('diagnosis-intake-form').reset();
         fillIntakeForm(state.intake);
         renderProtocolPicker();
         clearDraft();
-        setSide(state.testedSide);
+        syncProtocolSide();
         renderCapacityList();
         showSafetyLanding();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -724,7 +937,7 @@ export function createDiagnosisWorkflow(controller) {
         const draftState = byId('diagnosis-draft-state');
         const privacy = byId('diagnosis-records-privacy');
         const activeStorageNotice = byId('diagnosis-active-storage-notice');
-        const hasOngoingAssessment = !state.viewingSavedReport
+        const hasOngoingAssessment = !state.savedReportView
             && (state.assessmentOpen || state.phase === 'safety' || state.phase === 'intake');
         const hasStoredAssessmentData = reports.length > 0 || Boolean(state.draftUpdatedAt);
         const newAssessmentButton = byId('diagnosis-new-assessment');
@@ -836,10 +1049,13 @@ export function createDiagnosisWorkflow(controller) {
             const assessmentDetails = document.createElement('div');
             assessmentDetails.className = 'saved-report-assessment';
             const storedProtocol = entry.protocolEntry;
-            const side = entry.patient?.assessedSide || entry.patient?.assessedArm || entry.report.assessment?.testedSide;
+            const side = storedProtocol?.side
+                ?? entry.report.assessment?.testedSide
+                ?? entry.patient?.assessedSide
+                ?? entry.patient?.assessedArm;
             const armValue = document.createElement('strong');
             armValue.textContent = storedProtocol
-                ? t('assessment.records.region', { region: protocolTitle(storedProtocol, true), side: sideLabel(side) })
+                ? t('assessment.records.region', { region: selectionRegionTitle(selectionRegion(storedProtocol)), side: sideLabel(side) })
                 : t('assessment.records.protocol-unavailable');
             const progress = document.createElement('span');
             const recorded = Number.isFinite(quality.recordedTrialCount) ? quality.recordedTrialCount : null;
@@ -900,26 +1116,20 @@ export function createDiagnosisWorkflow(controller) {
 
     function showSavedReport(entry) {
         cancelPreview();
-        state.viewingSavedReport = true;
-        state.reportStored = true;
-        state.report = entry.report;
-        state.reportAnnex = entry.technicalAnnex ?? null;
-        byId('diagnosis-safety-landing').classList.add('hidden');
-        byId('diagnosis-intake').classList.add('hidden');
-        byId('diagnosis-assessment').classList.add('hidden');
-        byId('diagnosis-report-screen').classList.remove('hidden');
-        byId('diagnosis-privacy-overview').classList.add('hidden');
-        byId('diagnosis-start').classList.add('hidden');
-        byId('diagnosis-report-back').textContent = t('common.actions.back');
-        renderMovementReport(state.report);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        state.savedReportView = {
+            report: entry.report,
+            technicalAnnex: entry.technicalAnnex ?? null
+        };
+        displayReportScreen();
     }
 
-    function showPrivacyLanding() {
+    function showPrivacyLanding({ returnPhase = state.protocolPickerReturnPhase } = {}) {
         cancelPreview();
         state.assessmentOpen = false;
+        state.protocolPickerReturnPhase = returnPhase;
+        state.pendingAssessmentRegionKey = null;
         state.phase = 'privacy';
-        state.viewingSavedReport = false;
+        state.savedReportView = null;
         byId('diagnosis-privacy-overview').classList.remove('hidden');
         byId('diagnosis-start').classList.remove('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
@@ -927,42 +1137,148 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.add('hidden');
         renderProtocolPicker();
+        persistDraft();
         window.requestAnimationFrame(controller.resizeViewer);
     }
 
-    function selectAssessmentProtocol(key) {
-        if (state.phase !== 'privacy') return;
-        const entry = assessmentProtocolByKey(key);
-        if (!entry || entry.key === state.assessmentProtocolKey) return;
+    function protocolDependentDataExists() {
+        return assessmentHasProtocolDependentData(state);
+    }
+
+    function reusableParticipantIntake() {
+        return reusableAssessmentIntake(state.intake);
+    }
+
+    function applyAssessmentProtocol(entry) {
+        const reusableIntake = reusableParticipantIntake();
+        const preservedLegacyAssessment = preservedLegacyAssessmentForProtocolSelection(state);
         cancelPreview();
+        state.assessmentId = createAssessmentId();
         state.assessmentProtocolKey = entry.key;
+        state.protocolSelectionConfirmed = true;
+        state.pendingAssessmentRegionKey = null;
+        state.protocolPickerReturnPhase = null;
         state.activeCapacityIndex = 0;
         state.capacityResponses = emptyProtocolResponses(entry);
         state.capacityModelStates = {};
+        state.pendingCapacityAdvancePositionId = null;
         state.testedSide = entry.side;
-        state.intake = { assessedSide: entry.side };
+        state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null]));
+        state.safetyReviewed = false;
+        state.intake = { ...reusableIntake, assessedSide: entry.side };
         state.intakeCompleted = false;
         state.report = null;
         state.reportAnnex = null;
         state.reportStored = false;
+        state.savedReportView = null;
+        state.legacySymptomAssessment = preservedLegacyAssessment;
+        state.protocolMigrationNotice = Boolean(preservedLegacyAssessment);
+        state.assessmentOpen = false;
+        state.phase = 'privacy';
         controller.setMirroredView(false);
+        byId('diagnosis-intake-form').reset();
+        fillIntakeForm(state.intake);
         renderProtocolPicker();
-        renderIntakeProtocolOptions();
+        renderAssessmentScopeSummaries();
+        renderSafetyForm();
+        updateWarning();
         renderCapacityList();
-        updateSavedRecordsUi();
+        persistDraft();
+    }
+
+    function requestAssessmentProtocol(entry) {
+        if (state.phase !== 'privacy') return;
+        if (!entry) {
+            state.pendingAssessmentRegionKey = null;
+            renderProtocolPicker();
+            return;
+        }
+        if (state.protocolSelectionConfirmed && entry.key === state.assessmentProtocolKey) {
+            state.pendingAssessmentRegionKey = null;
+            renderProtocolPicker();
+            return;
+        }
+        if (!protocolDependentDataExists()) {
+            applyAssessmentProtocol(entry);
+            return;
+        }
+        showAppDialog({
+            title: t('assessment.dialogs.change-protocol.title'),
+            message: t('assessment.dialogs.change-protocol.message'),
+            confirmLabel: t('assessment.dialogs.change-protocol.confirm'),
+            danger: true,
+            onCancel: () => {
+                state.pendingAssessmentRegionKey = null;
+                renderProtocolPicker();
+            },
+            onConfirm: () => applyAssessmentProtocol(entry)
+        });
+    }
+
+    function selectAssessmentRegion(key) {
+        if (state.phase !== 'privacy') return;
+        const region = assessmentRegionByKey(key);
+        if (!region) {
+            state.pendingAssessmentRegionKey = null;
+            renderProtocolPicker();
+            return;
+        }
+        const currentRegion = selectionRegion();
+        if (state.protocolSelectionConfirmed && currentRegion?.key === region.key) {
+            state.pendingAssessmentRegionKey = null;
+            renderProtocolPicker();
+            return;
+        }
+        state.pendingAssessmentRegionKey = region.key;
+        renderProtocolPicker();
+        if (!region.requiresSideSelection) requestAssessmentProtocol(region.protocols[0]);
+    }
+
+    function selectAssessmentSide(side) {
+        if (state.phase !== 'privacy') return;
+        const regionKey = state.pendingAssessmentRegionKey ?? selectionRegion()?.key;
+        const entry = assessmentProtocolForRegionSide(regionKey, side);
+        renderProtocolPicker({ side });
+        requestAssessmentProtocol(entry);
+    }
+
+    function openProtocolPicker() {
+        const returnPhase = state.phase;
+        if (returnPhase === 'intake') readIntake();
+        showPrivacyLanding({ returnPhase });
+    }
+
+    function continueFromProtocolPicker() {
+        if (!state.protocolSelectionConfirmed || state.pendingAssessmentRegionKey) return;
+        const returnPhase = state.protocolPickerReturnPhase;
+        state.protocolPickerReturnPhase = null;
+        if (returnPhase === 'assessment' && state.intakeCompleted && state.safetyReviewed) {
+            showAssessment();
+            return;
+        }
+        if (returnPhase === 'intake' && state.safetyReviewed) {
+            showIntake();
+            return;
+        }
+        showSafetyLanding();
     }
 
     function showSafetyLanding() {
+        if (!state.protocolSelectionConfirmed) {
+            showPrivacyLanding();
+            return;
+        }
         cancelPreview();
         state.assessmentOpen = false;
         state.phase = 'safety';
-        state.viewingSavedReport = false;
+        state.savedReportView = null;
         byId('diagnosis-privacy-overview').classList.add('hidden');
         byId('diagnosis-start').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.remove('hidden');
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.add('hidden');
+        renderAssessmentScopeSummaries();
         renderSafetyForm();
         updateWarning();
         persistDraft();
@@ -978,7 +1294,7 @@ export function createDiagnosisWorkflow(controller) {
             gender: String(data.get('gender') ?? ''),
             heightCm: finiteOrNull(data.get('heightCm')),
             weightKg: finiteOrNull(data.get('weightKg')),
-            assessedSide: String(data.get('assessedSide') ?? protocolEntry().side),
+            assessedSide: protocolEntry().side,
             painDuration: String(data.get('painDuration') ?? ''),
             painOnset: String(data.get('painOnset') ?? ''),
             painNow: finiteOrNull(data.get('painNow')),
@@ -997,6 +1313,10 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function showIntake() {
+        if (!state.protocolSelectionConfirmed) {
+            showPrivacyLanding();
+            return;
+        }
         if (!state.safetyReviewed || selectedRedFlags().length) {
             showSafetyLanding();
             return;
@@ -1004,13 +1324,14 @@ export function createDiagnosisWorkflow(controller) {
         cancelPreview();
         state.assessmentOpen = false;
         state.phase = 'intake';
-        state.viewingSavedReport = false;
+        state.savedReportView = null;
         byId('diagnosis-privacy-overview').classList.add('hidden');
         byId('diagnosis-start').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.remove('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.add('hidden');
+        renderAssessmentScopeSummaries();
         fillIntakeForm(state.intake);
         byId('diagnosis-intake-state').textContent = state.intakeCompleted
             ? t(state.storageMode === 'device' ? 'assessment.intake.state.saved-device' : 'assessment.intake.state.kept-tab')
@@ -1045,7 +1366,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-current-record-code').textContent = recordCode();
         byId('diagnosis-patient-age').textContent = age;
         byId('diagnosis-patient-gender').textContent = intakeOptionLabel('gender', intake.gender);
-        byId('diagnosis-patient-arm').textContent = `${protocolTitle(protocolEntry(), true)} · ${sideLabel(intake.assessedSide ?? state.testedSide)}`;
+        byId('diagnosis-patient-arm').textContent = assessmentScopeTitle();
         byId('diagnosis-patient-size').textContent = size;
         byId('diagnosis-patient-pain').textContent = t('assessment.participant.pain-values', { current: painNow, worst: painWorst });
         byId('diagnosis-patient-duration').textContent = intakeOptionLabel('painDuration', intake.painDuration);
@@ -1053,6 +1374,10 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     async function showAssessment() {
+        if (!state.protocolSelectionConfirmed) {
+            showPrivacyLanding();
+            return;
+        }
         if (!state.safetyReviewed || selectedRedFlags().length) {
             showSafetyLanding();
             return;
@@ -1063,11 +1388,17 @@ export function createDiagnosisWorkflow(controller) {
         }
         state.assessmentOpen = true;
         state.phase = 'assessment';
-        state.viewingSavedReport = false;
+        state.savedReportView = null;
+        const previewGeneration = state.previewGeneration;
+        const assessmentId = state.assessmentId;
+        const protocolKey = state.assessmentProtocolKey;
         const entry = protocolEntry();
         if (typeof controller.activateAssessmentRegion === 'function') {
             await controller.activateAssessmentRegion(entry.regionId);
-            if (state.phase !== 'assessment') return;
+            if (previewGeneration !== state.previewGeneration
+                    || assessmentId !== state.assessmentId
+                    || protocolKey !== state.assessmentProtocolKey
+                    || state.phase !== 'assessment') return;
         }
         byId('diagnosis-privacy-overview').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
@@ -1077,50 +1408,96 @@ export function createDiagnosisWorkflow(controller) {
         renderAssessmentPatientHeader();
         renderCapacityList();
         renderCapacityPosition();
+        resumePendingCapacityAdvance();
         persistDraft();
         window.requestAnimationFrame(controller.resizeViewer);
     }
 
-    async function showReportScreen() {
-        const previewGeneration = state.previewGeneration;
-        await state.capacityPreviewPromise;
-        if (previewGeneration !== state.previewGeneration || !['assessment', 'report'].includes(state.phase)) return;
-        state.assessmentOpen = false;
-        state.phase = 'report';
-        state.viewingSavedReport = false;
-        state.report = buildReport();
+    function displayReportScreen() {
+        const payload = assessmentReportPayloadForDisplay(state);
+        if (!payload.report) return;
         byId('diagnosis-privacy-overview').classList.add('hidden');
+        byId('diagnosis-start').classList.add('hidden');
         byId('diagnosis-safety-landing').classList.add('hidden');
         byId('diagnosis-intake').classList.add('hidden');
         byId('diagnosis-assessment').classList.add('hidden');
         byId('diagnosis-report-screen').classList.remove('hidden');
-        byId('diagnosis-report-back').textContent = t('assessment.report.back');
-        renderMovementReport(state.report);
+        byId('diagnosis-report-back').textContent = t(state.savedReportView
+            ? 'common.actions.back'
+            : 'assessment.report.back');
+        renderMovementReport(payload.report);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.requestAnimationFrame(controller.resizeViewer);
+    }
+
+    function storeActiveReport() {
+        if (!state.report || state.savedReportView || state.reportStored) return;
         state.reportStored = archiveReport(state.report);
         if (state.reportStored) {
             clearDraft();
-        } else {
-            persistDraft();
-            showAppDialog({
-                title: t('assessment.dialogs.report-storage.title'),
-                message: t('assessment.dialogs.report-storage.message'),
-                confirmLabel: t('assessment.dialogs.report-storage.confirm'),
-                danger: false,
-                onConfirm: () => {}
-            });
+            return;
         }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        window.requestAnimationFrame(controller.resizeViewer);
+        persistDraft();
+        showAppDialog({
+            title: t('assessment.dialogs.report-storage.title'),
+            message: t('assessment.dialogs.report-storage.message'),
+            confirmLabel: t('assessment.dialogs.report-storage.confirm'),
+            danger: false,
+            onConfirm: () => {}
+        });
+    }
+
+    async function showReportScreen() {
+        if (state.report) {
+            state.savedReportView = null;
+            state.assessmentOpen = false;
+            state.phase = 'report';
+            displayReportScreen();
+            storeActiveReport();
+            return;
+        }
+        if (!state.protocolSelectionConfirmed) {
+            showPrivacyLanding();
+            return;
+        }
+        const previewGeneration = state.previewGeneration;
+        const assessmentId = state.assessmentId;
+        const protocolKey = state.assessmentProtocolKey;
+        await state.capacityPreviewPromise;
+        if (previewGeneration !== state.previewGeneration
+                || assessmentId !== state.assessmentId
+                || protocolKey !== state.assessmentProtocolKey
+                || !['assessment', 'report'].includes(state.phase)) return;
+        const entry = protocolEntry();
+        if (typeof controller.activateAssessmentRegion === 'function') {
+            await controller.activateAssessmentRegion(entry.regionId);
+            if (previewGeneration !== state.previewGeneration
+                    || assessmentId !== state.assessmentId
+                    || protocolKey !== state.assessmentProtocolKey
+                    || !['assessment', 'report'].includes(state.phase)) return;
+        }
+        state.assessmentOpen = false;
+        state.phase = 'report';
+        state.savedReportView = null;
+        state.pendingCapacityAdvancePositionId = null;
+        state.reportStored = false;
+        state.report = buildReport();
+        displayReportScreen();
+        storeActiveReport();
     }
 
     function resetAssessmentData() {
         cancelPreview();
         const entry = protocolEntry();
         state.assessmentId = createAssessmentId();
+        state.protocolSelectionConfirmed = false;
+        state.pendingAssessmentRegionKey = null;
+        state.protocolPickerReturnPhase = null;
         state.activeCapacityIndex = 0;
         state.capacityResponses = emptyProtocolResponses(entry);
         state.capacityModelStates = {};
-        state.testedSide = entry.side;
+        state.pendingCapacityAdvancePositionId = null;
+        state.testedSide = null;
         state.redFlags = Object.fromEntries(RED_FLAGS.map((flag) => [flag.id, null]));
         state.safetyReviewed = false;
         state.intakeCompleted = false;
@@ -1128,13 +1505,13 @@ export function createDiagnosisWorkflow(controller) {
         state.report = null;
         state.reportAnnex = null;
         state.reportStored = false;
+        state.savedReportView = null;
         state.legacySymptomAssessment = null;
         state.protocolMigrationNotice = null;
         byId('diagnosis-intake-form').reset();
-        renderIntakeProtocolOptions();
+        renderIntakeLocationOptions();
         clearDraft();
-        setSide(entry.side);
-        renderProtocolPicker();
+        controller.setMirroredView(false);
         renderCapacityList();
         showPrivacyLanding();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1161,10 +1538,12 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function restartAssessment() {
-        const hasAssessmentData = state.intakeCompleted
-            || Object.values(state.redFlags).some((value) => typeof value === 'boolean')
-            || Object.values(state.intake).some((value) => value !== '' && value !== null && value !== false)
-            || Object.values(state.capacityResponses).some((response) => response.answered || response.notes);
+        const hasParticipantData = ['name', 'ageYears', 'gender', 'heightCm', 'weightKg']
+            .some((field) => {
+                const value = state.intake?.[field];
+                return value !== '' && value !== null && value !== undefined;
+            });
+        const hasAssessmentData = hasParticipantData || protocolDependentDataExists();
         if (!hasAssessmentData) {
             resetAssessmentData();
             return;
@@ -1176,6 +1555,21 @@ export function createDiagnosisWorkflow(controller) {
             danger: true,
             onConfirm: resetAssessmentData
         });
+    }
+
+    function openCapacityPositionManually(index) {
+        const position = protocolPositions()[index];
+        if (!position) return;
+        state.pendingCapacityAdvancePositionId = pendingCapacityAdvanceForManualSelection({
+            pendingPositionId: state.pendingCapacityAdvancePositionId,
+            selectedPositionId: position.id,
+            selectedAnswered: Boolean(state.capacityResponses[position.id]?.answered)
+        });
+        state.activeCapacityIndex = index;
+        renderCapacityList();
+        renderCapacityPosition();
+        resumePendingCapacityAdvance();
+        persistDraft();
     }
 
     function renderCapacityList() {
@@ -1276,12 +1670,7 @@ export function createDiagnosisWorkflow(controller) {
                 ? t(response.completion === 'skipped' ? 'assessment.responses.row-status.skipped' : 'assessment.responses.row-status.recorded')
                 : t(locked ? 'assessment.responses.row-status.locked' : 'assessment.responses.row-status.next');
             positionButton.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(positionName)}</strong><em>${progressLabel}</em>`;
-            positionButton.addEventListener('click', () => {
-                state.activeCapacityIndex = index;
-                renderCapacityList();
-                renderCapacityPosition();
-                persistDraft();
-            });
+            positionButton.addEventListener('click', () => openCapacityPositionManually(index));
             positionCell.append(positionButton);
             row.append(positionCell);
             ['completion', 'pain', 'weakness', 'stiffness', 'compensation'].forEach((field) => {
@@ -1492,16 +1881,55 @@ export function createDiagnosisWorkflow(controller) {
         return t('assessment.responses.status.need-required-observations');
     }
 
+    function resumePendingCapacityAdvance() {
+        const pendingId = state.pendingCapacityAdvancePositionId;
+        if (!pendingId || state.phase !== 'assessment' || state.dialogAction !== null) return;
+        const position = protocolPositions()[state.activeCapacityIndex];
+        if (position?.id !== pendingId || !state.capacityResponses[pendingId]?.answered) {
+            state.pendingCapacityAdvancePositionId = null;
+            return;
+        }
+        scheduleCapacityAdvance(position, false);
+    }
+
     function scheduleCapacityAdvance(position, wasAnswered) {
         const response = state.capacityResponses[position.id];
-        if (!response?.answered || wasAnswered) return;
+        if (!response?.answered) {
+            if (state.pendingCapacityAdvancePositionId === position.id) {
+                state.pendingCapacityAdvancePositionId = null;
+            }
+            return;
+        }
+        if (wasAnswered && state.pendingCapacityAdvancePositionId !== position.id) return;
+        state.pendingCapacityAdvancePositionId = position.id;
         byId('capacity-save-state').textContent = t(response.completion === 'skipped'
             ? 'assessment.responses.status.skipped-opening-next'
             : 'assessment.responses.status.saved-opening-next');
         const completedIndex = state.activeCapacityIndex;
+        const scheduledAssessmentId = state.assessmentId;
+        const scheduledProtocolKey = state.assessmentProtocolKey;
+        const scheduledPreviewGeneration = state.previewGeneration;
         window.setTimeout(() => {
-            if (state.activeCapacityIndex !== completedIndex || !state.capacityResponses[position.id]?.answered) return;
+            if (state.pendingCapacityAdvancePositionId !== position.id) return;
+            if (state.dialogAction !== null) return;
+            if (state.assessmentId !== scheduledAssessmentId
+                    || state.assessmentProtocolKey !== scheduledProtocolKey) {
+                state.pendingCapacityAdvancePositionId = null;
+                return;
+            }
+            if (state.activeCapacityIndex !== completedIndex
+                    || !state.capacityResponses[position.id]?.answered) {
+                state.pendingCapacityAdvancePositionId = null;
+                return;
+            }
+            if (state.phase !== 'assessment'
+                    || state.previewGeneration !== scheduledPreviewGeneration) return;
             const positions = protocolPositions();
+            if (positions[completedIndex]?.id !== position.id) {
+                state.pendingCapacityAdvancePositionId = null;
+                return;
+            }
+            state.pendingCapacityAdvancePositionId = null;
             if (state.activeCapacityIndex < positions.length - 1) {
                 state.activeCapacityIndex += 1;
                 renderCapacityList();
@@ -1694,7 +2122,8 @@ export function createDiagnosisWorkflow(controller) {
 
     function buildReport() {
         const entry = protocolEntry();
-        const runtimeModel = controller.getModel() ?? {};
+        const region = selectionRegion(entry);
+        const runtimeModel = controller.getModel(entry.regionId) ?? {};
         const model = {
             ...reportModelMetadata(runtimeModel),
             regionId: entry.regionId,
@@ -1716,9 +2145,10 @@ export function createDiagnosisWorkflow(controller) {
             assessmentProtocol: protocolReport(entry),
             assessmentContext: {
                 protocolKey: entry.key,
+                bodyRegionKey: region?.key ?? null,
                 regionId: entry.regionId,
                 profileId: entry.profileId,
-                title: entry.title,
+                title: selectionRegionTitle(region),
                 sideMode: entry.model?.sideMode ?? 'native',
                 unloadedOpenChain: entry.model?.unloadedOpenChain ?? null,
                 limitations: entry.limitations ?? [],
@@ -1788,9 +2218,13 @@ export function createDiagnosisWorkflow(controller) {
         const safetyLabel = report.safety?.positiveFlags?.length
             ? plural('assessment.report.safety.warning-selected', report.safety.positiveFlags.length)
             : t(report.safety?.reviewed ? 'assessment.report.safety.reviewed-clear' : 'assessment.report.safety.not-reviewed');
-        const reportRegion = report.assessment?.regionTitle
-            ?? (reportEntry ? protocolTitle(reportEntry) : report.assessment?.regionId)
+        const reportRegion = reportEntry
+            ? selectionRegionTitle(selectionRegion(reportEntry))
+            : report.assessment?.regionTitle ?? report.assessment?.regionId
             ?? t('common.status.not-recorded');
+        const reportSide = reportEntry?.side
+            ?? report.assessment?.testedSide
+            ?? report.intake?.assessedSide;
         const reportLimitations = Array.isArray(report.limitations) ? report.limitations : [];
         host.innerHTML = `
             <div class="diagnosis-report-summary">
@@ -1809,7 +2243,7 @@ export function createDiagnosisWorkflow(controller) {
             <h3>${e(t('assessment.report.context.title'))}</h3>
             <div class="diagnosis-report-table-wrap"><table><tbody>
                 <tr><th>${e(t('assessment.report.context.age'))}</th><td>${Number.isFinite(report.intake?.ageYears) ? e(formatNumber(report.intake.ageYears)) : dash}</td><th>${e(t('assessment.report.context.gender'))}</th><td>${e(intakeOptionLabel('gender', report.intake?.gender))}</td></tr>
-                <tr><th>${e(t('assessment.report.context.assessed-side'))}</th><td>${report.intake?.assessedSide ? e(sideLabel(report.intake.assessedSide)) : dash}</td><th>${e(t('assessment.report.context.height-weight'))}</th><td>${Number.isFinite(report.intake?.heightCm) ? `${e(formatNumber(report.intake.heightCm))} cm` : dash} / ${Number.isFinite(report.intake?.weightKg) ? `${e(formatNumber(report.intake.weightKg))} kg` : dash}</td></tr>
+                <tr><th>${e(t('assessment.report.context.assessed-side'))}</th><td>${reportSide ? e(sideLabel(reportSide)) : dash}</td><th>${e(t('assessment.report.context.height-weight'))}</th><td>${Number.isFinite(report.intake?.heightCm) ? `${e(formatNumber(report.intake.heightCm))} cm` : dash} / ${Number.isFinite(report.intake?.weightKg) ? `${e(formatNumber(report.intake.weightKg))} kg` : dash}</td></tr>
                 <tr><th>${e(t('assessment.report.context.region'))}</th><td>${e(reportRegion)}</td><th>${e(t('assessment.report.context.protocol'))}</th><td>${e(report.assessment?.assessmentProtocolId ?? t('common.status.not-recorded'))}</td></tr>
                 <tr><th>${e(t('assessment.report.context.symptom-duration'))}</th><td>${e(intakeOptionLabel('painDuration', report.intake?.symptomDuration))}</td><th>${e(t('assessment.report.context.onset'))}</th><td>${e(intakeOptionLabel('painOnset', report.intake?.symptomOnset))}</td></tr>
                 <tr><th>${e(t('assessment.report.context.safety-screen'))}</th><td colspan="3">${e(safetyLabel)}</td></tr>
@@ -1859,9 +2293,12 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     async function copyJson(buttonId = 'diagnosis-copy-json') {
-        if (!state.report) return;
+        const displayed = assessmentReportPayloadForDisplay(state);
+        if (!displayed.report) return;
         const full = buttonId === 'capacity-copy-json';
-        const payload = full ? fullReportExport(state.report, state.reportAnnex) : mainReportExport(state.report);
+        const payload = full
+            ? fullReportExport(displayed.report, displayed.technicalAnnex)
+            : mainReportExport(displayed.report);
         const text = JSON.stringify(payload, null, 2);
         await navigator.clipboard.writeText(text);
         const button = byId(buttonId);
@@ -1871,23 +2308,34 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function downloadJson(full = false) {
-        if (!state.report) return;
-        const payload = full ? fullReportExport(state.report, state.reportAnnex) : mainReportExport(state.report);
+        const displayed = assessmentReportPayloadForDisplay(state);
+        if (!displayed.report) return;
+        const payload = full
+            ? fullReportExport(displayed.report, displayed.technicalAnnex)
+            : mainReportExport(displayed.report);
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        const code = recordCode(state.report.assessment?.assessmentId);
+        const code = recordCode(displayed.report.assessment?.assessmentId);
         link.download = full ? `waajacu-record-${code}-full.json` : `waajacu-record-${code}-reduced.json`;
         link.click();
         URL.revokeObjectURL(url);
     }
 
-    function setSide(side) {
+    function syncProtocolSide({ clearReport = true } = {}) {
         const entry = protocolEntry();
-        state.testedSide = protocolSideOptions(entry).includes(side) ? side : entry.side;
+        if (!state.protocolSelectionConfirmed) {
+            state.testedSide = null;
+            controller.setMirroredView(false);
+            if (clearReport) state.report = null;
+            return;
+        }
+        state.testedSide = entry.side;
+        state.intake.assessedSide = entry.side;
+        delete state.intake.assessedArm;
         controller.setMirroredView((entry.model?.sideMode ?? 'native') === 'visual-mirror' && state.testedSide === 'left');
-        state.report = null;
+        if (clearReport) state.report = null;
     }
 
     function enter() {
@@ -1902,7 +2350,7 @@ export function createDiagnosisWorkflow(controller) {
         byId('diagnosis-workspace').classList.remove('hidden');
         document.body.classList.add('diagnosis-active');
         if (byId('mirror-view')) byId('mirror-view').hidden = true;
-        controller.setMirroredView((protocolEntry().model?.sideMode ?? 'native') === 'visual-mirror' && state.testedSide === 'left');
+        syncProtocolSide({ clearReport: false });
         window.requestAnimationFrame(controller.resizeViewer);
         if (state.phase === 'report' && state.intakeCompleted) showReportScreen();
         else if (state.phase === 'assessment' && state.intakeCompleted) showAssessment();
@@ -1929,13 +2377,13 @@ export function createDiagnosisWorkflow(controller) {
     }
 
     function returnFromReport() {
-        if (!state.viewingSavedReport) {
+        if (!state.savedReportView) {
             showAssessment();
             return;
         }
-        state.viewingSavedReport = false;
-        state.report = null;
-        if (state.phase === 'assessment' && state.intakeCompleted) showAssessment();
+        state.savedReportView = null;
+        if (state.phase === 'report' && state.report) displayReportScreen();
+        else if (state.phase === 'assessment' && state.intakeCompleted) showAssessment();
         else if (state.phase === 'intake' && state.safetyReviewed) showIntake();
         else showSafetyLanding();
     }
@@ -1955,8 +2403,9 @@ export function createDiagnosisWorkflow(controller) {
         tabs[next].focus();
     });
     byId('diagnosis-delete-all-data').addEventListener('click', requestDeleteAllLocalAssessmentData);
-    byId('diagnosis-protocol-select')?.addEventListener('change', (event) => selectAssessmentProtocol(event.target.value));
-    byId('diagnosis-start').addEventListener('click', showSafetyLanding);
+    byId('diagnosis-protocol-select')?.addEventListener('change', (event) => selectAssessmentRegion(event.target.value));
+    byId('diagnosis-protocol-side-select')?.addEventListener('change', (event) => selectAssessmentSide(event.target.value));
+    byId('diagnosis-start').addEventListener('click', continueFromProtocolPicker);
     byId('diagnosis-continue').addEventListener('click', () => {
         if (!safetyAnswersComplete()) return;
         state.safetyReviewed = true;
@@ -1971,7 +2420,10 @@ export function createDiagnosisWorkflow(controller) {
     byId('diagnosis-restart').addEventListener('click', restartAssessment);
     byId('diagnosis-report-restart').addEventListener('click', restartAssessment);
     byId('diagnosis-report-back').addEventListener('click', returnFromReport);
+    byId('diagnosis-safety-change-protocol').addEventListener('click', openProtocolPicker);
     byId('diagnosis-intake-back').addEventListener('click', showSafetyLanding);
+    byId('diagnosis-intake-change-protocol').addEventListener('click', openProtocolPicker);
+    byId('diagnosis-change-protocol').addEventListener('click', openProtocolPicker);
     byId('diagnosis-intake-form').addEventListener('input', () => {
         readIntake();
         const stored = persistDraft();
@@ -1992,16 +2444,13 @@ export function createDiagnosisWorkflow(controller) {
         }
         readIntake();
         state.intakeCompleted = true;
-        setSide(state.intake.assessedSide);
+        syncProtocolSide();
         persistDraft();
         showAssessment();
     });
     byId('capacity-previous').addEventListener('click', () => {
         if (state.activeCapacityIndex > 0) {
-            state.activeCapacityIndex -= 1;
-            renderCapacityList();
-            renderCapacityPosition();
-            persistDraft();
+            openCapacityPositionManually(state.activeCapacityIndex - 1);
         }
     });
     byId('capacity-no-symptoms').addEventListener('click', () => applyQuickCapacityResponse('full-no-symptoms'));
@@ -2015,7 +2464,7 @@ export function createDiagnosisWorkflow(controller) {
     byId('app-dialog-backdrop').addEventListener('click', closeAppDialog);
     byId('app-dialog-confirm').addEventListener('click', () => {
         const action = state.dialogAction;
-        closeAppDialog();
+        closeAppDialog(false);
         action?.();
     });
     document.addEventListener('keydown', (event) => {

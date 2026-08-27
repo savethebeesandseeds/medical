@@ -6,10 +6,14 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+    ASSESSMENT_REGIONS,
     ASSESSMENT_PROTOCOLS,
     DEFAULT_ASSESSMENT_PROTOCOL_KEY,
+    assessmentProtocolForRegionSide,
     assessmentProtocolByIdentity,
-    assessmentProtocolByKey
+    assessmentProtocolByKey,
+    assessmentRegionByKey,
+    assessmentRegionForProtocol
 } from '../public/assessment-protocol-registry.js';
 import {
     MS_HUMAN_ASSESSMENT_POSITIONS,
@@ -47,6 +51,53 @@ assert.equal(new Set(ASSESSMENT_PROTOCOLS.map((entry) => entry.key)).size, ASSES
 assert.equal(new Set(ASSESSMENT_PROTOCOLS.map((entry) => entry.reportProtocol.id)).size, ASSESSMENT_PROTOCOLS.length);
 assert.equal(new Set(ASSESSMENT_PROTOCOLS.map((entry) => entry.reportProtocol.digest)).size, ASSESSMENT_PROTOCOLS.length);
 
+const expectedAssessmentRegions = [
+    { key: 'arm', protocols: [['left', 'left-upper-limb'], ['right', 'right-upper-limb']], requiresSideSelection: true, fixedSide: null },
+    { key: 'hand', protocols: [['right', 'right-hand']], requiresSideSelection: false, fixedSide: 'right' },
+    { key: 'leg', protocols: [['left', 'left-lower-limb'], ['right', 'right-lower-limb']], requiresSideSelection: true, fixedSide: null },
+    { key: 'foot-ankle', protocols: [['left', 'left-foot-ankle'], ['right', 'right-foot-ankle']], requiresSideSelection: true, fixedSide: null },
+    { key: 'trunk', protocols: [['both', 'trunk']], requiresSideSelection: false, fixedSide: 'both' },
+    { key: 'head-neck', protocols: [['midline', 'head-neck']], requiresSideSelection: false, fixedSide: 'midline' }
+];
+assert.deepEqual(ASSESSMENT_REGIONS.map((region) => ({
+    key: region.key,
+    protocols: region.protocols.map((entry) => [entry.side, entry.key]),
+    requiresSideSelection: region.requiresSideSelection,
+    fixedSide: region.fixedSide
+})), expectedAssessmentRegions);
+assert.deepEqual(
+    ASSESSMENT_REGIONS.flatMap((region) => region.protocols.map((entry) => entry.key)).sort(),
+    ASSESSMENT_PROTOCOLS.map((entry) => entry.key).sort(),
+    'Every native assessment protocol must belong to exactly one logical body region.'
+);
+for (const region of ASSESSMENT_REGIONS) {
+    assert(Object.isFrozen(region), region.key + ': assessment region must be frozen.');
+    assert.strictEqual(assessmentRegionByKey(region.key), region);
+    assert.equal(region.sideOptions.length, new Set(region.sideOptions).size,
+        region.key + ': side options must be unique.');
+    if (region.requiresSideSelection) {
+        assert.equal(assessmentProtocolForRegionSide(region.key), null,
+            region.key + ': a bilateral region must require an explicit side.');
+    } else {
+        assert.strictEqual(assessmentProtocolForRegionSide(region.key), region.protocols[0],
+            region.key + ': a fixed-side region must resolve without an editable side.');
+    }
+    for (const entry of region.protocols) {
+        assert.strictEqual(assessmentRegionForProtocol(entry), region);
+        assert.strictEqual(assessmentRegionForProtocol(entry.key), region);
+        assert.strictEqual(assessmentProtocolForRegionSide(region.key, entry.side), entry);
+    }
+    assert.equal(assessmentProtocolForRegionSide(region.key, 'unsupported-side'), null);
+}
+assert.equal(assessmentRegionByKey('not-a-region'), null);
+assert.equal(assessmentRegionForProtocol('not-a-protocol'), null);
+assert.equal(assessmentProtocolForRegionSide('not-a-region', 'right'), null);
+assert.equal(assessmentProtocolForRegionSide('hand', 'left'), null,
+    'The hand selector must not manufacture an unsupported left-hand protocol.');
+assert.strictEqual(assessmentProtocolForRegionSide('hand', 'right'), assessmentProtocolByKey('right-hand'));
+assert.equal(assessmentProtocolForRegionSide('trunk', 'left'), null);
+assert.equal(assessmentProtocolForRegionSide('head-neck', 'right'), null);
+
 const rightArm = assessmentProtocolByKey('right-upper-limb');
 assert(rightArm);
 assert.strictEqual(rightArm.positions, MS_HUMAN_ASSESSMENT_POSITIONS);
@@ -68,6 +119,7 @@ for (const entry of ASSESSMENT_PROTOCOLS) {
         digest: bareDigest(entry.reportProtocol.digest)
     }), entry);
     assert.equal(entry.model.sideMode, 'native', entry.key + ': a protocol must use native geometry, not a visual mirror.');
+    assert.deepEqual(entry.sideOptions, [entry.side], entry.key + ': protocol side must remain native and immutable.');
     assert.equal(entry.reportProtocol.trialIds.length, entry.positions.length);
     assert.deepEqual(entry.reportProtocol.trialIds, entry.positions.map((position) => position.id));
 }
@@ -197,6 +249,20 @@ for (const entry of GENERATED_REGIONAL_ASSESSMENT_PROTOCOLS) {
 }
 
 const generatedBytes = await readFile(GENERATED_PATH, 'utf8');
+const assessmentHtml = await readFile(join(ROOT, 'public', 'index.html'), 'utf8');
+const diagnosisSource = await readFile(join(ROOT, 'public', 'diagnosis.js'), 'utf8');
+assert.match(assessmentHtml, /id="diagnosis-protocol-select"[^>]*\brequired\b/,
+    'Assessment must require an explicit logical body-region selection.');
+assert.match(assessmentHtml, /id="diagnosis-protocol-side-select"[^>]*\brequired\b/,
+    'Bilateral assessment regions must expose an explicit side selector.');
+assert.match(assessmentHtml, /id="diagnosis-start"[^>]*\bdisabled\b/,
+    'Assessment start must fail closed until region and side are confirmed.');
+assert.doesNotMatch(assessmentHtml, /name="assessedSide"/,
+    'Assessment Context must derive side from the native protocol, not show a one-option selector.');
+assert.match(diagnosisSource, /assessedSide:\s*protocolEntry\(\)\.side/,
+    'Assessment intake must derive side from the selected native protocol.');
+assert.match(diagnosisSource, /controller\.getModel\(entry\.regionId\)/,
+    'Report construction must request metadata for the selected protocol region explicitly.');
 const rebuiltBytes = execFileSync(process.execPath, [BUILDER_PATH, '--stdout'], {
     cwd: ROOT,
     encoding: 'utf8',

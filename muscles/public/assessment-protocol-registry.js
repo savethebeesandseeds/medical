@@ -94,6 +94,80 @@ export const ASSESSMENT_PROTOCOLS = Object.freeze([
 ]);
 
 const BY_KEY = new Map(ASSESSMENT_PROTOCOLS.map((entry) => [entry.key, entry]));
+
+const ASSESSMENT_REGION_DEFINITIONS = Object.freeze([
+    {
+        key: 'arm',
+        titleKey: 'explorer.regions.choices.arm',
+        title: 'Arm',
+        protocolKeys: ['left-upper-limb', 'right-upper-limb']
+    },
+    {
+        key: 'hand',
+        titleKey: 'explorer.regions.choices.hand',
+        title: 'Hand',
+        protocolKeys: ['right-hand'],
+        availabilityKey: 'assessment.protocol.hand-right-only'
+    },
+    {
+        key: 'leg',
+        titleKey: 'explorer.regions.choices.leg',
+        title: 'Leg',
+        protocolKeys: ['left-lower-limb', 'right-lower-limb']
+    },
+    {
+        key: 'foot-ankle',
+        titleKey: 'explorer.regions.choices.foot-ankle',
+        title: 'Foot and ankle',
+        protocolKeys: ['left-foot-ankle', 'right-foot-ankle']
+    },
+    {
+        key: 'trunk',
+        titleKey: 'explorer.regions.trunk.name',
+        title: 'Back and trunk',
+        protocolKeys: ['trunk']
+    },
+    {
+        key: 'head-neck',
+        titleKey: 'explorer.regions.head-neck.name',
+        title: 'Head and neck',
+        protocolKeys: ['head-neck']
+    }
+]);
+
+const assignedProtocolKeys = new Set();
+export const ASSESSMENT_REGIONS = deepFreeze(ASSESSMENT_REGION_DEFINITIONS.map((definition) => {
+    const protocols = definition.protocolKeys.map((key) => {
+        const protocol = BY_KEY.get(key);
+        if (!protocol) throw new Error(`Assessment region ${definition.key} refers to unknown protocol ${key}.`);
+        if (assignedProtocolKeys.has(key)) throw new Error(`Assessment protocol ${key} belongs to more than one body region.`);
+        assignedProtocolKeys.add(key);
+        return protocol;
+    });
+    const sides = protocols.map((protocol) => protocol.side);
+    if (new Set(sides).size !== sides.length) {
+        throw new Error(`Assessment region ${definition.key} has more than one protocol for the same side.`);
+    }
+    return {
+        ...definition,
+        protocols,
+        sideOptions: sides,
+        requiresSideSelection: protocols.length > 1,
+        fixedSide: protocols.length === 1 ? protocols[0].side : null
+    };
+}));
+
+if (assignedProtocolKeys.size !== ASSESSMENT_PROTOCOLS.length) {
+    const unassigned = ASSESSMENT_PROTOCOLS
+        .map((entry) => entry.key)
+        .filter((key) => !assignedProtocolKeys.has(key));
+    throw new Error(`Assessment protocols are missing body-region assignments: ${unassigned.join(', ')}`);
+}
+
+const REGION_BY_KEY = new Map(ASSESSMENT_REGIONS.map((region) => [region.key, region]));
+const REGION_BY_PROTOCOL_KEY = new Map(ASSESSMENT_REGIONS.flatMap((region) => (
+    region.protocols.map((protocol) => [protocol.key, region])
+)));
 const BY_IDENTITY = new Map(ASSESSMENT_PROTOCOLS.map((entry) => {
     const report = entry.reportProtocol;
     return [`${report.id}\u0000${report.version}\u0000${normalizeDigest(report.digest)}`, entry];
@@ -102,6 +176,27 @@ const BY_IDENTITY = new Map(ASSESSMENT_PROTOCOLS.map((entry) => {
 /** Return the canonical entry for a stable registry key, or null. */
 export function assessmentProtocolByKey(key) {
     return BY_KEY.get(String(key ?? '')) ?? null;
+}
+
+/** Return the canonical body-region selection group, or null. */
+export function assessmentRegionByKey(key) {
+    return REGION_BY_KEY.get(String(key ?? '')) ?? null;
+}
+
+/** Return the body-region selection group containing a protocol, or null. */
+export function assessmentRegionForProtocol(protocolOrKey) {
+    const key = typeof protocolOrKey === 'object' ? protocolOrKey?.key : protocolOrKey;
+    return REGION_BY_PROTOCOL_KEY.get(String(key ?? '')) ?? null;
+}
+
+/** Return the native protocol for a region and side, or null if unsupported. */
+export function assessmentProtocolForRegionSide(regionKey, side = null) {
+    const region = assessmentRegionByKey(regionKey);
+    if (!region) return null;
+    if (!region.requiresSideSelection && (side === null || side === undefined || side === '')) {
+        return region.protocols[0] ?? null;
+    }
+    return region.protocols.find((protocol) => protocol.side === side) ?? null;
 }
 
 /** Return the canonical entry for a persisted report identity, or null. */
