@@ -4,6 +4,18 @@ Waajacu Medical is a collection of browser-based research and educational
 tools. The repository is organized as a monorepo so each tool can keep its own
 source, verification, and licensing boundary while sharing one public catalog.
 
+## Folder layout
+
+```text
+web/                 Public catalog and site assets
+docs/                Documentation, screenshots, and branding
+projects/muscles/    Biomechanics tool, models, and verification
+.temp/               Local scratch files and generated output
+```
+
+`docs/branding/` keeps local logo assets and explorations. The assembled public
+site goes in `.temp/site/`; the source remains in `web/` and `projects/`.
+
 ## Screenshots
 
 ### Medical catalog
@@ -29,31 +41,33 @@ source, verification, and licensing boundary while sharing one public catalog.
 - `/zh/tools/muscles/` - Simplified Chinese interface
 - `/muscles/` - compatibility redirect to the canonical tool route
 
-The public site is assembled by `.github/workflows/pages.yml`. Only `site/` and each explicitly selected tool's static distribution are
-included in the GitHub Pages artifact. Development files and `tmp/` are never
-published.
+The public site is assembled by `.github/workflows/pages.yml`. Only `web/` and
+each explicitly selected tool's static distribution are copied into
+`.temp/site/` for the GitHub Pages artifact. Other development and temporary
+files are excluded.
 
 ## Tools
 
 ### Biomechanics research tool
 
-The source is in `muscles/` and its browser distribution is
-`muscles/public/`. Docker Desktop is the preferred local runtime:
+The source is in `projects/muscles/` and its browser distribution is
+`projects/muscles/public/`. Docker Desktop is the preferred local runtime.
+Run from the repository root:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\muscles\run.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\projects\muscles\run.ps1
 ```
 
 This creates or reuses the loopback-only `ms-human-muscles` container and
 serves the application at <http://127.0.0.1:8080>. See the
-[muscles README](./muscles/README.md) for container lifecycle and custom-port
+[muscles README](./projects/muscles/README.md) for container lifecycle and custom-port
 instructions. The container is only a static web host; the model and solver
 still run in the browser.
 
 The independent verification command is:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\muscles\release.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\projects\muscles\release.ps1
 ```
 
 The application runs locally in the browser. It is research and educational

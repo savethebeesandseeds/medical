@@ -11,6 +11,11 @@ The model and solver run entirely in the browser; a web server is needed only
 to serve the static files with the correct MIME types and content-security
 policy. No native model-computation backend is required.
 
+This project lives in `projects/muscles/` within the medical repository. Its
+`public/` directory contains the browser distribution; the shared catalog is
+in `../../web/`. See the [repository README](../../README.md) for the folder
+layout and public-site assembly.
+
 The current build uses module- and document-relative URLs. It can be served at
 an origin root such as `https://example.org/` or below a subpath such as
 `https://example.org/medical/`, provided the host serves `index.html` from that
@@ -46,14 +51,14 @@ changing model or protocol hashes.
 Docker Desktop is the preferred local runtime. From Windows PowerShell:
 
 ```powershell
-cd C:\Work\medical\muscles
+cd C:\Work\medical\projects\muscles
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
 The launcher creates or reuses the `ms-human-muscles` container and publishes
 the site only on <http://127.0.0.1:8080>. The first start may take a little
 longer while Docker pulls Debian and installs the small static-file runtime.
-The repository is bind-mounted into the container, so ordinary changes under
+The project directory is bind-mounted into the container, so ordinary changes under
 `public/` appear after a browser refresh without rebuilding an image or
 recreating the container. No host Python installation or direct Python server
 is needed for normal development.
@@ -196,7 +201,7 @@ timestamp; `SOURCE_DATE_EPOCH` can override it for formal reproducible-build
 systems. `-SkipGitCleanCheck` exists only for
 testing an unfinished worktree and must not be used to approve a release.
 The same gate runs before deployment through the repository's active
-`../.github/workflows/pages.yml`; it installs no project dependencies from the
+`../../.github/workflows/pages.yml`; it installs no project dependencies from the
 network.
 
 ## Individual verification and regeneration

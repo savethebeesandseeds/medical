@@ -1,9 +1,8 @@
-/tmp/
-/_site/
+/.temp/
 
 # Local logo explorations; only selected production assets are tracked.
-/assets/
-/waajacu_medical.png
+/docs/branding/explorations/
+/docs/branding/waajacu_medical.png
 
 .DS_Store
 Thumbs.db

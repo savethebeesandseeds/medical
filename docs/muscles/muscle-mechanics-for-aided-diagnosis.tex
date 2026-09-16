@@ -1,0 +1,106 @@
+\input{ieee-preamble}
+\hypersetup{
+  pdftitle={Muscle Mechanics for Aided Diagnosis},
+  pdfauthor={Santiago Restrepo Ruiz},
+  pdfsubject={Regional biomechanics and guided movement observation},
+  pdfkeywords={biomechanics, musculoskeletal modeling, static optimization,
+    WebAssembly, movement observation}
+}
+
+\title{Muscle Mechanics for Aided Diagnosis}
+\author{\IEEEauthorblockN{Santiago Restrepo Ruiz}
+\IEEEauthorblockA{Published by Waajacu Open Source Foundation\\
+\href{mailto:Santiago.Restrepo.Ruiz@gmail.com}{Santiago.Restrepo.Ruiz@gmail.com}\quad
+\url{https://medical.waajacu.com/}\\[3pt]
+\textit{Regional biomechanics and guided movement observation}}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We developed Muscles, a browser application that connects interactive anatomy,
+regional static muscle estimates and structured movement observations. It
+adapts MS-Human-700 to a client-side MuJoCo runtime, recomputes muscle paths for
+each posture, and displays activation estimates only when explicit mechanical
+checks pass. Versioned observation protocols and local reports support
+reproducible exploration. The system is intended for research and education;
+its generic model outputs are not patient measurements or diagnoses.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Biomechanics, musculoskeletal modeling, static optimization.
+\end{IEEEkeywords}
+
+\balance
+\section{Browser Architecture and Model Integration}
+The application builds on MS-Human-700~\cite{zuo2024self} and
+MuJoCo~\cite{mujoco}. Our contribution is the browser integration, regional
+calculation workflow, interactive visualization and observation/reporting
+layer. Pinned model files are compiled into browser assets with provenance
+and integrity hashes. Two documented bilateral path-coordinate corrections
+are maintained in the imported model.
+
+MuJoCo WebAssembly runs in a Web Worker, while Three.js renders the skeleton
+and muscle paths. The server delivers static files; model computation runs
+locally. Users select either arm, either leg, either foot and ankle, trunk,
+head and neck, or the detailed right hand. Each selection supplies its own
+coordinates, muscles and posture presets. The primary model supplies eight
+regions; a separate manipulation profile supplies the articulated right hand.
+The selected region is emphasized within a complete skeleton for context.
+
+\section{Static Muscle Estimation}
+For each posture, the system resets the model, applies the selected joint
+coordinates and their equality dependents, and updates tendon paths with
+their via points, wrapping contacts and pulley segments. Other coordinates
+remain prescribed. At zero velocity and acceleration, reduced-coordinate
+force balance includes gravity, passive forces and muscle actuation.
+
+Let \(a\) denote muscle activation, \(A(q)\) the activation-to-torque map at
+posture \(q\), \(b(q)\) the zero-activation torque baseline, and \(r\) unbounded reserve
+torque. The implemented bounded optimization is
+\begin{equation*}
+\begin{aligned}
+\min_{a,r}\quad & \lVert a\rVert_2^2+\lambda\lVert r\rVert_2^2\\
+\text{subject to}\quad & A(q)a+r=-b(q),\qquad 0\leq a\leq1.
+\end{aligned}
+\end{equation*}
+The solver uses \(\lambda=2500\,(\mathrm{N\,m})^{-2}\) and replays the
+solution through MuJoCo. Activation colors require a maximum absolute residual
+no greater than \(10^{-4}\,\mathrm{N\,m}\), reserve torque no greater than
+\(0.05\,\mathrm{N\,m}\), and passing path, finite-value and capacity checks.
+Failed checks suppress activation estimates. Reserve use indicates unmet
+modeled torque demand; it does not establish physiological weakness.
+
+\section{Guided Observation and Reports}
+Guided Assessment selects a body region and, where available, its explicit
+side, then loads the matching versioned protocol. The right-arm protocol
+contains 20 distinct postures selected from a deterministic 384-candidate
+atlas; the final five are supplemental. Selection sought posture variety and
+distinct generic activation patterns among mechanically acceptable candidates.
+Eight additional regional protocols extend the observation workflow.
+
+Users record movement completion and symptoms separately from model demand.
+Local, versioned records support saved reports and matched comparisons;
+protocol changes archive incompatible observations and exclude them from the
+active protocol. The main export removes direct identifiers and free text. Six interface
+languages share stable protocol identifiers and report contracts.
+
+\section{Verification and Scope}
+Repository verification checks model hashes, regional inventories, protocol
+identity, localization consistency, deployment files and HTTP behavior.
+The report suite passes 20 tests, and protocol checks cover nine definitions.
+These checks establish implementation consistency, not clinical validity.
+
+The calculation describes an unloaded static hold with prescribed support.
+It does not estimate gait, ground reaction, grip force, fatigue, injury or
+patient-specific tissue loading. Generic activation is not measured effort,
+and recorded symptoms do not identify a painful muscle. The application is
+research and educational software, not a medical device.
+
+Explore the application and its available tool routes at
+\mbox{\url{https://medical.waajacu.com/}}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\end{document}

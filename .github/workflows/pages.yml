@@ -20,7 +20,7 @@ jobs:
 
       - name: Verify the biomechanics research tool static release
         shell: powershell
-        working-directory: muscles
+        working-directory: projects/muscles
         run: >-
           powershell.exe -NoProfile -ExecutionPolicy Bypass
           -File .\release.ps1
@@ -47,75 +47,75 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/en/tools/muscles _site/es/tools/muscles _site/de/tools/muscles _site/el/tools/muscles _site/cs/tools/muscles _site/zh/tools/muscles _site/muscles
-          cp -R site/. _site/
-          cp -R muscles/public/. _site/en/tools/muscles/
-          cp -R muscles/public/. _site/es/tools/muscles/
-          cp -R muscles/public/. _site/de/tools/muscles/
-          cp -R muscles/public/. _site/el/tools/muscles/
-          cp -R muscles/public/. _site/cs/tools/muscles/
-          cp -R muscles/public/. _site/zh/tools/muscles/
-          node muscles/tools/build-localized-pages.mjs --source muscles/public --output _site
-          touch _site/.nojekyll
+          mkdir -p .temp/site/en/tools/muscles .temp/site/es/tools/muscles .temp/site/de/tools/muscles .temp/site/el/tools/muscles .temp/site/cs/tools/muscles .temp/site/zh/tools/muscles .temp/site/muscles
+          cp -R web/. .temp/site/
+          cp -R projects/muscles/public/. .temp/site/en/tools/muscles/
+          cp -R projects/muscles/public/. .temp/site/es/tools/muscles/
+          cp -R projects/muscles/public/. .temp/site/de/tools/muscles/
+          cp -R projects/muscles/public/. .temp/site/el/tools/muscles/
+          cp -R projects/muscles/public/. .temp/site/cs/tools/muscles/
+          cp -R projects/muscles/public/. .temp/site/zh/tools/muscles/
+          node projects/muscles/tools/build-localized-pages.mjs --source projects/muscles/public --output .temp/site
+          touch .temp/site/.nojekyll
 
       - name: Check assembled routes
         shell: bash
         run: |
           set -euo pipefail
-          test -f _site/index.html
-          test -f _site/waajacu_medical_no_bg.png
-          test -f _site/en/tools/muscles/index.html
-          test -f _site/en/tools/muscles/bootstrap.js
-          test -f _site/en/tools/muscles/i18n.js
-          test -f _site/en/tools/muscles/locales/en.json
-          test -f _site/es/tools/muscles/index.html
-          test -f _site/es/tools/muscles/bootstrap.js
-          test -f _site/es/tools/muscles/i18n.js
-          test -f _site/es/tools/muscles/locales/es.json
-          test -f _site/de/tools/muscles/index.html
-          test -f _site/de/tools/muscles/bootstrap.js
-          test -f _site/de/tools/muscles/i18n.js
-          test -f _site/de/tools/muscles/locales/de.json
-          test -f _site/el/tools/muscles/index.html
-          test -f _site/el/tools/muscles/bootstrap.js
-          test -f _site/el/tools/muscles/i18n.js
-          test -f _site/el/tools/muscles/locales/el.json
-          test -f _site/cs/tools/muscles/index.html
-          test -f _site/cs/tools/muscles/bootstrap.js
-          test -f _site/cs/tools/muscles/i18n.js
-          test -f _site/cs/tools/muscles/locales/cs.json
-          test -f _site/zh/tools/muscles/index.html
-          test -f _site/zh/tools/muscles/bootstrap.js
-          test -f _site/zh/tools/muscles/i18n.js
-          test -f _site/zh/tools/muscles/locales/zh-Hans.json
-          test -f _site/es/tools/muscles/vendor/mujoco.wasm
-          test -f _site/de/tools/muscles/vendor/mujoco.wasm
-          test -f _site/el/tools/muscles/vendor/mujoco.wasm
-          test -f _site/cs/tools/muscles/vendor/mujoco.wasm
-          test -f _site/zh/tools/muscles/vendor/mujoco.wasm
-          grep -Fq '<html class="i18n-loading" lang="en" dir="ltr">' _site/en/tools/muscles/index.html
-          grep -Fq '<html class="i18n-loading" lang="es" dir="ltr">' _site/es/tools/muscles/index.html
-          grep -Fq '<html class="i18n-loading" lang="de" dir="ltr">' _site/de/tools/muscles/index.html
-          grep -Fq '<html class="i18n-loading" lang="el" dir="ltr">' _site/el/tools/muscles/index.html
-          grep -Fq '<html class="i18n-loading" lang="cs" dir="ltr">' _site/cs/tools/muscles/index.html
-          grep -Fq '<html class="i18n-loading" lang="zh-Hans" dir="ltr">' _site/zh/tools/muscles/index.html
-          test -f _site/en/tools/muscles/vendor/mujoco.wasm
-          test -f _site/muscles/index.html
-          grep -Fq 'href="./en/tools/muscles/"' _site/index.html
-          grep -Fq '../en/tools/muscles/' _site/muscles/index.html
-          if find _site -type l -print -quit | grep -q .; then
+          test -f .temp/site/index.html
+          test -f .temp/site/waajacu_medical_no_bg.png
+          test -f .temp/site/en/tools/muscles/index.html
+          test -f .temp/site/en/tools/muscles/bootstrap.js
+          test -f .temp/site/en/tools/muscles/i18n.js
+          test -f .temp/site/en/tools/muscles/locales/en.json
+          test -f .temp/site/es/tools/muscles/index.html
+          test -f .temp/site/es/tools/muscles/bootstrap.js
+          test -f .temp/site/es/tools/muscles/i18n.js
+          test -f .temp/site/es/tools/muscles/locales/es.json
+          test -f .temp/site/de/tools/muscles/index.html
+          test -f .temp/site/de/tools/muscles/bootstrap.js
+          test -f .temp/site/de/tools/muscles/i18n.js
+          test -f .temp/site/de/tools/muscles/locales/de.json
+          test -f .temp/site/el/tools/muscles/index.html
+          test -f .temp/site/el/tools/muscles/bootstrap.js
+          test -f .temp/site/el/tools/muscles/i18n.js
+          test -f .temp/site/el/tools/muscles/locales/el.json
+          test -f .temp/site/cs/tools/muscles/index.html
+          test -f .temp/site/cs/tools/muscles/bootstrap.js
+          test -f .temp/site/cs/tools/muscles/i18n.js
+          test -f .temp/site/cs/tools/muscles/locales/cs.json
+          test -f .temp/site/zh/tools/muscles/index.html
+          test -f .temp/site/zh/tools/muscles/bootstrap.js
+          test -f .temp/site/zh/tools/muscles/i18n.js
+          test -f .temp/site/zh/tools/muscles/locales/zh-Hans.json
+          test -f .temp/site/es/tools/muscles/vendor/mujoco.wasm
+          test -f .temp/site/de/tools/muscles/vendor/mujoco.wasm
+          test -f .temp/site/el/tools/muscles/vendor/mujoco.wasm
+          test -f .temp/site/cs/tools/muscles/vendor/mujoco.wasm
+          test -f .temp/site/zh/tools/muscles/vendor/mujoco.wasm
+          grep -Fq '<html class="i18n-loading" lang="en" dir="ltr">' .temp/site/en/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="es" dir="ltr">' .temp/site/es/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="de" dir="ltr">' .temp/site/de/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="el" dir="ltr">' .temp/site/el/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="cs" dir="ltr">' .temp/site/cs/tools/muscles/index.html
+          grep -Fq '<html class="i18n-loading" lang="zh-Hans" dir="ltr">' .temp/site/zh/tools/muscles/index.html
+          test -f .temp/site/en/tools/muscles/vendor/mujoco.wasm
+          test -f .temp/site/muscles/index.html
+          grep -Fq 'href="./en/tools/muscles/"' .temp/site/index.html
+          grep -Fq '../en/tools/muscles/' .temp/site/muscles/index.html
+          if find .temp/site -type l -print -quit | grep -q .; then
             echo 'The Pages artifact must not contain symbolic links.' >&2
             exit 1
           fi
-          if find _site -path '*/tmp/*' -print -quit | grep -q .; then
-            echo 'The Pages artifact unexpectedly contains tmp content.' >&2
+          if find .temp/site -mindepth 1 -type d \( -name tmp -o -name .temp \) -print -quit | grep -q .; then
+            echo 'The Pages artifact unexpectedly contains temporary content.' >&2
             exit 1
           fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: _site
+          path: .temp/site
 
       - name: Deploy to GitHub Pages
         id: deployment

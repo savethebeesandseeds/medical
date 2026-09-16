@@ -1,0 +1,59 @@
+\input{ieee-preamble}
+\hypersetup{
+  pdftitle={Metabolic Recovery After Valve Replacement},
+  pdfauthor={Santiago Restrepo},
+  pdfsubject={Research proposal, September 2026},
+  pdfkeywords={cardiac metabolism, TAVR, metabolic reserve,
+    mechanistic modeling, machine learning}
+}
+
+\title{Metabolic Recovery After Valve Replacement}
+\author{\IEEEauthorblockN{Santiago Restrepo}
+\IEEEauthorblockA{\href{mailto:contact@waajacu.com}{contact@waajacu.com}\quad
+\url{https://waajacu.com/}\\[3pt]
+\textit{Research proposal --- September 2026}}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We propose a virtual metabolic stress test to investigate myocardial recovery after transcatheter aortic valve replacement (TAVR). A biochemical model would connect cardiac workload with ATP production and energy buffering, while machine learning would accelerate simulation and estimate uncertain physiological states. The research goal is to determine whether metabolic reserve improves prediction of recovery beyond clinical and imaging measurements. A public-data prototype would assess feasibility before subsequent clinical validation.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Cardiac metabolism, TAVR, mechanistic modeling, machine learning.
+\end{IEEEkeywords}
+
+\balance
+
+\section{Need and Opportunity}
+Relieving aortic valve obstruction reduces the mechanical burden on the heart, but myocardial recovery varies. In a study of 95 patients with severe aortic stenosis, myocardial energetics improved after valve replacement in patients without diabetes but remained impaired in those with diabetes~\cite{jex2023}. This motivates studying energy supply alongside mechanical unloading.
+
+Our question is whether persistent metabolic limitations help explain incomplete recovery after TAVR. The proposed output is an estimate of energetic reserve with uncertainty, to be evaluated against subsequent functional recovery.
+
+
+\section{Metabolic Modeling Framework}
+A reduced kinetic model would represent glucose, fatty-acid, lactate and ketone utilization, mitochondrial ATP production, and phosphocreatine buffering. A coupled workload model would estimate energy demand from pressure, flow, heart rate and ventricular measurements. Oxygen and substrate availability would constrain feasible metabolic responses.
+
+Bayesian or simulation-based inference would identify ranges of physiological states compatible with observations. A neural surrogate would accelerate repeated simulation after validation against the biochemical model. Public myocardial single-nucleus data would inform population-level hypotheses and priors; RNA abundance and circulating metabolite concentrations would not be interpreted as measured myocardial flux.
+
+Pretrained cell-model features could be compared with simple pathway summaries. Immediate responses to simulated unloading would remain separate from prediction of recovery over subsequent months.
+
+
+\section{Prototype and Validation}
+The initial prototype would combine a reproducible simulator with sensitivity and parameter-identifiability analyses. Public dataset GSE262690 contains myocardial data from 11 aortic-stenosis patients and nine donor controls~\cite{geo2025}. It supports molecular hypothesis generation, not validation of individual TAVR recovery. Analyses would separate donors rather than randomly splitting cells.
+
+Clinical validation would require paired pre- and post-TAVR imaging, hemodynamics, metabolic measurements and follow-up. A prespecified endpoint, such as six-month change in myocardial strain, would compare clinical and imaging prediction alone, prediction with measured metabolites, and the full mechanistic framework.
+
+Evaluation would assess added predictive value, calibration and performance in independent patients, accounting for diabetes, fibrosis, renal function and residual valve dysfunction. Myocardial energetics and perfusion measurements in a subset would test biological interpretation; the phosphocreatine-to-ATP ratio measures energetic state, not ATP-production flux.
+
+
+\section{Potential Research Application}
+The first application would be a research tool to study recovery after aortic valve replacement and identify informative follow-up measurements.
+
+CARDIOKIN1 already links cardiac metabolic capacity to valve disease and postoperative outcomes~\cite{cardiokin2021}. Our proposed contribution is longitudinal validation from clinically obtainable measurements with explicit uncertainty. A documented simulator and comparative evaluation would establish whether further development is justified.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\end{document}

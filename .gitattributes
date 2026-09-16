@@ -1,17 +1,20 @@
 # These generated and vendored artifacts are integrity-checked byte for byte
 # and must have the same LF representation on Windows and Linux runners.
-muscles/public/models/ms_human_700/body-regions.json text eol=lf
-muscles/public/models/ms_human_700/hand-region.json text eol=lf
-muscles/tools/ms-human-region-evidence.json text eol=lf
-muscles/tools/regional-assessment-evidence/*.json text eol=lf
-muscles/public/generated-regional-assessment-protocols.js text eol=lf
-muscles/public/vendor/mujoco.js text eol=lf
-muscles/public/vendor/MUJOCO_LICENSE.txt text eol=lf
-muscles/public/vendor/THREE_LICENSE.txt text eol=lf
+projects/muscles/public/models/ms_human_700/body-regions.json text eol=lf
+projects/muscles/public/models/ms_human_700/hand-region.json text eol=lf
+projects/muscles/tools/ms-human-region-evidence.json text eol=lf
+projects/muscles/tools/regional-assessment-evidence/*.json text eol=lf
+projects/muscles/public/generated-regional-assessment-protocols.js text eol=lf
+projects/muscles/public/vendor/mujoco.js text eol=lf
+projects/muscles/public/vendor/MUJOCO_LICENSE.txt text eol=lf
+projects/muscles/public/vendor/THREE_LICENSE.txt text eol=lf
 
 # The reviewed MS-Human source-tree digest was produced from its Windows
 # checkout. Keep text assets at CRLF everywhere, while preserving the two
 # locally corrected XML files whose reviewed byte representation is mixed.
-muscles/models/ms_human_700/** text=auto eol=crlf
-muscles/models/ms_human_700/assets/body_primary/Body_Arm_l.xml -text -eol -diff
-muscles/models/ms_human_700/assets/body_primary/Body_Torso_Simple.xml -text -eol -diff
+projects/muscles/models/ms_human_700/** text=auto eol=crlf
+projects/muscles/models/ms_human_700/assets/body_primary/Body_Arm_l.xml -text -eol -diff
+projects/muscles/models/ms_human_700/assets/body_primary/Body_Torso_Simple.xml -text -eol -diff
+
+# Linux document builds use the same shell source on every platform.
+docs/muscles/*.sh text eol=lf

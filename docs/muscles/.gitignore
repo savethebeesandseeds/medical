@@ -1,0 +1,10 @@
+# Compilation products belong in the repository's ignored .temp directory.
+/build/
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
