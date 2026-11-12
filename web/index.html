@@ -3,85 +3,41 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="light">
-    <meta name="description" content="Browser-based biomechanics, muscle activation, and guided movement assessment research tools from Waajacu.">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#061d32">
+    <meta name="description" content="Explore muscles and movement in 3D with Waajacu Medical. Open the model in your browser.">
     <title>Waajacu Medical</title>
-    <link rel="icon" type="image/png" href="./waajacu_medical_no_bg.png">
+    <link rel="icon" type="image/png" href="./waajacu_medical_no_bg.png?v=ae84e9b28b1a">
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
     <header class="site-header">
-        <a class="brand" href="./" aria-label="Waajacu Medical home">
-            <img src="./waajacu_medical_no_bg.png" width="56" height="56" alt="">
-            <span>Waajacu Medical</span>
-        </a>
-        <span class="research-label">Research software</span>
+        <a class="brand" href="./" aria-label="Waajacu Medical home">Waajacu Medical</a>
+        <a class="source-link" href="https://github.com/savethebeesandseeds/medical" aria-label="Source on GitHub">Source</a>
     </header>
 
     <main>
         <section class="hero" aria-labelledby="hero-title">
             <div class="hero-copy">
-                <p class="eyebrow">Medical models, in your browser</p>
-                <h1 id="hero-title">Explore the body through transparent computational tools.</h1>
-                <p class="hero-summary">
-                    Waajacu Medical brings interactive research models to the web. Calculations stay
-                    on your device, methods and limitations remain visible, and no installation is required.
-                </p>
+                <h1 id="hero-title">Waajacu <em>Medical</em></h1>
+                <p class="hero-summary">Muscle pain assessment.</p>
+                <a class="tool-link" href="./en/tools/muscles/">
+                    Explore the model
+                    <span aria-hidden="true">&rarr;</span>
+                </a>
+                <p class="browser-note">In your browser. No installation.</p>
             </div>
-            <div class="hero-mark" aria-hidden="true">
-                <span class="orbit orbit-one"></span>
-                <span class="orbit orbit-two"></span>
-                <img src="./waajacu_medical_no_bg.png" width="240" height="240" alt="">
+            <div class="hero-art">
+                <img src="./assets/medical-macaw-hero.png" width="1536" height="1024" alt="Blue macaw perched on anatomical puzzle pieces, surrounded by scientific illustrations." fetchpriority="high" decoding="async">
             </div>
         </section>
-
-        <section class="tools" aria-labelledby="tools-title">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">Available tools</p>
-                    <h2 id="tools-title">Start exploring</h2>
-                </div>
-                <p>One focused model today, with room for more medical packages as they are developed.</p>
-            </div>
-
-            <article class="tool-card">
-                <div class="tool-visual" aria-hidden="true">
-                    <img class="tool-figure" src="./muscles-wave.png" alt="">
-                </div>
-                <div class="tool-content">
-                    <div class="tool-meta">
-                        <span class="status-dot"></span>
-                        Available now
-                    </div>
-                    <h3>Explore movement and possible muscle involvement</h3>
-                    <p>
-                        See how modeled muscles respond to different positions and record what happens
-                        during guided movement checks.
-                    </p>
-                    <ul aria-label="Ways to use the tool">
-                        <li>View modeled muscle activity</li>
-                        <li>Compare comfortable and painful movements</li>
-                        <li>Note weakness, stiffness, or movement limits</li>
-                        <li>Explore possible muscle involvement</li>
-                        <li>Complete and save a guided assessment</li>
-                    </ul>
-                    <a class="tool-link" href="./en/tools/muscles/">
-                        Open tool
-                        <span aria-hidden="true">&rarr;</span>
-                    </a>
-                </div>
-            </article>
-        </section>
-
-        <aside class="use-boundary">
-            <strong>Research use only</strong>
-            <p>These tools provide generic model estimates. They are not medical devices, diagnoses, measurements of an individual, or medical advice.</p>
-        </aside>
     </main>
 
-    <footer>
-        <span>Waajacu&trade; &middot; Medical research software</span>
-        <a href="https://github.com/savethebeesandseeds/medical">Source on GitHub</a>
+    <footer class="site-footer">
+        <svg class="footer-wave" viewBox="0 0 1440 40" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path d="M0 22C210-18 355 10 560 25S890 42 1100 19 1320 25 1440 8V40H0Z" />
+        </svg>
+        <p>Research use only. Model estimates, not a diagnosis or medical advice.</p>
     </footer>
 </body>
 </html>
